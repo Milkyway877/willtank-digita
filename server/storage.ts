@@ -1,6 +1,6 @@
 import { users, type User, type InsertUser } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, lt, isNull } from "drizzle-orm";
+import { eq, and, lt, isNull, sql } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -51,28 +51,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByVerificationCode(code: string): Promise<User | undefined> {
-    const now = new Date();
     const [user] = await db
       .select()
       .from(users)
       .where(
         and(
           eq(users.verificationCode, code),
-          lt(now, users.verificationCodeExpiry as any)
+          sql`${users.verificationCodeExpiry} IS NOT NULL`,
+          sql`${users.verificationCodeExpiry} > NOW()`
         )
       );
     return user || undefined;
   }
 
   async getUserByResetToken(token: string): Promise<User | undefined> {
-    const now = new Date();
     const [user] = await db
       .select()
       .from(users)
       .where(
         and(
           eq(users.resetPasswordToken, token),
-          lt(now, users.resetPasswordExpiry as any)
+          sql`${users.resetPasswordExpiry} IS NOT NULL`,
+          sql`${users.resetPasswordExpiry} > NOW()`
         )
       );
     return user || undefined;
