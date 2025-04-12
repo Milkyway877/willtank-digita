@@ -279,12 +279,114 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // ===== Login =====
-  app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err: Error | null, user: Express.User | false, info: { message?: string }) => {
-      if (err) return next(err);
-      if (!user) return res.status(401).json({ message: info?.message || "Authentication failed" });
+  // ===== Pre-Login (Request login verification code) =====
+  app.post("/api/request-login-code", async (req, res, next) => {
+    try {
+      const { username } = req.body;
       
+      if (!username) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      
+      // Find user by email
+      const user = await storage.getUserByUsername(username.toLowerCase());
+      if (!user) {
+        // For security, don't reveal if the user doesn't exist
+        return res.status(200).json({ 
+          message: "If your account exists, a verification code has been sent to your email"
+        });
+      }
+      
+      // Check if email is verified first
+      if (!user.isEmailVerified) {
+        return res.status(400).json({ 
+          message: "Please verify your email address before logging in",
+          requiresVerification: true,
+          email: username
+        });
+      }
+      
+      // Generate login verification code
+      const loginCode = generateVerificationCode();
+      await storage.setVerificationCode(user.id, loginCode, 10); // 10 minutes expiry
+      
+      // Send login verification email
+      const emailResult = await sendVerificationEmail(user.username, loginCode);
+      
+      if (!emailResult.success) {
+        console.error(`Failed to send login verification to ${user.username}: ${emailResult.error}`);
+      }
+      
+      // Return success regardless for security
+      return res.status(200).json({ 
+        message: "Verification code sent to your email",
+        email: username
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ===== Login with Verification =====
+  app.post("/api/login", async (req, res, next) => {
+    try {
+      const { username, password, verificationCode } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      
+      // Find user by email
+      const user = await storage.getUserByUsername(username.toLowerCase());
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // Check password
+      if (!(await comparePasswords(password, user.password))) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // Check if email is verified
+      if (!user.isEmailVerified) {
+        return res.status(401).json({ 
+          message: "Please verify your email address before logging in",
+          requiresVerification: true,
+          email: username
+        });
+      }
+      
+      // Verify the login code
+      if (!verificationCode || verificationCode.length !== 6) {
+        return res.status(400).json({ 
+          message: "Verification code is required",
+          requiresLoginCode: true,
+          email: username
+        });
+      }
+      
+      // Check verification code
+      if (user.verificationCode !== verificationCode) {
+        return res.status(401).json({ 
+          message: "Invalid verification code", 
+          requiresLoginCode: true,
+          email: username
+        });
+      }
+      
+      // Verify code hasn't expired
+      if (user.verificationCodeExpiry && user.verificationCodeExpiry < new Date()) {
+        return res.status(401).json({ 
+          message: "Verification code has expired. Please request a new one.",
+          requiresLoginCode: true,
+          email: username
+        });
+      }
+      
+      // Clear verification code after successful use
+      await storage.clearVerificationCode(user.id);
+      
+      // Log the user in
       req.login(user, (loginErr: Error | null) => {
         if (loginErr) return next(loginErr);
         return res.status(200).json({
@@ -293,7 +395,9 @@ export function setupAuth(app: Express) {
           isEmailVerified: user.isEmailVerified
         });
       });
-    })(req, res, next);
+    } catch (err) {
+      next(err);
+    }
   });
 
   // ===== Forgot Password =====

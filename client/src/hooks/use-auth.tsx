@@ -26,6 +26,7 @@ type AuthContextType = {
   error: Error | null;
   refetchUser: () => Promise<any>; // Add function to manually fetch user data
   loginMutation: ReturnType<typeof useLoginMutation>;
+  requestLoginCodeMutation: ReturnType<typeof useRequestLoginCodeMutation>;
   logoutMutation: ReturnType<typeof useLogoutMutation>;
   registerMutation: ReturnType<typeof useRegisterMutation>;
   verifyEmailMutation: ReturnType<typeof useVerifyEmailMutation>;
@@ -35,17 +36,50 @@ type AuthContextType = {
 };
 
 type LoginData = Pick<InsertUser, "username" | "password">;
+type LoginWithCodeData = LoginData & { verificationCode: string };
+type RequestLoginCodeData = { username: string };
 type VerifyEmailData = { email: string; code: string };
 type ResendVerificationData = { email: string };
 type ForgotPasswordData = { email: string };
 type ResetPasswordData = { token: string; password: string };
 
 // Custom hooks for auth operations
+
+// Request login verification code
+function useRequestLoginCodeMutation() {
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async (data: RequestLoginCodeData) => {
+      const res = await apiRequest("POST", "/api/request-login-code", data);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to request login code");
+      }
+      return await res.json();
+    },
+    onSuccess: (response) => {
+      toast({
+        title: "Verification code sent",
+        description: response.message || "A verification code has been sent to your email for login.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Verification request failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+// Login with verification code
 function useLoginMutation() {
   const { toast } = useToast();
   
   return useMutation({
-    mutationFn: async (credentials: LoginData) => {
+    mutationFn: async (credentials: LoginWithCodeData) => {
       const res = await apiRequest("POST", "/api/login", credentials);
       return await res.json();
     },
@@ -255,6 +289,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const loginMutation = useLoginMutation();
+  const requestLoginCodeMutation = useRequestLoginCodeMutation();
   const registerMutation = useRegisterMutation();
   const logoutMutation = useLogoutMutation();
   const verifyEmailMutation = useVerifyEmailMutation();
@@ -275,6 +310,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error,
         refetchUser,
         loginMutation,
+        requestLoginCodeMutation,
         logoutMutation,
         registerMutation,
         verifyEmailMutation,
