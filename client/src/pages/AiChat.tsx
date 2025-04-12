@@ -383,15 +383,19 @@ const AiChat: React.FC = () => {
       else if (fieldName === 'executorName') {
         return {
           ...newData,
-          executor: { name: value, relationship: '' }
+          executor: { 
+            name: value, 
+            relationship: newData.executor?.relationship || ''
+          }
         };
       }
-      else if (fieldName === 'executorRelationship') {
+      else if (fieldName === 'executorRelationship' && newData.executor) {
         return {
           ...newData,
           executor: { 
-            ...newData.executor,
-            relationship: value 
+            name: newData.executor.name,
+            relationship: value,
+            contact: newData.executor.contact
           }
         };
       }

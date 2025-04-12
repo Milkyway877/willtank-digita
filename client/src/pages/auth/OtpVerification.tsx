@@ -49,18 +49,18 @@ const OtpVerification: React.FC = () => {
   
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
     // Navigate with arrow keys
-    if (e.key === 'ArrowLeft' && index > 0 && inputRefs.current[index - 1]) {
-      inputRefs.current[index - 1].focus();
-    } else if (e.key === 'ArrowRight' && index < 5 && inputRefs.current[index + 1]) {
-      inputRefs.current[index + 1].focus();
+    if (e.key === 'ArrowLeft' && index > 0) {
+      inputRefs.current?.[index - 1]?.focus();
+    } else if (e.key === 'ArrowRight' && index < 5) {
+      inputRefs.current?.[index + 1]?.focus();
     }
     
     // Go to previous on backspace if current input is empty
-    if (e.key === 'Backspace' && !otp[index] && index > 0 && inputRefs.current[index - 1]) {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
       const newOtp = [...otp];
       newOtp[index - 1] = '';
       setOtp(newOtp);
-      inputRefs.current[index - 1].focus();
+      inputRefs.current?.[index - 1]?.focus();
     }
   };
   
