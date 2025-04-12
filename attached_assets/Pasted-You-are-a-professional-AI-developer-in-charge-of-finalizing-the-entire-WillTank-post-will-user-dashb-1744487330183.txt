@@ -1,0 +1,77 @@
+You are a professional AI developer in charge of finalizing the entire WillTank post-will user dashboard system. The full frontend layout, styles, and components have already been created. Your job now is to:
+
+🚨 CORE MISSION:
+Ensure that **every page, link, section, and button is fully functional** — no placeholders, no dummy data, and no non-working links.
+
+⚠️ DO NOT:
+- Create any new pages that were not requested.
+- Break the existing UI/UX or animations.
+- Add sample or dummy data.
+- Overwrite working styles or layout logic.
+
+---
+
+📌 WHAT TO DO:
+
+1. **VISIT EVERY PAGE** in the WillTank frontend:
+   - `/dashboard`
+   - `/checkin`
+   - Any components connected via `Sidebar.js` like `WillDocumentCard`, `SupportingDocuments`, `VideoSection`, `Beneficiaries`, `DeliveryInstructions`, `PlanBilling`, `Settings`, and `LiveDocPreview`
+
+2. **ENSURE EVERY BUTTON, FORM, AND INTERACTION WORKS.**
+   - Buttons should **route properly**.
+   - Inputs should **save and reflect actual data**.
+   - Uploads should work (use mock logic if no backend exists, but no placeholders).
+   - Check if clicking "Edit Will" routes to the AI Q&A flow.
+   - On `/checkin`, make sure all buttons lead to their respective pages.
+
+3. **MAKE EACH SECTION INTERACTIVE**:
+   - If a user adds a beneficiary, the form should work, save, and be visible.
+   - If a user uploads a document, show the uploaded file preview or name.
+   - The live preview section should reflect user answers (or show a generated template if no answers yet).
+
+4. **LINK ALL BUTTONS AND ACTIONS TO REAL HANDLERS.**
+   - Use `onClick` and `onSubmit` properly.
+   - Ensure data entry saves to state or backend integration if present (e.g., Supabase, Firebase, LocalStorage).
+   - Make forms functional using React hooks (e.g., useState/useEffect/useContext or useForm).
+
+5. **CONFIRM NAVIGATION IS SMOOTH AND STATE IS MAINTAINED.**
+   - When navigating from section to section, persist user data.
+   - Do not reset fields unless explicitly meant to.
+   - Route correctly on "Continue", "Edit", or "Finalize".
+
+6. **ENSURE AUTHENTICITY OF ALL TEXT.**
+   - No lorem ipsum, no placeholders.
+   - Use real WillTank copywriting or reasonable smart defaults.
+   - WelcomeBanner should greet user by name if available from auth context.
+
+7. **DO NOT RENDER ANYTHING UNREQUESTED.**
+   - Do not add blog pages, settings pages unrelated to will planning, etc.
+   - Stick strictly to the WillTank process.
+
+---
+
+📦 TECHNOLOGIES IN USE:
+- TailwindCSS
+- React / Next.js
+- Framer Motion
+- Clerk or custom auth (if integrated)
+- Optional: Supabase or Firebase (if available)
+
+---
+
+🛠️ EXAMPLES TO FOLLOW:
+- Buttons like `Edit My Will`, `Upload ID`, `Add Beneficiary`, and `Finalize Will` should work end-to-end
+- If “Upload” logic exists, use a mock function that simulates uploading and shows filename or filecard
+- If beneficiary data is added, it should persist via state/context/api
+- If a section is marked “Complete,” show a checkmark or completion status
+
+---
+
+🔥 END GOAL:
+Turn the current WillTank Dashboard and Check-In system into a **fully functional, user-ready product** with real interactions, working links, fully wired buttons, and no broken UX or UI.
+
+This should feel like a **sealed vault**, with total confidence and control.
+
+When done, test every part to verify its stability, accuracy, and polish.
+

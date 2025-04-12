@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FileText, Download, Share, Edit, Eye, ArrowRight } from 'lucide-react';
 import { useLocation } from 'wouter';
@@ -14,6 +14,15 @@ const WillDocumentCard: React.FC<WillDocumentCardProps> = ({
 }) => {
   const [isPreviewHovered, setIsPreviewHovered] = useState(false);
   const [, navigate] = useLocation();
+  const [willDocument, setWillDocument] = useState<string>('');
+
+  useEffect(() => {
+    // Get will document from localStorage
+    const savedWill = localStorage.getItem('willFinalDocument');
+    if (savedWill) {
+      setWillDocument(savedWill);
+    }
+  }, []);
 
   const handleEditClick = () => {
     navigate('/ai-chat');
@@ -21,6 +30,29 @@ const WillDocumentCard: React.FC<WillDocumentCardProps> = ({
 
   const handleViewPreview = () => {
     navigate('/dashboard/will');
+  };
+
+  const handleDownloadWill = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent click from triggering other handlers
+
+    try {
+      const content = willDocument || 'Default will template - please edit your will using the AI assistant.';
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'WillTank_Document.txt';
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+    } catch (error) {
+      console.error("Error downloading document:", error);
+    }
   };
 
   return (
@@ -32,10 +64,19 @@ const WillDocumentCard: React.FC<WillDocumentCardProps> = ({
           <h3 className="font-semibold text-gray-800 dark:text-white">My Will</h3>
         </div>
         <div className="flex space-x-1">
-          <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">
+          <button 
+            onClick={handleDownloadWill}
+            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+          >
             <Download className="h-4 w-4" />
           </button>
-          <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              alert('Sharing functionality would be implemented here');
+            }}
+            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+          >
             <Share className="h-4 w-4" />
           </button>
           <button 
