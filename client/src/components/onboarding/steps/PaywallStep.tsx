@@ -71,8 +71,10 @@ const PaywallStep: React.FC<PaywallStepProps> = ({ onNext }) => {
     return price === 0 ? 'Free' : `$${price.toFixed(2)}`
   }
 
-  const handleSubscribe = () => {
-    // Redirect to the subscription page
+  const handleSubscribe = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Navigate directly to the subscription page without going through onNext
     navigate('/subscription');
   }
 

@@ -76,16 +76,22 @@ const SubscriptionPage = () => {
   const handlePurchase = async () => {
     setIsProcessing(true);
     
-    // Simulate API call for subscription processing
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setIsProcessing(false);
-    setIsSuccess(true);
-    
-    // Show success for a few seconds before redirecting
-    setTimeout(() => {
-      navigate('/template-selection');
-    }, 3000);
+    try {
+      // Simulate API call for subscription processing
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setIsProcessing(false);
+      setIsSuccess(true);
+      
+      // Show success for a few seconds before redirecting
+      setTimeout(() => {
+        navigate('/template-selection');
+      }, 3000);
+    } catch (error) {
+      console.error("Error processing subscription:", error);
+      setIsProcessing(false);
+      // Show error message if needed
+    }
   };
 
   // Adjust price for yearly billing (20% discount)
@@ -289,7 +295,11 @@ const SubscriptionPage = () => {
               animate={{ opacity: 1, y: 0, transition: { delay: 0.3 } }}
             >
               <button 
-                onClick={() => navigate('/template-selection')}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigate('/template-selection');
+                }}
                 className="px-8 py-3 rounded-lg bg-primary text-white font-medium shadow-sm hover:bg-primary-dark transition-colors"
               >
                 Proceed to Will Creation
