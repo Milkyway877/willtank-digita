@@ -1,0 +1,90 @@
+You are a top-tier UX/UI designer and front-end engineer. Build me a **state-of-the-art, emotionally intelligent onboarding experience** for a product called **WillTank** – a secure, AI-powered platform that helps people create and deliver their wills.
+
+🎯 GOAL:
+Create an onboarding flow that makes users feel:
+- Welcomed like family
+- Secure and respected
+- Guided, not overwhelmed
+- Inspired to complete the journey
+
+📌 STRUCTURE:  
+Create a **multi-step progressive onboarding** experience with smooth transitions. Break it into 4–6 beautiful, animated, skippable steps.
+
+✅ MUST INCLUDE:
+
+1. **Welcome Screen**  
+   - Big greeting: “Welcome to WillTank”  
+   - Subtitle: “Let’s help you protect what matters most.”  
+   - Add Skyler (the AI assistant avatar) saying something friendly (text bubble)  
+   - CTA: “Let’s begin”  
+
+2. **Why We Exist**  
+   - Short animated or sliding panel showing:
+     - The power of legacy
+     - How WillTank simplifies legal complexity
+     - How Skyler, your AI assistant, will help
+   - Animated illustrations or icons
+   - CTA: “Next” / “Got it!”
+
+3. **Customize Experience**  
+   - Ask: "What brings you to WillTank?"
+     - Options: “Create a will”, “Update an existing one”, “Plan for someone else”, “Just exploring”
+   - Visually interactive option buttons with icons
+   - CTA: “Continue”
+
+4. **Security & Trust Panel**  
+   - Show our encryption, AI transparency, executor controls
+   - Make it calming: soft purple-blue gradient background
+   - Include testimonials or stats: “Over 10,000 wills created with peace of mind.”
+   - CTA: “Let’s proceed”
+
+5. **Choose a Will Template**  
+   - Grid of template cards (Minimal, Family-Based, Business-Focused, Quick Start)
+   - Each card has a short description + icon
+   - Select one to proceed
+   - CTA: “Start My Will”
+
+6. **Final Step: Enter Skyler’s Workspace**  
+   - Show animation of “setting up your workspace”
+   - Show Skyler with animation or typing effect:  
+     “We’re ready to begin your legacy journey.”
+   - CTA: “Enter Workspace”
+
+🚧 OPTIONAL:
+- “Skip onboarding” link always available
+- Progress bar or dots (non-intrusive) to show steps
+- Allow user to go back or restart onboarding
+
+🎟️ AT THE END — SHOW A PAYWALL:
+- Beautiful final screen:  
+  “You’re one step away from securing your legacy.”
+- Show plan options:
+  - Free Plan (basic)
+  - Premium Plan (advanced tools, video vault, executor controls)
+- Use toggle between Monthly / Yearly
+- Clear, modern pricing UI with a CTA: “Subscribe & Start”
+- Payment button styled with Stripe (if available)
+
+🎨 DESIGN STYLE:
+- Use soft, gradient animated backgrounds (like slow aurora)
+- Friendly but elegant typography (use Sora, Poppins, or Inter)
+- Use Lottie animations or SVGs for smooth transitions
+- Smooth entrance/exit transitions between steps (Framer Motion or similar)
+- Slight parallax or float on background elements for depth
+
+🧱 TECH STACK:
+- React (ideal) with Tailwind CSS
+- Modular components for each step
+- Full responsiveness (desktop/tablet/mobile)
+- Use reusable components for steps, buttons, etc.
+
+🎁 FINAL OUTPUT:
+→ A complete, progressive onboarding experience with beautiful UI  
+→ Fully functional logic (step navigation, template selection, etc.)  
+→ Ready to drop into a production React app  
+→ Includes the final paywall screen with pricing + Stripe-ready layout
+
+💬 VIBE:
+Futuristic. Human. Secure. Emotional. Easy. Like you're being welcomed into a family that takes care of your legacy.
+
+Deliver magic.

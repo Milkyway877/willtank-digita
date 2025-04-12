@@ -2,11 +2,51 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 import { Link } from 'wouter'
+import { Globe } from '@/components/ui/globe'
 
 const HeroSection: React.FC = () => {
   return (
     <section id="home" className="pt-32 pb-20 relative overflow-hidden">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Globe background */}
+      <div className="absolute inset-0 overflow-hidden z-0 opacity-40">
+        <div className="w-full h-full">
+          <Globe 
+            className="scale-150 opacity-80" 
+            config={{
+              width: 800,
+              height: 800,
+              onRender: () => {},
+              devicePixelRatio: 2,
+              phi: 0,
+              theta: 0.3,
+              dark: 0,
+              diffuse: 0.4,
+              mapSamples: 16000,
+              mapBrightness: 1.2,
+              baseColor: [0.3, 0.3, 1],
+              markerColor: [251 / 255, 100 / 255, 21 / 255],
+              glowColor: [0.2, 0.4, 1],
+              markers: [
+                { location: [14.5995, 120.9842], size: 0.03 },
+                { location: [19.076, 72.8777], size: 0.1 },
+                { location: [23.8103, 90.4125], size: 0.05 },
+                { location: [30.0444, 31.2357], size: 0.07 },
+                { location: [39.9042, 116.4074], size: 0.08 },
+                { location: [-23.5505, -46.6333], size: 0.1 },
+                { location: [19.4326, -99.1332], size: 0.1 },
+                { location: [40.7128, -74.006], size: 0.1 },
+                { location: [34.6937, 135.5022], size: 0.05 },
+                { location: [41.0082, 28.9784], size: 0.06 },
+              ],
+            }}
+          />
+        </div>
+      </div>
+      
+      {/* Gradient overlay to enhance content visibility */}
+      <div className="absolute inset-0 bg-gradient-to-r from-white to-white/80 dark:from-black/80 dark:to-black/40 z-0"></div>
+
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -68,7 +108,7 @@ const HeroSection: React.FC = () => {
         </div>
       </div>
       
-      <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 hidden md:block">
+      <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 hidden md:block z-10">
         <a 
           href="#how-it-works" 
           className="text-neutral-400 hover:text-primary transition-colors"
