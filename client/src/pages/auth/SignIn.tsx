@@ -1,30 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Mail, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { FcGoogle } from 'react-icons/fc';
 
 import AuthLayout from '@/components/auth/AuthLayout';
 import AuthInput from '@/components/auth/AuthInput';
 import AuthButton from '@/components/auth/AuthButton';
+import { useAuth } from '@/hooks/use-auth';
 
 const SignIn: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-  const [errors, setErrors] = useState<{email?: string; password?: string}>({});
-  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<{username?: string; password?: string}>({});
   const [authStatus, setAuthStatus] = useState<{type?: 'success' | 'error'; message?: string}>({});
   
+  const { user, loginMutation } = useAuth();
+  const [, navigate] = useLocation();
+  
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+  
   const validateForm = () => {
-    const newErrors: {email?: string; password?: string} = {};
+    const newErrors: {username?: string; password?: string} = {};
     let isValid = true;
     
-    if (!email.trim()) {
-      newErrors.email = 'Email is required';
-      isValid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Please enter a valid email address';
+    if (!username.trim()) {
+      newErrors.username = 'Username is required';
       isValid = false;
     }
     
@@ -45,38 +52,22 @@ const SignIn: React.FC = () => {
     
     if (!validateForm()) return;
     
-    setIsLoading(true);
     setAuthStatus({});
     
-    // Simulate API call
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await loginMutation.mutateAsync({ 
+        username, 
+        password 
+      });
       
-      // Temporary successful sign in logic
-      // This would be replaced with actual authentication API call
-      if (email === 'demo@willtank.com' && password === 'password123') {
-        setAuthStatus({
-          type: 'success',
-          message: 'Sign in successful! Redirecting...'
-        });
-        
-        // Redirect after successful login
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 1500);
-      } else {
-        setAuthStatus({
-          type: 'error',
-          message: 'Invalid email or password'
-        });
-      }
+      // Success status is handled by the hook
+      // Navigate to home on success (handled by useEffect)
+      
     } catch (error) {
       setAuthStatus({
         type: 'error',
-        message: 'Something went wrong. Please try again.'
+        message: error instanceof Error ? error.message : 'Something went wrong. Please try again.'
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -119,14 +110,14 @@ const SignIn: React.FC = () => {
         
         <form onSubmit={handleSubmit}>
           <AuthInput
-            label="Email"
-            type="email"
-            name="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            error={errors.email}
+            label="Username"
+            type="text"
+            name="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            error={errors.username}
             icon={<Mail className="h-5 w-5" />}
-            autoComplete="email"
+            autoComplete="username"
             required
           />
           
@@ -159,7 +150,7 @@ const SignIn: React.FC = () => {
           </div>
           
           <div className="space-y-4">
-            <AuthButton type="submit" isLoading={isLoading}>
+            <AuthButton type="submit" isLoading={loginMutation.isPending}>
               Sign In
             </AuthButton>
             
@@ -173,6 +164,7 @@ const SignIn: React.FC = () => {
               type="button"
               variant="social"
               icon={<FcGoogle className="h-5 w-5" />}
+              isLoading={false}
             >
               Continue with Google
             </AuthButton>
