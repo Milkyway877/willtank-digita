@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useIsMobile } from '@/hooks/use-mobile';
+import Logo from '@/components/ui/Logo';
 
 const menuItems = [
   { icon: Home, label: 'Dashboard', path: '/dashboard' },
@@ -133,9 +134,8 @@ const Sidebar: React.FC = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2 }}
-                className="text-primary font-bold text-xl"
               >
-                WillTank
+                <Logo size="md" withText={true} />
               </motion.div>
             ) : (
               <motion.div
@@ -144,9 +144,8 @@ const Sidebar: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.2 }}
-                className="text-primary font-bold text-xl"
               >
-                W
+                <Logo size="sm" withText={false} />
               </motion.div>
             )}
           </AnimatePresence>
