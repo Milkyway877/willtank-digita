@@ -1,5 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+// Import logo directly
+import logoSrc from '../../assets/willvault-removebg-preview.png';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';
@@ -30,7 +32,7 @@ export const Logo: React.FC<LogoProps> = ({
   return (
     <div className={`flex items-center ${className}`}>
       <motion.img 
-        src="/images/logo.png" 
+        src={logoSrc} 
         alt="WillTank Logo" 
         width={logoSize} 
         height={logoSize}
