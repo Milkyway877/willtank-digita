@@ -29,7 +29,9 @@ const VideoRecording: React.FC = () => {
   // Check for will data and document upload status
   useEffect(() => {
     const willData = localStorage.getItem('willData');
-    if (!willData) {
+    // Make this check less strict to prevent navigation loops
+    // Now we'll only redirect if user is clearly out of sequence
+    if (!willData && !localStorage.getItem('selectedWillTemplate')) {
       navigate('/ai-chat');
     }
   }, [navigate]);
@@ -37,43 +39,102 @@ const VideoRecording: React.FC = () => {
   // Clean up media resources when component unmounts
   useEffect(() => {
     return () => {
+      // Stop all media tracks
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
       
+      // Clear any timers
       if (timerRef.current) {
         clearInterval(timerRef.current);
+      }
+      
+      // Revoke any blob URLs to prevent memory leaks
+      if (videoRef.current && videoRef.current.src && videoRef.current.src.startsWith('blob:')) {
+        URL.revokeObjectURL(videoRef.current.src);
+      }
+      
+      // Clean up MediaRecorder if it exists
+      if (mediaRecorderRef.current) {
+        try {
+          if (mediaRecorderRef.current.state === 'recording' || mediaRecorderRef.current.state === 'paused') {
+            mediaRecorderRef.current.stop();
+          }
+          // Remove event listeners
+          mediaRecorderRef.current.ondataavailable = null;
+          mediaRecorderRef.current.onerror = null;
+        } catch (err) {
+          console.warn('Error cleaning up MediaRecorder:', err);
+        }
       }
     };
   }, []);
 
-  // Initialize camera
+  // Initialize camera with better error handling and fallback options
   const initializeCamera = async () => {
     setStatus('requesting');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user'
-        }, 
-        audio: true 
-      });
-      
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+      // First try with ideal settings
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          }, 
+          audio: true 
+        });
+        
+        streamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+        
+        setStatus('idle');
+      } catch (initialError) {
+        console.warn('Initial camera settings failed, trying fallback:', initialError);
+        
+        // Fallback to minimal settings
+        const fallbackStream = await navigator.mediaDevices.getUserMedia({ 
+          video: true, 
+          audio: true 
+        });
+        
+        streamRef.current = fallbackStream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = fallbackStream;
+        }
+        
+        setStatus('idle');
       }
-      
-      setStatus('idle');
     } catch (error) {
-      console.error('Error accessing camera:', error);
+      console.error('Error accessing camera (all attempts failed):', error);
       setStatus('error');
-      setErrorMessage('Camera access was denied or unavailable. Please ensure your browser has camera permissions.');
+      setErrorMessage('Camera access was denied or unavailable. Please ensure your browser has camera permissions and that no other application is using your camera.');
     }
   };
 
-  // Start recording
+  // Get supported MIME type for recording
+  const getSupportedMimeType = () => {
+    const types = [
+      'video/webm',
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=vp9,opus',
+      'video/mp4',
+      'video/mp4;codecs=h264,aac'
+    ];
+    
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        return type;
+      }
+    }
+    
+    // Fallback to most common
+    return 'video/webm';
+  };
+
+  // Start recording with improved browser compatibility
   const startRecording = () => {
     if (!streamRef.current) return;
     
@@ -86,15 +147,34 @@ const VideoRecording: React.FC = () => {
     }, 1000);
     
     try {
-      const mediaRecorder = new MediaRecorder(streamRef.current, {
-        mimeType: 'video/webm'
-      });
+      // Get supported MIME type
+      const mimeType = getSupportedMimeType();
+      console.log('Using supported MIME type:', mimeType);
       
+      // Create MediaRecorder with appropriate settings
+      const recorderOptions = {
+        mimeType,
+        videoBitsPerSecond: 2500000 // 2.5 Mbps
+      };
+      
+      const mediaRecorder = new MediaRecorder(streamRef.current, recorderOptions);
       mediaRecorderRef.current = mediaRecorder;
       
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        if (event.data && event.data.size > 0) {
           setRecordedChunks(prev => [...prev, event.data]);
+        }
+      };
+      
+      // Handle errors during recording
+      mediaRecorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event);
+        setStatus('error');
+        setErrorMessage('An error occurred during recording. Please try again.');
+        
+        // Clean up
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
         }
       };
       
@@ -103,7 +183,12 @@ const VideoRecording: React.FC = () => {
     } catch (error) {
       console.error('Error starting recording:', error);
       setStatus('error');
-      setErrorMessage('Unable to start recording. Please try again or use a different browser.');
+      setErrorMessage('Unable to start recording. Please ensure your browser supports video recording or try a different browser.');
+      
+      // Clean up
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
     }
   };
 
@@ -155,18 +240,56 @@ const VideoRecording: React.FC = () => {
     }
   };
 
-  // Play recorded video
+  // Play recorded video with enhanced error handling
   const playRecordedVideo = () => {
     if (recordedChunks.length === 0) return;
     
-    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-    if (videoRef.current) {
-      videoRef.current.src = URL.createObjectURL(blob);
-      videoRef.current.controls = true;
-      videoRef.current.onplay = () => setStatus('playing');
-      videoRef.current.onpause = () => setStatus('recorded');
-      videoRef.current.onended = () => setStatus('recorded');
-      videoRef.current.play();
+    try {
+      // Determine the mime type for blob creation
+      let mimeType = 'video/webm';
+      if (recordedChunks[0] && recordedChunks[0].type) {
+        mimeType = recordedChunks[0].type;
+      }
+      
+      const blob = new Blob(recordedChunks, { type: mimeType });
+      if (videoRef.current) {
+        // Revoke any previous object URL to prevent memory leaks
+        if (videoRef.current.src && videoRef.current.src.startsWith('blob:')) {
+          URL.revokeObjectURL(videoRef.current.src);
+        }
+        
+        // Create and set the new object URL
+        const objectUrl = URL.createObjectURL(blob);
+        videoRef.current.src = objectUrl;
+        videoRef.current.controls = true;
+        
+        // Set up event handlers
+        videoRef.current.onplay = () => setStatus('playing');
+        videoRef.current.onpause = () => setStatus('recorded');
+        videoRef.current.onended = () => setStatus('recorded');
+        videoRef.current.onerror = (e) => {
+          console.error('Video playback error:', e);
+          setStatus('error');
+          setErrorMessage('Unable to play back the recording. This may be due to browser compatibility issues.');
+        };
+        
+        // Start playback
+        const playPromise = videoRef.current.play();
+        
+        // Handle asynchronous play() promise
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.error('Playback failed:', error);
+            // This often happens when user hasn't interacted with the page yet
+            // Just revert to recorded state, don't show error
+            setStatus('recorded');
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error during video playback setup:', error);
+      setStatus('error');
+      setErrorMessage('Unable to prepare video for playback. Please try recording again.');
     }
   };
 
