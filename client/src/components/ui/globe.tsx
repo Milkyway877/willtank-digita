@@ -58,13 +58,13 @@ export function Globe({
     if (pointerInteracting.current !== null) {
       const delta = clientX - pointerInteracting.current
       pointerInteractionMovement.current = delta
-      setR(delta / 200)
+      setR(delta / 600) // Reducing sensitivity to 1/3 of original for smoother interaction
     }
   }
 
   const onRender = useCallback(
     (state: Record<string, any>) => {
-      if (!pointerInteracting.current) phi += 0.005
+      if (!pointerInteracting.current) phi += 0.0005 // Much slower rotation, 10x slower
       state.phi = phi + r
       state.width = width * 2
       state.height = width * 2
@@ -103,7 +103,7 @@ export function Globe({
       <div className="absolute inset-0 bg-blue-500 opacity-5 rounded-full blur-3xl animate-pulse"></div>
       <canvas
         className={cn(
-          "size-full opacity-0 transition-opacity duration-300 [contain:layout_paint_size] animate-[spin_60s_linear_infinite]",
+          "size-full opacity-0 transition-opacity duration-300 [contain:layout_paint_size]",
         )}
         ref={canvasRef}
         onPointerDown={(e) =>
