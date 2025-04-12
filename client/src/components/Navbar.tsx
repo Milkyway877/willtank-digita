@@ -10,19 +10,28 @@ import {
   HelpCircle, 
   Phone,
   LogIn,
-  UserPlus 
+  UserPlus,
+  LayoutDashboard,
+  LogOut
 } from 'lucide-react'
 import { Link, useLocation } from 'wouter'
 import { ExpandableTabs } from '@/components/ui/expandable-tabs'
+import { useAuth } from '@/hooks/use-auth'
 
 const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [selectedTab, setSelectedTab] = useState<number | null>(null)
   const [currentLocation, setLocation] = useLocation()
+  const { user, logoutMutation } = useAuth();
 
   // Don't show the navbar on auth pages
   if (currentLocation.startsWith('/auth')) {
+    return null
+  }
+  
+  // Don't show the navbar on dashboard or onboarding pages
+  if (currentLocation.startsWith('/dashboard') || currentLocation.startsWith('/onboarding')) {
     return null
   }
 
@@ -48,10 +57,16 @@ const Navbar: React.FC = () => {
     { title: "Contact", icon: Phone },
   ]
 
-  const authItems = [
-    { title: "Login", icon: LogIn },
-    { title: "Sign Up", icon: UserPlus },
-  ]
+  // Show different auth options depending on whether user is logged in
+  const authItems = user 
+    ? [ 
+        { title: "Dashboard", icon: LayoutDashboard },
+        { title: "Logout", icon: LogOut },
+      ]
+    : [
+        { title: "Login", icon: LogIn },
+        { title: "Sign Up", icon: UserPlus },
+      ]
 
   const scrollToSection = (id: string) => {
     setMobileMenuOpen(false)
@@ -91,10 +106,23 @@ const Navbar: React.FC = () => {
   }
 
   const handleAuthItemClick = (index: number | null) => {
-    if (index === 0) {
-      setLocation('/auth/sign-in')
-    } else if (index === 1) {
-      setLocation('/auth/sign-up')
+    if (user) {
+      // Authenticated user options
+      if (index === 0) {
+        // Dashboard
+        setLocation('/dashboard');
+      } else if (index === 1) {
+        // Logout
+        logoutMutation.mutate();
+        setLocation('/');
+      }
+    } else {
+      // Non-authenticated user options
+      if (index === 0) {
+        setLocation('/auth/sign-in');
+      } else if (index === 1) {
+        setLocation('/auth/sign-up');
+      }
     }
   }
 
