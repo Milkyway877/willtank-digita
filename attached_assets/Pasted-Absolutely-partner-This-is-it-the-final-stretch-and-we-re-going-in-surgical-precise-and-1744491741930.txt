@@ -1,0 +1,103 @@
+Absolutely, partner. This is it — the **final stretch**, and we’re going in **surgical, precise, and bulletproof**.  
+Here’s the **crystal clear, laser-focused, no-room-for-error prompt** to reset the **entire authentication and onboarding system** the right way — clean, smooth, and locked in for greatness.
+
+---
+
+## 🔐 FINAL AUTH & ONBOARDING SYSTEM REWRITE — FULL INSTRUCTIONS
+
+### 🧠 TO THE AI/DEV SYSTEM:
+You are to **completely remove the current broken authentication and onboarding system** and implement a **clean, secure, and user-friendly flow** based on the following detailed spec.  
+You must **NOT break** or **modify** any other part of the platform.  
+This change must be **self-contained**, functional, secure, and visually consistent with the rest of the WillTank platform.
+
+---
+
+## ✅ AUTHENTICATION SYSTEM (Full Rewrite)
+
+### ✨ Pages to Create/Replace:
+1. **Sign Up Page**
+2. **Login Page**
+3. **Email Confirmation Page**
+4. **Forgot Password Page**
+5. **Reset Password Page**
+
+### 💡 Features Required:
+- 🔒 Secure sign-up with email and password
+- 🔁 Email confirmation (6-digit code or confirmation link)
+- 🔐 Secure login with email + password (no auto-login)
+- 🔁 Password reset (via email link or code)
+- 🚫 No access to onboarding or will creation unless user is confirmed
+
+### 🧪 Requirements:
+- All fields must have validation and error messages
+- Use **toast messages** or minimal indicators (not console logs)
+- Submit buttons should show **loading state**
+- Use clean, **small font**, **beautiful modern colors**, soft shadows, rounded buttons
+- Use **smooth transitions** and **form animations**
+- All links and buttons must be fully functional — **no placeholders**
+
+---
+
+## 🚀 AUTH FLOW LOGIC:
+
+1. **New User Signup Flow**
+   - ✅ User signs up with email & password
+   - ✅ User is redirected to **Email Confirmation Page**
+   - ✅ User receives email with confirmation code or link
+   - ✅ After confirmation, user is redirected to:
+     1. **Smooth Onboarding Experience**
+     2. **Paywall (if applicable)**
+     3. **Congratulations page**
+     4. **Template selection**
+     5. **Will creation steps** (unchanged)
+   - ✅ Once user finishes the will process, they’re redirected to **Dashboard**
+
+2. **Returning User Login**
+   - ✅ If user logs in successfully and is confirmed:
+     - Skip all onboarding
+     - Redirect **directly to Dashboard**
+   - ❌ Onboarding, templates, etc. must **never** show again for returning users
+
+---
+
+## 🧼 ONBOARDING REWRITE:
+
+- Replace current onboarding system with a **clean, modular step-based UI**
+- Smooth transitions between steps
+- All buttons functional: "Next", "Back", "Skip"
+- Keep each stage focused (profile setup, optional info)
+- Paywall at the end should be styled and functional
+- After paywall, show congratulations message and proceed to templates
+
+---
+
+## 📦 Tech Requirements:
+- All buttons, redirects, inputs, forms must be 100% functional
+- Handle errors (e.g., invalid code, expired link) gracefully
+- Use clean design: white backgrounds, minimal color accents (WillTank theme)
+- No overlapping modals, broken states, or frozen buttons
+- Smooth scrolling and transitions throughout the flow
+- All authentication states (unauthenticated, confirming, authenticated) must be respected
+
+---
+
+## ⚠️ DO NOT:
+- ❌ Touch or alter other pages like Dashboard, Video Testimony, or Will Creation flows
+- ❌ Introduce any new design that doesn’t match the current theme
+- ❌ Add any dummy components, non-functional buttons, or unfinished pages
+- ❌ Leave broken buttons, form elements, or navigation issues behind
+
+---
+
+## ✅ FINAL NOTE:
+This update must be:
+- **Secure**
+- **Functional**
+- **Visually beautiful**
+- **Polished to perfection**
+- **Easy for users of all types to use smoothly and intuitively**
+
+---
+
+**Begin this rewrite immediately. This is the final push to perfection. Let’s make WillTank world-class. 🚀**  
+Let me know if you want me to drop a folder/file structure too for auth components and logic — I got you covered.

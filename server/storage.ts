@@ -1,6 +1,6 @@
 import { users, type User, type InsertUser } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and, lt, isNull } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
@@ -9,6 +9,14 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getUserByVerificationCode(code: string): Promise<User | undefined>;
+  getUserByResetToken(token: string): Promise<User | undefined>;
+  setVerificationCode(userId: number, code: string, expiryMinutes: number): Promise<User>;
+  setResetToken(userId: number, token: string, expiryMinutes: number): Promise<User>;
+  verifyEmail(userId: number): Promise<User>;
+  updatePassword(userId: number, hashedPassword: string): Promise<User>;
+  clearVerificationCode(userId: number): Promise<void>;
+  clearResetToken(userId: number): Promise<void>;
   sessionStore: session.Store;
 }
 
@@ -40,6 +48,114 @@ export class DatabaseStorage implements IStorage {
       .values(insertUser)
       .returning();
     return user;
+  }
+
+  async getUserByVerificationCode(code: string): Promise<User | undefined> {
+    const now = new Date();
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.verificationCode, code),
+          lt(now, users.verificationCodeExpiry as any)
+        )
+      );
+    return user || undefined;
+  }
+
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    const now = new Date();
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.resetPasswordToken, token),
+          lt(now, users.resetPasswordExpiry as any)
+        )
+      );
+    return user || undefined;
+  }
+
+  async setVerificationCode(userId: number, code: string, expiryMinutes: number): Promise<User> {
+    const expiryDate = new Date();
+    expiryDate.setMinutes(expiryDate.getMinutes() + expiryMinutes);
+    
+    const [updated] = await db
+      .update(users)
+      .set({
+        verificationCode: code,
+        verificationCodeExpiry: expiryDate,
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return updated;
+  }
+
+  async setResetToken(userId: number, token: string, expiryMinutes: number): Promise<User> {
+    const expiryDate = new Date();
+    expiryDate.setMinutes(expiryDate.getMinutes() + expiryMinutes);
+    
+    const [updated] = await db
+      .update(users)
+      .set({
+        resetPasswordToken: token,
+        resetPasswordExpiry: expiryDate,
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return updated;
+  }
+
+  async verifyEmail(userId: number): Promise<User> {
+    const [updated] = await db
+      .update(users)
+      .set({
+        isEmailVerified: true,
+        verificationCode: null,
+        verificationCodeExpiry: null,
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return updated;
+  }
+
+  async updatePassword(userId: number, hashedPassword: string): Promise<User> {
+    const [updated] = await db
+      .update(users)
+      .set({
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordExpiry: null,
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return updated;
+  }
+
+  async clearVerificationCode(userId: number): Promise<void> {
+    await db
+      .update(users)
+      .set({
+        verificationCode: null,
+        verificationCodeExpiry: null,
+      })
+      .where(eq(users.id, userId));
+  }
+
+  async clearResetToken(userId: number): Promise<void> {
+    await db
+      .update(users)
+      .set({
+        resetPasswordToken: null,
+        resetPasswordExpiry: null,
+      })
+      .where(eq(users.id, userId));
   }
 }
 
