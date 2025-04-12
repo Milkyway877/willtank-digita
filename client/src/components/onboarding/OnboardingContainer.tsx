@@ -162,9 +162,9 @@ const OnboardingContainer: React.FC = () => {
       {/* Footer with Logo */}
       <footer className="w-full p-4 flex justify-center text-neutral-500 z-10">
         <Link href="/">
-          <a className="text-primary font-bold tracking-tight hover:text-primary-dark transition-colors">
+          <span className="text-primary font-bold tracking-tight hover:text-primary-dark transition-colors cursor-pointer">
             WillTank
-          </a>
+          </span>
         </Link>
       </footer>
     </div>
