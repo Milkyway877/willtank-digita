@@ -1,0 +1,83 @@
+Perfect, partner — here's the **crystal-clear prompt** for the AI to **refactor and beautify** the **Will Creation Process layout** without touching the core functionality. We’re keeping it sleek, responsive, professional, and smooth, just how you want it.
+
+---
+
+### 🛠️ AI DESIGN TASK PROMPT: REFACTOR WILL CREATION PROCESS LAYOUT  
+**🚫 Do not break any functionality. This is purely a visual/layout update.**
+
+---
+
+### 🎯 Objective:
+Refactor the current Will Creation UI to be:
+- **Sleek**
+- **Modern**
+- **Clean and professional**
+- **Well-sized across all screen resolutions**
+- **Consistent with the rest of WillTank’s visual identity**
+
+---
+
+### ✅ What You MUST Do:
+1. **Reduce the vertical space between elements** – the form feels too spread out and bulky right now.
+2. **Introduce container width limits** – for large screens, center the form in a nice container (e.g., `max-width: 720px` or `768px`).
+3. **Make use of two-column layout where appropriate** – on wide screens, some inputs (like name + date of birth) should go side-by-side.
+4. **Ensure mobile responsiveness** – on smaller screens, fields should stack naturally and remain easy to use.
+5. **Add subtle shadows or borders to containers/cards** to separate sections visually.
+6. **Use smaller and cleaner input labels and font sizes** – professional, readable but not oversized.
+7. **Use modern UI elements** like:
+   - Rounded inputs (`rounded-xl`)
+   - Tailwind classes for spacing (`space-y-4`, `gap-x-4`, etc.)
+   - Light hover effects
+   - Stepper or progress indicator at the top if not yet added
+8. **Use visually balanced padding** (`p-4`, `px-6`, etc.) for sections.
+
+---
+
+### 🧱 Layout Example (Suggested Structure):
+
+```jsx
+<div className="max-w-3xl mx-auto p-6 bg-white shadow-lg rounded-2xl space-y-6">
+  <h2 className="text-2xl font-semibold text-gray-800">Create Your Will</h2>
+  <form className="space-y-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label className="text-sm text-gray-600">Full Name</label>
+        <input className="w-full p-3 rounded-xl border border-gray-300" />
+      </div>
+      <div>
+        <label className="text-sm text-gray-600">Date of Birth</label>
+        <input type="date" className="w-full p-3 rounded-xl border border-gray-300" />
+      </div>
+    </div>
+
+    <!-- Next Section -->
+
+    <div className="flex justify-end">
+      <button className="bg-purple-600 text-white px-6 py-3 rounded-xl hover:bg-purple-700 transition-all">
+        Continue
+      </button>
+    </div>
+  </form>
+</div>
+```
+
+---
+
+### 🎨 Styling Guidelines:
+- **Fonts**: Use small but clear fonts for inputs and section headings.
+- **Colors**: Stick to WillTank’s theme — purple accents, whites, light grays.
+- **Spacing**: Reduce excess top/bottom padding and keep things tightly grouped.
+- **Transitions**: Use Tailwind’s `transition-all duration-200` on buttons and inputs.
+- **Containers**: Everything should be in well-defined, softly rounded boxes (`rounded-2xl`).
+
+---
+
+### ⚠️ DO NOT:
+- Do not remove or alter any logic tied to will creation.
+- Do not remove form steps, progress, or connected backend logic.
+- Do not affect the video/document upload areas — only make them look better if needed.
+- Do not add or remove fields without instructions.
+
+---
+
+This should make the will creation process **clean, pro-looking, and easy to complete on any device**. If you want me to generate the actual updated JSX or components, just say the word, partner.
