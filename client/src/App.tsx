@@ -20,6 +20,7 @@ import DashboardBilling from "@/pages/dashboard/billing";
 import DashboardTrust from "@/pages/dashboard/trust";
 import DashboardSettings from "@/pages/dashboard/settings";
 import VideoTestimonyPage from "@/pages/dashboard/video-testimony";
+import ViewWillDetails from "@/pages/ViewWillDetails";
 import SubscriptionPage from "@/pages/subscription";
 import TemplateSelection from "@/pages/TemplateSelection";
 import AiChat from "@/pages/AiChat";
@@ -48,6 +49,8 @@ function Router() {
       <ProtectedRoute path="/dashboard/billing" component={DashboardBilling} />
       <ProtectedRoute path="/dashboard/trust" component={DashboardTrust} />
       <ProtectedRoute path="/dashboard/settings" component={DashboardSettings} />
+      <ProtectedRoute path="/dashboard/video-testimony" component={VideoTestimonyPage} />
+      <ProtectedRoute path="/view-will-details" component={ViewWillDetails} />
       <ProtectedRoute path="/template-selection" component={TemplateSelection} />
       <ProtectedRoute path="/ai-chat" component={AiChat} />
       <ProtectedRoute path="/document-upload" component={DocumentUpload} />
@@ -65,6 +68,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Router />
+        <UnfinishedWillNotification />
         <Toaster />
       </AuthProvider>
     </QueryClientProvider>

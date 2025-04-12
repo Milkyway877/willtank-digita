@@ -1,4 +1,3 @@
-// Define the will creation steps
 export enum WillCreationStep {
   TEMPLATE_SELECTION = 'template_selection',
   AI_CHAT = 'ai_chat',
@@ -8,7 +7,6 @@ export enum WillCreationStep {
   COMPLETED = 'completed'
 }
 
-// Define the will progress type
 export interface WillProgress {
   currentStep: WillCreationStep;
   started: string; // ISO date string
@@ -17,8 +15,7 @@ export interface WillProgress {
   completed: boolean;
 }
 
-// Local storage key for saving progress
-const WILL_PROGRESS_KEY = 'willCreationProgress';
+const WILL_PROGRESS_KEY = 'will_progress';
 
 /**
  * Save the current progress of will creation
@@ -33,7 +30,7 @@ export function saveWillProgress(step: WillCreationStep, willData?: any): void {
     currentStep: step,
     started: existingProgress?.started || now,
     lastUpdated: now,
-    willData: willData || existingProgress?.willData,
+    willData: willData || existingProgress?.willData || {},
     completed: step === WillCreationStep.COMPLETED
   };
   
@@ -44,18 +41,13 @@ export function saveWillProgress(step: WillCreationStep, willData?: any): void {
  * Get the saved will creation progress
  */
 export function getWillProgress(): WillProgress | null {
-  const savedProgress = localStorage.getItem(WILL_PROGRESS_KEY);
+  const progress = localStorage.getItem(WILL_PROGRESS_KEY);
   
-  if (!savedProgress) {
-    return null;
+  if (progress) {
+    return JSON.parse(progress) as WillProgress;
   }
   
-  try {
-    return JSON.parse(savedProgress) as WillProgress;
-  } catch (error) {
-    console.error('Error parsing saved will progress:', error);
-    return null;
-  }
+  return null;
 }
 
 /**
@@ -71,11 +63,12 @@ export function clearWillProgress(): void {
 export function hasUnfinishedWill(): boolean {
   const progress = getWillProgress();
   
-  if (!progress) {
+  // If there's no progress or the will is completed, there's no unfinished will
+  if (!progress || progress.completed) {
     return false;
   }
   
-  return !progress.completed;
+  return true;
 }
 
 /**

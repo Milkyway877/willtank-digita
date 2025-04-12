@@ -22,7 +22,7 @@ const menuItems = [
   { icon: Home, label: 'Dashboard', path: '/dashboard' },
   { icon: FileText, label: 'My Will', path: '/dashboard/will' },
   { icon: UploadCloud, label: 'Documents', path: '/dashboard/documents' },
-  { icon: Video, label: 'Video Testimony', path: '/dashboard/video' },
+  { icon: Video, label: 'Video Testimony', path: '/dashboard/video-testimony' },
   { icon: Users, label: 'Beneficiaries', path: '/dashboard/beneficiaries' },
   { icon: MessageSquare, label: 'Delivery', path: '/dashboard/delivery' },
   { icon: Calendar, label: 'Reminders', path: '/dashboard/reminders' },
