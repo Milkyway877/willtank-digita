@@ -9,23 +9,14 @@ import AuthInput from '@/components/auth/AuthInput';
 import AuthButton from '@/components/auth/AuthButton';
 import { useAuth } from '@/hooks/use-auth';
 
-// For email verification after login if needed
-enum LoginState {
-  LOGIN = 'login',
-  VERIFY_EMAIL = 'verify_email',
-}
-
 const SignIn: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-  const [loginState, setLoginState] = useState<LoginState>(LoginState.LOGIN);
   
   const [errors, setErrors] = useState<{
     email?: string; 
     password?: string;
-    verificationCode?: string;
   }>({});
   
   const [authStatus, setAuthStatus] = useState<{
@@ -76,22 +67,6 @@ const SignIn: React.FC = () => {
     return isValid;
   };
   
-  const validateVerificationForm = () => {
-    const newErrors: typeof errors = {};
-    let isValid = true;
-    
-    if (!verificationCode) {
-      newErrors.verificationCode = 'Verification code is required';
-      isValid = false;
-    } else if (verificationCode.length !== 6 || !/^\d+$/.test(verificationCode)) {
-      newErrors.verificationCode = 'Please enter a valid 6-digit code';
-      isValid = false;
-    }
-    
-    setErrors(newErrors);
-    return isValid;
-  };
-  
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -107,12 +82,8 @@ const SignIn: React.FC = () => {
       
       // Check if email needs verification
       if (response && !response.isEmailVerified) {
-        // Show verification required message and switch to verification form
-        setAuthStatus({
-          type: 'warning',
-          message: 'Please verify your email to continue'
-        });
-        setLoginState(LoginState.VERIFY_EMAIL);
+        // Redirect to dedicated verification page
+        navigate(`/auth/verify/${encodeURIComponent(email.toLowerCase())}`);
         
         // Trigger resend verification code
         await resendVerificationMutation.mutateAsync({ email: email.toLowerCase() });

@@ -41,8 +41,13 @@ const SignUp: React.FC = () => {
   
   // Redirect if user is already logged in and verified
   useEffect(() => {
-    if (user && user.isEmailVerified) {
-      navigate('/'); // Navigate to dashboard or onboarding
+    if (user) {
+      if (user.isEmailVerified) {
+        navigate('/'); // Navigate to dashboard or onboarding
+      } else {
+        // If user has registered but not verified, show verification page
+        navigate(`/auth/verify/${encodeURIComponent(user.username)}`);
+      }
     }
   }, [user, navigate]);
   
@@ -114,18 +119,13 @@ const SignUp: React.FC = () => {
     setAuthStatus({});
     
     try {
-      await registerMutation.mutateAsync({
+      const createdUser = await registerMutation.mutateAsync({
         username: email.toLowerCase(), // Using email as username
         password
       });
       
-      // Move to email verification step
-      setCurrentStep(SignUpStep.VERIFY_EMAIL);
-      
-      setAuthStatus({
-        type: 'success',
-        message: 'Account created! Please check your email for verification code.'
-      });
+      // Redirect to OTP verification page
+      navigate(`/auth/verify/${encodeURIComponent(email.toLowerCase())}`);
       
     } catch (error) {
       setAuthStatus({
