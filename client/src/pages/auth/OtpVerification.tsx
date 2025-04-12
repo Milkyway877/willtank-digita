@@ -13,7 +13,7 @@ const OtpVerification: React.FC = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [authStatus, setAuthStatus] = useState<{type?: 'success' | 'error'; message?: string}>({});
   const [countdown, setCountdown] = useState(30);
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(6).fill(null));
   
   // Set up countdown timer
   useEffect(() => {
@@ -39,8 +39,11 @@ const OtpVerification: React.FC = () => {
     setOtp(newOtp);
     
     // Auto-focus next input
-    if (value && index < 5 && inputRefs.current[index + 1]) {
-      inputRefs.current[index + 1].focus();
+    if (value && index < 5) {
+      const nextInput = inputRefs.current[index + 1];
+      if (nextInput) {
+        nextInput.focus();
+      }
     }
   };
   

@@ -1,6 +1,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
+import { Link } from 'wouter'
 
 const HeroSection: React.FC = () => {
   return (
@@ -13,15 +14,15 @@ const HeroSection: React.FC = () => {
             transition={{ duration: 0.6 }}
           >
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-neutral-900 leading-tight">
-              Create Your <span className="text-primary">Digital Will</span> with AI Guidance
+              Create Your <span className="bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">Digital Will</span> with AI Guidance
             </h1>
             <p className="mt-6 text-lg text-neutral-600 max-w-lg">
               WillTank is a modern platform that makes creating, storing, and delivering your will simple and secure with AI assistant Skyler guiding you every step of the way.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
-              <a href="#" className="px-6 py-3 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition glow-button">
+              <Link href="/auth/sign-up" className="px-6 py-3 bg-gradient-to-r from-primary to-blue-500 hover:from-primary-dark hover:to-blue-600 text-white font-medium rounded-lg transition shadow-md hover:shadow-xl transform hover:-translate-y-0.5">
                 Start Your Will
-              </a>
+              </Link>
               <a 
                 href="#how-it-works" 
                 className="px-6 py-3 bg-white border border-neutral-300 hover:border-primary text-neutral-700 hover:text-primary font-medium rounded-lg transition shadow-sm hover:shadow"
