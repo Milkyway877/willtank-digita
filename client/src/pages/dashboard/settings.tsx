@@ -493,7 +493,7 @@ const SettingsPage: React.FC = () => {
                     {user?.username || 'User'}
                   </h4>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    {user?.email || 'email@example.com'}
+                    {user?.username || 'email@example.com'}
                   </p>
                   <div className="mt-1 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
                     Premium Plan

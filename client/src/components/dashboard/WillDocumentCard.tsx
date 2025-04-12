@@ -24,8 +24,22 @@ const WillDocumentCard: React.FC<WillDocumentCardProps> = ({
     }
   }, []);
 
-  const handleEditClick = () => {
-    navigate('/ai-chat');
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent click from triggering other handlers
+    
+    // Get will document
+    const savedWill = localStorage.getItem('willFinalDocument');
+    
+    if (savedWill && !savedWill.includes('Click "Edit My Will" to start the process with Skyler')) {
+      // If there's an actual will document, navigate to the will page for editing
+      navigate('/dashboard/will');
+      
+      // Set a flag in localStorage to indicate we want to enter edit mode
+      localStorage.setItem('willEditMode', 'true');
+    } else {
+      // If no proper will document exists, go to the AI chat to create one
+      navigate('/ai-chat');
+    }
   };
 
   const handleViewPreview = () => {
