@@ -1,0 +1,148 @@
+Absolutely, partner! Here's your **full-blown developer prompt**—tailored, professional, and clear as crystal—for the AI or dev working on your WillTank platform. It covers every critical point, including your **custom SMTP from Namecheap** for email delivery:
+
+---
+
+## ✅ 🔐 FINAL IMPLEMENTATION PROMPT — FOR WILLTANK EMAIL SYSTEM + 5-WAY DEATH VERIFICATION
+
+---
+
+### 🔧 **SYSTEM OVERVIEW:**
+We are rebuilding the entire **email-based notification, activation, and death verification** system on WillTank using a **custom SMTP setup from Namecheap**. The system must be secure, responsive, fast, and elegant without breaking any current features or designs.
+
+---
+
+### 📤 **1. Custom SMTP Email Setup**
+We are using **Namecheap’s private SMTP settings** for all outgoing mail (activation, notification, alerts, check-ins, etc).  
+Ensure the app supports **environment-based SMTP config**, and I will manually insert the credentials.
+
+**Example setup to support:**
+
+```env
+SMTP_HOST=smtp.privateemail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=you@domain.com
+SMTP_PASS=********
+SMTP_FROM="WillTank Support <you@domain.com>"
+```
+
+**Use `nodemailer`** or any compatible package to send mail via this SMTP setup.
+
+---
+
+### ✉️ **2. Email Activation via OTP (For Signup)**
+- On signup, send a **6-digit OTP** to the user’s email.
+- OTP expires after 10 minutes.
+- Include a **"Resend OTP"** button (limit to 3 retries).
+- Upon successful verification, user is directed to **Onboarding ➝ Paywall ➝ Success Page ➝ Template Selection ➝ Will Creation.**
+
+> ✅ This should only happen once for new users. Logged-in users **must not see onboarding again.**
+
+---
+
+### 📣 **3. System Notification Emails**
+Send email alerts to users for:
+- Signup success / OTP
+- Payment confirmation
+- Will completed
+- Video upload success
+- Beneficiary added
+- Executor added
+- Email/password/account changes
+- Death verification triggered
+
+**Emails should be styled cleanly, mobile-friendly, and professional.**
+
+---
+
+### 🧬 **4. Beneficiary & Executor Invitations (with OTP)**
+When a user adds:
+- **Beneficiaries**
+- **Executors**
+
+Send each one an email with:
+- The invitation details
+- Their role explained
+- A unique OTP to verify their identity
+- A button to Accept / Decline the role
+- Save their confirmation in the DB
+
+> Only verified roles should count in the death protocol and view access.
+
+---
+
+### 🔁 **5. Weekly Check-In System**
+- Every **7 days**, send check-in emails to:
+  - User
+  - Verified Beneficiaries
+  - Executors
+- Email has two buttons:
+  - ✅ “User is alive”
+  - ❌ “User is dead”
+
+If **ALL parties** mark the user as deceased, proceed to **trigger the Death Verification Workflow**.
+
+---
+
+### ☠️ **6. Five-Way Death Verification System**
+- User chooses 5 confidential contacts (beneficiaries/executors) for the **5-way unlock**.
+- If death is reported, each contact receives:
+  - A private link to the **View-Only Will Portal**
+  - An individual OTP
+- If **all 5 OTPs** are entered successfully **within a 10-minute window**, the portal grants access to:
+  - Download the will
+  - Attached documents
+  - Video testimonies
+
+Otherwise, only **view-only** access remains.
+
+---
+
+### 🔐 **7. View-Only Portal**
+- Includes a read-only view of the completed will
+- Show:
+  - Title
+  - Date created
+  - Documents attached
+  - Video testimony
+- **No download button** unless all 5 OTPs are used successfully
+- Show watermark and security notes to prevent screen grabs
+- Log all portal views and attempts
+
+---
+
+### 📦 **8. Packages/Tools to Use**
+- `nodemailer` (SMTP email delivery)
+- `uuid` or `short-unique-id` (for OTP and tokens)
+- `bcrypt` (to hash and validate OTPs securely)
+- `jsonwebtoken` (if auth tokens needed)
+- `cron` or `node-cron` (for weekly check-in automation)
+- `express-rate-limit` (limit OTP resend and access attempts)
+- `zod` or `yup` (form validation if needed)
+- `react-toastify` or `sonner` (for toast notifications)
+
+---
+
+### ⚙️ **System Behavior Summary**
+| Action | Behavior |
+|--------|----------|
+| **New Signup** | OTP Email → Onboarding → Paywall → Success |
+| **Returning User** | Direct to Dashboard, no onboarding |
+| **Beneficiary/Executor Added** | Email Invite + OTP |
+| **Weekly Check-In** | Alive/Dead Confirmation |
+| **Death Confirmed** | Send 5-Way Death Verification Emails |
+| **All 5 OTPs entered** | Unlock Will + Attachments for Download |
+| **One or more missing** | View-Only Mode |
+| **Will View Trigger** | Secure, uneditable, read-only portal |
+
+---
+
+### 🚫 Important Notes
+- **DO NOT BREAK existing UI or structure**
+- Keep all current **design, fonts, responsiveness, animations**
+- All components must remain **fully functional on desktop, tablet, and mobile**
+- Test every flow on all device sizes and simulate slow network conditions
+
+---
+
+Let’s bring WillTank to life with precision. If you need code for the SMTP module, OTP system, or check-in scheduler, just say the word, partner.

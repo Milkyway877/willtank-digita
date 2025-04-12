@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
-import { Mail, Lock, AlertCircle, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Mail, Lock, AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { FcGoogle } from 'react-icons/fc';
 
 import AuthLayout from '@/components/auth/AuthLayout';
@@ -28,7 +28,6 @@ const SignIn: React.FC = () => {
   const { 
     user, 
     loginMutation, 
-    verifyEmailMutation, 
     resendVerificationMutation 
   } = useAuth();
   
@@ -36,8 +35,13 @@ const SignIn: React.FC = () => {
   
   // Redirect if user is already logged in and verified
   useEffect(() => {
-    if (user && user.isEmailVerified) {
-      navigate('/');
+    if (user) {
+      if (user.isEmailVerified) {
+        navigate('/');
+      } else {
+        // If user is logged in but not verified, redirect to verification page
+        navigate(`/auth/verify/${encodeURIComponent(user.username)}`);
+      }
     }
   }, [user, navigate]);
   
@@ -98,60 +102,6 @@ const SignIn: React.FC = () => {
       });
     }
   };
-  
-  const handleVerifyEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateVerificationForm()) return;
-    
-    setAuthStatus({});
-    
-    try {
-      await verifyEmailMutation.mutateAsync({
-        email: email.toLowerCase(),
-        code: verificationCode
-      });
-      
-      setAuthStatus({
-        type: 'success',
-        message: 'Email verified successfully! Redirecting...'
-      });
-      
-      // Redirect after a short delay
-      setTimeout(() => {
-        navigate('/');
-      }, 1500);
-      
-    } catch (error) {
-      setAuthStatus({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Verification failed. Please try again.'
-      });
-    }
-  };
-  
-  const handleResendCode = async () => {
-    try {
-      await resendVerificationMutation.mutateAsync({
-        email: email.toLowerCase()
-      });
-      
-      setAuthStatus({
-        type: 'success',
-        message: 'A new verification code has been sent to your email'
-      });
-    } catch (error) {
-      setAuthStatus({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Failed to resend verification code'
-      });
-    }
-  };
-  
-  const handleBackToLogin = () => {
-    setLoginState(LoginState.LOGIN);
-    setAuthStatus({});
-  };
 
   return (
     <AuthLayout 
@@ -160,27 +110,15 @@ const SignIn: React.FC = () => {
     >
       <div>
         <motion.div
-          key={`heading-${loginState}`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="mb-8"
         >
-          {loginState === LoginState.LOGIN ? (
-            <>
-              <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Sign in to WillTank</h1>
-              <p className="text-neutral-600 dark:text-neutral-400">
-                Enter your credentials to access your account
-              </p>
-            </>
-          ) : (
-            <>
-              <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Verify your email</h1>
-              <p className="text-neutral-600 dark:text-neutral-400">
-                We've sent a verification code to <span className="font-medium">{email}</span>
-              </p>
-            </>
-          )}
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Sign in to WillTank</h1>
+          <p className="text-neutral-600 dark:text-neutral-400">
+            Enter your credentials to access your account
+          </p>
         </motion.div>
         
         {authStatus.message && (
@@ -207,152 +145,89 @@ const SignIn: React.FC = () => {
           </motion.div>
         )}
         
-        {loginState === LoginState.LOGIN ? (
-          // Login Form
-          <form onSubmit={handleLogin}>
-            <AuthInput
-              label="Email"
-              type="email"
-              name="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              error={errors.email}
-              icon={<Mail className="h-5 w-5" />}
-              autoComplete="email"
-              placeholder="Enter your email address"
-              required
-            />
+        {/* Login Form */}
+        <form onSubmit={handleLogin}>
+          <AuthInput
+            label="Email"
+            type="email"
+            name="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            error={errors.email}
+            icon={<Mail className="h-5 w-5" />}
+            autoComplete="email"
+            placeholder="Enter your email address"
+            required
+          />
+          
+          <AuthInput
+            label="Password"
+            type="password"
+            name="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            error={errors.password}
+            icon={<Lock className="h-5 w-5" />}
+            autoComplete="current-password"
+            placeholder="Enter your password"
+            required
+          />
+          
+          <div className="flex justify-between items-center mb-6">
+            <label className="flex items-center text-sm text-neutral-600 dark:text-neutral-400">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-neutral-300 dark:border-neutral-700 text-primary focus:ring-primary mr-2"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              Remember me
+            </label>
             
-            <AuthInput
-              label="Password"
-              type="password"
-              name="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              error={errors.password}
-              icon={<Lock className="h-5 w-5" />}
-              autoComplete="current-password"
-              placeholder="Enter your password"
-              required
-            />
+            <Link href="/auth/forgot-password" className="text-sm text-primary hover:text-primary-dark transition-colors">
+              Forgot password?
+            </Link>
+          </div>
+          
+          <div className="space-y-4">
+            <AuthButton type="submit" isLoading={loginMutation.isPending}>
+              Sign In
+            </AuthButton>
             
-            <div className="flex justify-between items-center mb-6">
-              <label className="flex items-center text-sm text-neutral-600 dark:text-neutral-400">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-neutral-300 dark:border-neutral-700 text-primary focus:ring-primary mr-2"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                Remember me
-              </label>
-              
-              <Link href="/auth/forgot-password" className="text-sm text-primary hover:text-primary-dark transition-colors">
-                Forgot password?
-              </Link>
+            <div className="flex items-center justify-center my-4">
+              <div className="border-t border-neutral-200 dark:border-neutral-700 flex-grow"></div>
+              <span className="mx-4 text-neutral-500 text-sm">or continue with</span>
+              <div className="border-t border-neutral-200 dark:border-neutral-700 flex-grow"></div>
             </div>
             
-            <div className="space-y-4">
-              <AuthButton type="submit" isLoading={loginMutation.isPending}>
-                Sign In
-              </AuthButton>
-              
-              <div className="flex items-center justify-center my-4">
-                <div className="border-t border-neutral-200 dark:border-neutral-700 flex-grow"></div>
-                <span className="mx-4 text-neutral-500 text-sm">or continue with</span>
-                <div className="border-t border-neutral-200 dark:border-neutral-700 flex-grow"></div>
-              </div>
-              
-              <AuthButton
-                type="button"
-                variant="social"
-                icon={<FcGoogle className="h-5 w-5" />}
-                isLoading={false}
-              >
-                Continue with Google
-              </AuthButton>
-            </div>
-          </form>
-        ) : (
-          // Email Verification Form
-          <form onSubmit={handleVerifyEmail}>
-            <div className="text-center">
-              <div className="flex justify-center mb-6">
-                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-                  <Mail className="h-8 w-8 text-primary" />
-                </div>
-              </div>
-              
-              <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-6">
-                Enter the 6-digit verification code sent to your email.
-                If you don't see it, check your spam folder.
-              </p>
-            </div>
-            
-            <AuthInput
-              label="Verification Code"
-              type="text"
-              name="verificationCode"
-              value={verificationCode}
-              onChange={(e) => setVerificationCode(e.target.value)}
-              error={errors.verificationCode}
-              placeholder="Enter 6-digit code"
-              maxLength={6}
-              className="text-center tracking-widest text-lg"
-              required
-            />
-            
-            <div className="mt-6 space-y-4">
-              <AuthButton
-                type="submit"
-                isLoading={verifyEmailMutation.isPending}
-              >
-                Verify Email <ArrowRight className="ml-2 h-4 w-4" />
-              </AuthButton>
-              
-              <div className="flex justify-between">
-                <button
-                  type="button"
-                  onClick={handleBackToLogin}
-                  className="text-sm text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors"
-                >
-                  Go back
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={handleResendCode}
-                  disabled={resendVerificationMutation.isPending}
-                  className="text-sm text-primary hover:text-primary-dark transition-colors"
-                >
-                  {resendVerificationMutation.isPending ? 'Sending...' : 'Resend code'}
-                </button>
-              </div>
-            </div>
-          </form>
-        )}
+            <AuthButton
+              type="button"
+              variant="social"
+              icon={<FcGoogle className="h-5 w-5" />}
+              isLoading={false}
+            >
+              Continue with Google
+            </AuthButton>
+          </div>
+        </form>
         
-        {loginState === LoginState.LOGIN && (
-          <>
-            <p className="mt-8 text-center text-neutral-600 dark:text-neutral-400">
-              Don't have an account?{' '}
-              <Link href="/auth/sign-up" className="text-primary hover:text-primary-dark transition-colors font-medium">
-                Sign up
-              </Link>
-            </p>
-            
-            <div className="mt-8 text-center text-xs text-neutral-500 dark:text-neutral-600">
-              By signing in, you agree to our{' '}
-              <a href="#" className="underline hover:text-primary">
-                Terms of Service
-              </a>{' '}
-              and{' '}
-              <a href="#" className="underline hover:text-primary">
-                Privacy Policy
-              </a>
-            </div>
-          </>
-        )}
+        <p className="mt-8 text-center text-neutral-600 dark:text-neutral-400">
+          Don't have an account?{' '}
+          <Link href="/auth/sign-up" className="text-primary hover:text-primary-dark transition-colors font-medium">
+            Sign up
+          </Link>
+        </p>
+        
+        <div className="mt-8 text-center text-xs text-neutral-500 dark:text-neutral-600">
+          By signing in, you agree to our{' '}
+          <a href="#" className="underline hover:text-primary">
+            Terms of Service
+          </a>{' '}
+          and{' '}
+          <a href="#" className="underline hover:text-primary">
+            Privacy Policy
+          </a>
+        </div>
       </div>
     </AuthLayout>
   );

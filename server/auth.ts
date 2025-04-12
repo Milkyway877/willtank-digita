@@ -7,6 +7,7 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser, extendedInsertUserSchema } from "@shared/schema";
 import { z } from "zod";
+import { sendEmail, createVerificationEmailTemplate, createPasswordResetEmailTemplate } from "./email";
 
 declare global {
   namespace Express {
@@ -17,7 +18,7 @@ declare global {
 const scryptAsync = promisify(scrypt);
 
 // Generate a secure random verification code
-function generateVerificationCode(length = 6): string {
+export function generateVerificationCode(length = 6): string {
   return Array.from(
     { length },
     () => Math.floor(Math.random() * 10).toString()
@@ -42,18 +43,34 @@ async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
-// Simulate sending an email (in a real app, this would use a proper email service)
-function sendVerificationEmail(email: string, code: string) {
-  console.log(`[EMAIL SERVICE] Sending verification email to ${email} with code: ${code}`);
-  // In a real implementation, this would use Sendgrid, Mailgun, etc.
-  return true;
+// Send verification email using the email service
+async function sendVerificationEmail(email: string, code: string) {
+  try {
+    console.log(`Sending verification email to ${email} with code: ${code}`);
+    const subject = "Verify Your WillTank Account";
+    const htmlContent = createVerificationEmailTemplate(code);
+    
+    const result = await sendEmail(email, subject, htmlContent);
+    return result;
+  } catch (error) {
+    console.error("Error sending verification email:", error);
+    return false;
+  }
 }
 
-// Simulate sending a password reset email
-function sendPasswordResetEmail(email: string, token: string) {
-  console.log(`[EMAIL SERVICE] Sending password reset email to ${email} with token: ${token}`);
-  // In a real implementation, this would use an email service
-  return true;
+// Send password reset email using the email service
+async function sendPasswordResetEmail(email: string, token: string) {
+  try {
+    console.log(`Sending password reset email to ${email}`);
+    const subject = "Reset Your WillTank Password";
+    const htmlContent = createPasswordResetEmailTemplate(token);
+    
+    const result = await sendEmail(email, subject, htmlContent);
+    return result;
+  } catch (error) {
+    console.error("Error sending password reset email:", error);
+    return false;
+  }
 }
 
 export function setupAuth(app: Express) {
