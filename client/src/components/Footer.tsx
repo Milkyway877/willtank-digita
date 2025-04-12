@@ -471,7 +471,7 @@ const Footer: React.FC = () => {
           {/* Company Info */}
           <div className="lg:col-span-2">
             <a href="#hero" className="inline-block">
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-400 to-cyan-400 bg-clip-text text-transparent">WillTank</h2>
+              <Logo size="lg" withText={true} className="text-white" />
             </a>
             <p className="mt-4 text-neutral-300 max-w-md">
               The future of estate planning. Create, store, and deliver your will with AI guidance, ensuring your legacy is protected and your wishes are fulfilled.
