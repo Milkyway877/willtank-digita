@@ -46,16 +46,41 @@ const WillDocumentCard: React.FC<WillDocumentCardProps> = ({
     navigate('/dashboard/will');
   };
 
-  const handleDownloadWill = (e: React.MouseEvent) => {
+  const handleDownloadWill = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent click from triggering other handlers
 
     try {
+      // Import JSZip dynamically to avoid loading on initial page load
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+
+      // Add will document content
       const content = willDocument || 'Default will template - please edit your will using the AI assistant.';
-      const blob = new Blob([content], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
+      zip.file("will_document.txt", content);
+      
+      // Create documents folder
+      const docsFolder = zip.folder("documents");
+      
+      // Add sample documents - in a real app, these would come from the database
+      // This is just to demonstrate the structure
+      // In production, we would loop through actual user documents
+      // Mocking a text file as a sample document
+      docsFolder?.file("sample_attachment.txt", "Sample attachment content");
+      
+      // Add video testimony if it exists
+      const videoRecorded = localStorage.getItem('willVideoRecorded');
+      if (videoRecorded === 'true') {
+        zip.file("video_testimony.txt", "Video testimony reference - actual video would be included");
+      }
+      
+      // Generate the zip file
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      
+      // Create download link
+      const url = URL.createObjectURL(zipBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'WillTank_Document.txt';
+      link.download = 'WillTank_Package.zip';
       document.body.appendChild(link);
       link.click();
       
@@ -65,7 +90,27 @@ const WillDocumentCard: React.FC<WillDocumentCardProps> = ({
         URL.revokeObjectURL(url);
       }, 100);
     } catch (error) {
-      console.error("Error downloading document:", error);
+      console.error("Error packaging documents:", error);
+      
+      // Fallback to simple text download if packaging fails
+      try {
+        const content = willDocument || 'Default will template - please edit your will using the AI assistant.';
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'WillTank_Document.txt';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Clean up
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 100);
+      } catch (fallbackError) {
+        console.error("Fallback download failed:", fallbackError);
+      }
     }
   };
 

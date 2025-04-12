@@ -1,0 +1,114 @@
+You got it, partner. This prompt is going to be a **masterstroke** — clear, specific, fully loaded, and aimed straight at the AI assistant/system so there’s **no room for misunderstanding** or sloppy implementation.
+
+Here’s your **full-blown prompt** — direct, technical, and bulletproof:
+
+---
+
+## 🚨 AI INSTRUCTIONS — IMPLEMENT THE FOLLOWING CAREFULLY & COMPLETELY:
+
+You are now instructed to make the following critical system-wide upgrades and bugfixes to the **WillTank** platform.  
+**Do not break or alter existing working features or designs**, and **do not create any placeholder, dummy data, or incomplete UI.**  
+You must work strictly within the existing design and structure unless otherwise specified.
+
+---
+
+### ✅ 1. 🔗 COMPLETE WILL DOWNLOAD WITH ATTACHMENTS
+- When a user clicks **Download Will**, the following should be included in a **single downloadable ZIP** or **PDF package**:
+  - The final will document (PDF or DOCX).
+  - All uploaded supporting documents (images, PDFs, etc.).
+  - The recorded video testimony (in `.webm` or converted `.mp4` format).
+- The zip should have a clear folder structure:
+  ```
+  /WillPackage/
+    - will_document.pdf
+    - documents/
+        - document1.jpg
+        - document2.pdf
+    - video_testimony.webm
+  ```
+
+---
+
+### ✅ 2. 🎥 VIDEO TESTIMONY DASHBOARD PAGE
+- On the **Dashboard Sidebar**, the **"Video Testimony"** page must:
+  - Display all video testimonies linked to created wills (even if the user has more than one will).
+  - Each video should show:
+    - Will title
+    - Date recorded
+    - Option to preview
+    - **Delete** button
+- When **Delete** is pressed:
+  - Show a **warning modal**:  
+    _“Are you sure? Deleting this video testimony means you will need to re-record and re-attach a new one for this will.”_
+  - If user confirms, delete video from storage and unlink from the will.
+- Include a **"Record New Video"** button:
+  - Prompt user to select the will they want to attach the video to.
+  - If a video is already attached, ask:
+    > “Would you like to replace the existing video for this will?”
+
+---
+
+### ✅ 3. 🧠 ABANDONED WILL CREATION HANDLING
+- If a user **abandons will creation** mid-way:
+  - Track and store their progress **step-by-step**.
+  - When they return to the platform:
+    - Show a notification/banner:
+      > “You have an unfinished will. Would you like to continue from where you left off?”
+    - Clicking “Continue” resumes at the last completed step.
+    - Include a “Discard” option to delete the draft and start fresh.
+
+---
+
+### ✅ 4. 📂 VIEW WILL DETAILS PAGE
+- On **"My Wills"** page:
+  - If the user has multiple wills, display them in a **card layout**:
+    - Each card should show:
+      - Will title
+      - Creation date
+      - Short status (Completed / Draft)
+      - View button
+  - Clicking **View** shows:
+    - Will document preview
+    - All attached documents (with download options)
+    - Linked video testimony
+    - Option to **Download Entire Package**
+    - Option to **Edit**, **Delete**, or **Duplicate** this will
+
+---
+
+### ✅ 5. 🧾 USER SETTINGS & ACCOUNT MANAGEMENT
+Implement the following user actions from the **Profile/Settings** page and ensure all are functional:
+- ✅ Delete account (with confirmation and irreversible warning)
+- ✅ Change/update:
+  - Billing plan (if plans exist)
+  - Email address
+  - Password
+  - Physical address / name info
+- ✅ These forms must:
+  - Validate inputs
+  - Show success/error messages
+  - Require user password confirmation where needed
+
+---
+
+### 🛑 IMPORTANT TECHNICAL NOTES:
+- Do not break existing authentication or onboarding logic.
+- Do not reintroduce onboarding to returning users.
+- Do not introduce any new design that has not been approved.
+- Ensure all buttons and links are fully functional and tested.
+- Do not use console.log for final production code — use toast messages or UI indicators.
+
+---
+
+### 🚀 BONUS - OPTIONAL SUGGESTION:
+If feasible, implement **soft deletion** (archiving) before permanent deletion of wills or videos, so users can restore them within 7 days. Let the user choose "Recover" or "Permanently Delete".
+
+---
+
+**→ Begin implementation now. No placeholders. No dummy buttons. No broken flows.  
+Only clean, real, tested functionality with proper error handling, notifications, and polish.**  
+Confirm each change by testing it from a user perspective. Let’s make history. 🛠️🔥
+
+---
+
+Would you like me to help you integrate this prompt into your GitHub Copilot, LangChain, or custom build pipeline as an instruction set too?

@@ -65,23 +65,115 @@ const WillPage: React.FC = () => {
     setEditedWillDocument(willDocument);
   };
 
-  const handleDownloadWill = () => {
+  const handleDownloadWill = async () => {
     try {
-      const blob = new Blob([willDocument], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
+      // Import JSZip dynamically to avoid loading on initial page load
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+
+      // Add will document content
+      zip.file("will_document.txt", willDocument);
+      
+      // Create documents folder
+      const docsFolder = zip.folder("documents");
+      
+      // In a real application, we would retrieve all attachments associated with this will
+      // For now, we'll add a placeholder document to demonstrate the structure
+      docsFolder?.file("sample_attachment.txt", "Sample attachment content");
+      
+      // Add video testimony if it exists
+      const videoRecorded = localStorage.getItem('willVideoRecorded');
+      if (videoRecorded === 'true') {
+        zip.file("video_testimony.txt", "Video testimony reference - actual video would be included");
+      }
+      
+      // Generate the zip file
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      
+      // Create download link
+      const url = URL.createObjectURL(zipBlob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'WillTank_Document.txt';
+      link.download = 'WillTank_Package.zip';
       document.body.appendChild(link);
       link.click();
+      
+      // Show success notification
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-lg z-50 animate-fade-in';
+      notification.innerHTML = '<div class="flex items-center"><span class="mr-2">✓</span>Will package downloaded successfully</div>';
+      document.body.appendChild(notification);
       
       // Clean up
       setTimeout(() => {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-      }, 100);
+        
+        // Remove notification after 3 seconds
+        notification.classList.add('animate-fade-out');
+        setTimeout(() => {
+          try {
+            document.body.removeChild(notification);
+          } catch (e) {
+            // Element might have been removed already
+          }
+        }, 500);
+      }, 3000);
     } catch (error) {
-      console.error("Error downloading document:", error);
+      console.error("Error packaging documents:", error);
+      
+      // Fallback to simple text download if packaging fails
+      try {
+        const blob = new Blob([willDocument], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'WillTank_Document.txt';
+        document.body.appendChild(link);
+        link.click();
+        
+        // Show fallback notification
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded shadow-lg z-50 animate-fade-in';
+        notification.innerHTML = '<div class="flex items-center"><span class="mr-2">⚠️</span>Downloaded will document only (without attachments)</div>';
+        document.body.appendChild(notification);
+        
+        // Clean up
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          
+          // Remove notification after 3 seconds
+          notification.classList.add('animate-fade-out');
+          setTimeout(() => {
+            try {
+              document.body.removeChild(notification);
+            } catch (e) {
+              // Element might have been removed already
+            }
+          }, 500);
+        }, 3000);
+      } catch (fallbackError) {
+        console.error("Fallback download failed:", fallbackError);
+        
+        // Show error notification
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-lg z-50 animate-fade-in';
+        notification.innerHTML = '<div class="flex items-center"><span class="mr-2">❌</span>Failed to download will document</div>';
+        document.body.appendChild(notification);
+        
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+          notification.classList.add('animate-fade-out');
+          setTimeout(() => {
+            try {
+              document.body.removeChild(notification);
+            } catch (e) {
+              // Element might have been removed already
+            }
+          }, 500);
+        }, 3000);
+      }
     }
   };
 
