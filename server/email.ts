@@ -1,31 +1,21 @@
 import nodemailer from 'nodemailer';
-import sgMail from '@sendgrid/mail';
 
-// Initialize SendGrid if API key is available
-if (process.env.SENDGRID_API_KEY) {
-  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-  console.log('SendGrid initialized');
-}
-
-// Check if SendGrid is configured
-const isSendGridConfigured = (): boolean => {
-  return !!process.env.SENDGRID_API_KEY;
-};
-
-// Email configuration using SMTP (Namecheap) as fallback
+// Email configuration using Namecheap SMTP
 const createTransporter = () => {
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.privateemail.com',
+    host: process.env.SMTP_HOST || 'mail.privateemail.com',
     port: parseInt(process.env.SMTP_PORT || '465', 10),
     secure: process.env.SMTP_SECURE === 'true',
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    debug: true, // Enable debug logs
+    logger: true, // Enable logger
   });
 };
 
-// Helper function to send emails with fallback between SendGrid and SMTP
+// Helper function to send emails via SMTP
 export async function sendEmail(
   to: string,
   subject: string,
@@ -33,21 +23,9 @@ export async function sendEmail(
 ): Promise<boolean> {
   try {
     // Get the from address
-    const from = process.env.SMTP_FROM || '"WillTank Support" <support@willtank.com>';
+    const from = process.env.SMTP_FROM || '"WillTank Support" <SUPPORT@WILLTANK.COM>';
     
-    // Try to send via SendGrid if configured
-    if (isSendGridConfigured()) {
-      await sgMail.send({
-        to,
-        from,
-        subject,
-        html,
-      });
-      console.log(`Email sent via SendGrid to ${to}`);
-      return true;
-    }
-    
-    // Fall back to SMTP if SendGrid not configured
+    // Create transporter and send email
     const transporter = createTransporter();
     const info = await transporter.sendMail({
       from,
@@ -60,6 +38,7 @@ export async function sendEmail(
     return true;
   } catch (error) {
     console.error('Error sending email:', error);
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
     return false;
   }
 }
