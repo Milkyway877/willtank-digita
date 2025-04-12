@@ -62,12 +62,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.setHeader('Connection', 'keep-alive');
 
       // Handle streaming response
-      for await (const chunk of result.stream) {
-        // Send the content as an event
-        const content = chunk.choices[0]?.delta?.content || '';
-        if (content) {
-          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      if (result.stream) {
+        for await (const chunk of result.stream) {
+          // Send the content as an event
+          const content = chunk.choices[0]?.delta?.content || '';
+          if (content) {
+            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+          }
         }
+      } else {
+        return res.status(500).json({ error: "Stream not available" });
       }
 
       // End the stream

@@ -29,7 +29,7 @@ export async function getChatCompletion(messages: any[]) {
   }
 }
 
-// Handle streaming chat completions
+// Handle streaming chat completions with proper typing
 export async function getStreamingChatCompletion(messages: any[]) {
   try {
     const stream = await openai.chat.completions.create({
@@ -42,13 +42,13 @@ export async function getStreamingChatCompletion(messages: any[]) {
 
     return {
       success: true,
-      stream
-    };
+      stream: stream
+    } as const;
   } catch (error: any) {
     console.error("OpenAI API streaming error:", error);
     return {
       success: false,
       error: error.message || "Failed to get streaming response from OpenAI"
-    };
+    } as const;
   }
 }
