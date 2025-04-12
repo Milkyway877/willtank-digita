@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Link } from 'wouter'
+import { Link, useLocation } from 'wouter'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 
 // Steps
@@ -26,6 +26,7 @@ type OnboardingStepProps = {
 const totalSteps = 7
 
 const OnboardingContainer: React.FC = () => {
+  const [, navigate] = useLocation();
   const [currentStep, setCurrentStep] = useState(0)
   const [selectedReason, setSelectedReason] = useState<string | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
