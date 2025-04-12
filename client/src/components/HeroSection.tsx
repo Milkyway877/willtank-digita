@@ -6,12 +6,16 @@ import { Globe } from '@/components/ui/globe'
 
 const HeroSection: React.FC = () => {
   return (
-    <section id="home" className="pt-32 pb-20 relative overflow-hidden">
+    <section id="home" className="pt-32 pb-20 relative overflow-hidden bg-gradient-to-b from-blue-50/40 to-white/90">
+      {/* Add extra decorative elements */}
+      <div className="absolute -top-10 right-32 w-72 h-72 bg-blue-400 opacity-5 rounded-full blur-3xl"></div>
+      <div className="absolute top-40 -left-20 w-80 h-80 bg-purple-400 opacity-5 rounded-full blur-3xl"></div>
+      
       {/* Globe background */}
-      <div className="absolute inset-0 overflow-hidden z-0 opacity-40">
+      <div className="absolute inset-0 overflow-hidden z-0">
         <div className="w-full h-full">
           <Globe 
-            className="scale-150 opacity-80" 
+            className="scale-[2.2] translate-y-[5%]" 
             config={{
               width: 800,
               height: 800,
@@ -20,23 +24,23 @@ const HeroSection: React.FC = () => {
               phi: 0,
               theta: 0.3,
               dark: 0,
-              diffuse: 0.4,
+              diffuse: 1.2,
               mapSamples: 16000,
-              mapBrightness: 1.2,
-              baseColor: [0.3, 0.3, 1],
+              mapBrightness: 6,
+              baseColor: [0.3, 0.4, 1],
               markerColor: [251 / 255, 100 / 255, 21 / 255],
-              glowColor: [0.2, 0.4, 1],
+              glowColor: [0.2, 0.5, 1],
               markers: [
-                { location: [14.5995, 120.9842], size: 0.03 },
-                { location: [19.076, 72.8777], size: 0.1 },
-                { location: [23.8103, 90.4125], size: 0.05 },
-                { location: [30.0444, 31.2357], size: 0.07 },
-                { location: [39.9042, 116.4074], size: 0.08 },
-                { location: [-23.5505, -46.6333], size: 0.1 },
-                { location: [19.4326, -99.1332], size: 0.1 },
-                { location: [40.7128, -74.006], size: 0.1 },
-                { location: [34.6937, 135.5022], size: 0.05 },
-                { location: [41.0082, 28.9784], size: 0.06 },
+                { location: [14.5995, 120.9842], size: 0.08 },
+                { location: [19.076, 72.8777], size: 0.15 },
+                { location: [23.8103, 90.4125], size: 0.1 },
+                { location: [30.0444, 31.2357], size: 0.12 },
+                { location: [39.9042, 116.4074], size: 0.15 },
+                { location: [-23.5505, -46.6333], size: 0.15 },
+                { location: [19.4326, -99.1332], size: 0.15 },
+                { location: [40.7128, -74.006], size: 0.15 },
+                { location: [34.6937, 135.5022], size: 0.1 },
+                { location: [41.0082, 28.9784], size: 0.12 },
               ],
             }}
           />
@@ -44,7 +48,7 @@ const HeroSection: React.FC = () => {
       </div>
       
       {/* Gradient overlay to enhance content visibility */}
-      <div className="absolute inset-0 bg-gradient-to-r from-white to-white/80 dark:from-black/80 dark:to-black/40 z-0"></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-white/70 to-white/50 dark:from-black/40 dark:to-black/20 z-0"></div>
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid md:grid-cols-2 gap-12 items-center">
