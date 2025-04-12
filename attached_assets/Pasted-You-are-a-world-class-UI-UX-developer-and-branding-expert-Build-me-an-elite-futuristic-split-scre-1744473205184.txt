@@ -1,0 +1,63 @@
+You are a world-class UI/UX developer and branding expert. Build me an elite, futuristic, split-screen authentication system for a platform called **WillTank** — a smart, AI-powered tool for will creation, storage, and secure delivery.
+
+📌 PROJECT CONTEXT:
+- WillTank helps users create and deliver legally sound wills with the help of a smart AI assistant named **Skyler**.
+- The platform is secure, elegant, futuristic, and trustworthy.
+- The UI should reflect innovation, peace of mind, and digital security.
+
+🎯 AUTH SCREENS TO DESIGN:
+- Sign In
+- Sign Up
+- Forgot Password
+- Reset Password
+- Optional: OTP Verification or Magic Link (if time permits)
+
+🧩 DESIGN STYLE:
+- Split-screen layout:
+  - **Left Side (Brand Panel):**
+    - Logo + branding + tagline
+    - Brief summary of what WillTank does
+    - Skyler AI illustration or Lottie animation
+    - A powerful quote or advice line (e.g., “Legacy isn’t just what you leave, but how you leave it.”)
+    - Dark elegant background with animated gradient (aurora-like, slow rainbow wave)
+  - **Right Side (Form Panel):**
+    - Form with full validations (Email, Password, etc.)
+    - Toggle between Sign In / Sign Up
+    - Subtle form animations (fields slide in or fade)
+    - Smooth hover effects, shadows, floating labels
+    - CTA buttons should glow subtly and be magnetic
+    - Include "Continue with Google" button (styled)
+    - Mobile-first design: collapses into stacked view
+
+📌 FUNCTIONALITY:
+- Responsive on all devices (mobile, tablet, desktop)
+- Validates inputs, shows error states, and success animations
+- Uses clean and semantic HTML/CSS or Tailwind CSS
+- Animations via Framer Motion or similar
+- Password visibility toggle, “Remember me” checkbox
+- Links to Terms & Privacy
+- Optional loading animation while authenticating
+
+🎨 VISUAL TOUCHES:
+- Use a beautiful custom font like Sora, Inter, or Space Grotesk
+- Brand colors: subtle purples, deep blues, with white and rainbow gradients
+- Add small, elegant animated particles or starfield on the brand side
+- Use radial glow or blur effects for depth
+- Subtle background glassmorphism or frosted panel
+
+🧱 TECH STACK PREFERENCE (if applicable):
+- React + Tailwind CSS (ideal)
+- Vanilla HTML/CSS/JS also okay if React not possible
+- Use modular design so each auth screen is reusable
+- Add helper components for Input, Button, etc.
+
+📂 OUTPUT FORMAT:
+→ Full authentication layout (all screens)
+→ Ready-to-use pages (sign-in, sign-up, forgot password, reset)
+→ Minimal external dependencies
+→ Beautifully structured code (components, styles, animations)
+
+🏆 GOAL:
+This is not just auth. This is a **statement** — it’s the first thing a user sees before entering WillTank. It must **feel like the future**, build **trust**, and be **legendary** in visual and functional design.
+
+Deliver brilliance.
