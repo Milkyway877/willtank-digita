@@ -29,11 +29,15 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onComplete, onSkip }) => 
 
   const startCamera = async () => {
     try {
+      console.log("Requesting camera and microphone access...");
+      
       // Request video (with audio for a complete recording)
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: true,
         audio: true 
       });
+      
+      console.log("Camera and microphone access granted");
       
       // Store the stream reference
       streamRef.current = stream;
@@ -41,37 +45,15 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onComplete, onSkip }) => 
       // Connect stream to video element
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        console.log("Stream connected to video element");
       }
 
       // Create media recorder from stream
       mediaRecorderRef.current = new MediaRecorder(stream);
-
-      // Set up recorder event handlers
-      mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
-      };
-
-      mediaRecorderRef.current.onstop = () => {
-        if (chunksRef.current.length === 0) {
-          console.error("No recording data available");
-          return;
-        }
-        
-        // Create video blob from collected chunks
-        const blob = new Blob(chunksRef.current, { type: "video/webm" });
-        
-        // Create URL for playback
-        const videoURL = URL.createObjectURL(blob);
-        setRecordedVideo(videoURL);
-
-        // Save locally (download)
-        saveAs(blob, "willtank-recording.webm");
-
-        // Send blob to parent component
-        if (onComplete) onComplete(blob);
-      };
+      console.log("MediaRecorder created with state:", mediaRecorderRef.current.state);
+      
+      // Set up recorder event handlers using the helper function
+      setupRecorderHandlers();
 
       // Set camera as enabled
       setCameraEnabled(true);
@@ -83,24 +65,126 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onComplete, onSkip }) => 
   };
 
   const startRecording = () => {
-    if (!streamRef.current || !mediaRecorderRef.current) {
-      console.error("Media recorder not initialized");
-      alert("Please enable camera first");
+    console.log("Start recording button clicked");
+    
+    if (!streamRef.current) {
+      console.error("No stream available");
+      alert("Camera stream not initialized. Please enable camera first.");
       return;
+    }
+    
+    if (!mediaRecorderRef.current) {
+      console.error("Media recorder not initialized");
+      
+      // Try to reinitialize the recorder
+      try {
+        mediaRecorderRef.current = new MediaRecorder(streamRef.current);
+        console.log("MediaRecorder reinitialized");
+        
+        // Set up event handlers again
+        mediaRecorderRef.current.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            chunksRef.current.push(e.data);
+          }
+        };
+        
+        mediaRecorderRef.current.onstop = () => {
+          if (chunksRef.current.length === 0) {
+            console.error("No recording data available");
+            return;
+          }
+          
+          // Create video blob from collected chunks
+          const blob = new Blob(chunksRef.current, { type: "video/webm" });
+          
+          // Create URL for playback
+          const videoURL = URL.createObjectURL(blob);
+          setRecordedVideo(videoURL);
+          
+          // Save locally (download)
+          saveAs(blob, "willtank-recording.webm");
+          
+          // Send blob to parent component
+          if (onComplete) onComplete(blob);
+        };
+      } catch (err) {
+        console.error("Failed to reinitialize media recorder:", err);
+        alert("Failed to setup recording. Please enable camera and try again.");
+        return;
+      }
     }
     
     // Clear any previous recording chunks
     chunksRef.current = [];
     
     try {
-      // Start recording with 1-second chunks for better reliability
-      mediaRecorderRef.current.start(1000);
-      setRecording(true);
-      console.log("Recording started - " + new Date().toISOString());
+      console.log("MediaRecorder state before start:", mediaRecorderRef.current.state);
+      
+      // Only start if not already recording
+      if (mediaRecorderRef.current.state === 'inactive') {
+        // Start recording with 1-second chunks for better reliability
+        mediaRecorderRef.current.start(1000);
+        setRecording(true);
+        console.log("Recording started - " + new Date().toISOString());
+      } else {
+        console.warn("Recorder is not in inactive state, current state:", mediaRecorderRef.current.state);
+        
+        // If it's already recording, stop it first then restart
+        if (mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+          
+          // Small delay before restarting
+          setTimeout(() => {
+            if (mediaRecorderRef.current && streamRef.current) {
+              // Reinitialize recorder
+              mediaRecorderRef.current = new MediaRecorder(streamRef.current);
+              
+              // Set handlers again
+              setupRecorderHandlers();
+              
+              // Start recording
+              mediaRecorderRef.current.start(1000);
+              setRecording(true);
+              console.log("Recording restarted - " + new Date().toISOString());
+            }
+          }, 500);
+        }
+      }
     } catch (err) {
       console.error("Failed to start recording:", err);
       alert("Failed to start recording. Please try again.");
     }
+  };
+  
+  // Helper function to set up recorder event handlers
+  const setupRecorderHandlers = () => {
+    if (!mediaRecorderRef.current) return;
+    
+    mediaRecorderRef.current.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) {
+        chunksRef.current.push(e.data);
+      }
+    };
+    
+    mediaRecorderRef.current.onstop = () => {
+      if (chunksRef.current.length === 0) {
+        console.error("No recording data available");
+        return;
+      }
+      
+      // Create video blob from collected chunks
+      const blob = new Blob(chunksRef.current, { type: "video/webm" });
+      
+      // Create URL for playback
+      const videoURL = URL.createObjectURL(blob);
+      setRecordedVideo(videoURL);
+
+      // Save locally (download)
+      saveAs(blob, "willtank-recording.webm");
+
+      // Send blob to parent component
+      if (onComplete) onComplete(blob);
+    };
   };
 
   const stopRecording = () => {

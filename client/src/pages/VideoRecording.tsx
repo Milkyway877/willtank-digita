@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Info, FileVideo, AlertCircle, ArrowRight } from 'lucide-react';
 import AnimatedAurora from '@/components/ui/AnimatedAurora';
 import VideoRecorder from '@/components/VideoRecorder';
+import { saveWillProgress, WillCreationStep } from '@/lib/will-progress-tracker';
 
 const VideoRecording: React.FC = () => {
   const { user, isLoading: authLoading } = useAuth();
@@ -28,6 +29,28 @@ const VideoRecording: React.FC = () => {
     
     // Mark as completed in localStorage
     localStorage.setItem('willVideoRecorded', 'true');
+    localStorage.setItem('willVideoDate', new Date().toISOString());
+    
+    // Update progress tracker
+    saveWillProgress(WillCreationStep.VIDEO_RECORDING);
+    
+    // Show success notification for 2 seconds before continuing
+    const notification = document.createElement('div');
+    notification.className = 'fixed top-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-lg z-50 animate-fade-in';
+    notification.innerHTML = '<div class="flex items-center"><span class="mr-2">✓</span>Video recorded successfully</div>';
+    document.body.appendChild(notification);
+    
+    // Remove notification and continue after 2 seconds
+    setTimeout(() => {
+      notification.classList.add('animate-fade-out');
+      setTimeout(() => {
+        try {
+          document.body.removeChild(notification);
+        } catch (e) {
+          // Element might have been removed already
+        }
+      }, 500);
+    }, 2000);
   };
 
   // Skip recording and continue
@@ -36,6 +59,9 @@ const VideoRecording: React.FC = () => {
     
     // Mark as completed in localStorage
     localStorage.setItem('willVideoRecorded', 'true');
+    
+    // Update progress tracker
+    saveWillProgress(WillCreationStep.VIDEO_RECORDING);
     
     // Navigate to next step
     navigate('/final-review');

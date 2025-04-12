@@ -4,6 +4,7 @@ import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
 import { Check, Edit, FileText, AlertCircle, Save, ArrowRight, CheckCircle, Download } from 'lucide-react';
 import AnimatedAurora from '@/components/ui/AnimatedAurora';
+import { saveWillProgress, WillCreationStep, clearWillProgress } from '@/lib/will-progress-tracker';
 
 // Will document data structure
 interface WillData {
