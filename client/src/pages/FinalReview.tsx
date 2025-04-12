@@ -240,6 +240,22 @@ Date                               Date`;
     
     // Save completion status in localStorage
     localStorage.setItem('willCompleted', 'true');
+
+    console.log("Finalizing will document and marking as completed");
+    
+    // Update progress tracker to mark the will as completed
+    try {
+      // First mark final review as completed
+      saveWillProgress(WillCreationStep.FINAL_REVIEW);
+      
+      // Then mark the entire will as completed
+      // This will prevent the unfinished will notification from appearing
+      saveWillProgress(WillCreationStep.COMPLETED);
+      
+      console.log("Will progress tracker updated successfully");
+    } catch (error) {
+      console.error("Error updating will progress:", error);
+    }
     
     // Generate and download PDF automatically
     generatePDF();
