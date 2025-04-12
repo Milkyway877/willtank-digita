@@ -7,16 +7,37 @@ import { User, InsertUser } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+// Extended User type
+interface ExtendedUser {
+  id: number;
+  username: string;
+  password: string;
+  isEmailVerified: boolean | null;
+  verificationCode: string | null;
+  verificationCodeExpiry: Date | null;
+  resetPasswordToken: string | null;
+  resetPasswordExpiry: Date | null;
+  createdAt: Date | null;
+}
+
 type AuthContextType = {
-  user: User | null;
+  user: ExtendedUser | null;
   isLoading: boolean;
   error: Error | null;
   loginMutation: ReturnType<typeof useLoginMutation>;
   logoutMutation: ReturnType<typeof useLogoutMutation>;
   registerMutation: ReturnType<typeof useRegisterMutation>;
+  verifyEmailMutation: ReturnType<typeof useVerifyEmailMutation>;
+  resendVerificationMutation: ReturnType<typeof useResendVerificationMutation>;
+  forgotPasswordMutation: ReturnType<typeof useForgotPasswordMutation>;
+  resetPasswordMutation: ReturnType<typeof useResetPasswordMutation>;
 };
 
 type LoginData = Pick<InsertUser, "username" | "password">;
+type VerifyEmailData = { email: string; code: string };
+type ResendVerificationData = { email: string };
+type ForgotPasswordData = { email: string };
+type ResetPasswordData = { token: string; password: string };
 
 // Custom hooks for auth operations
 function useLoginMutation() {
@@ -27,11 +48,16 @@ function useLoginMutation() {
       const res = await apiRequest("POST", "/api/login", credentials);
       return await res.json();
     },
-    onSuccess: (user: User) => {
+    onSuccess: (user: ExtendedUser) => {
       queryClient.setQueryData(["/api/user"], user);
+      
+      // Extract email from username (which is email)
+      const emailParts = user.username.split('@');
+      const displayName = emailParts[0] || user.username;
+      
       toast({
         title: "Login successful",
-        description: `Welcome back, ${user.username}!`,
+        description: `Welcome back, ${displayName}!`,
       });
     },
     onError: (error: Error) => {
@@ -50,18 +76,136 @@ function useRegisterMutation() {
   return useMutation({
     mutationFn: async (credentials: InsertUser) => {
       const res = await apiRequest("POST", "/api/register", credentials);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Registration failed");
+      }
       return await res.json();
     },
-    onSuccess: (user: User) => {
-      queryClient.setQueryData(["/api/user"], user);
+    onSuccess: (response: { id: number; username: string; isEmailVerified: boolean; message: string }) => {
+      // Don't set as current user yet - they need to verify email first
       toast({
         title: "Registration successful",
-        description: `Welcome to WillTank, ${user.username}!`,
+        description: response.message || "Please check your email for verification code.",
       });
     },
     onError: (error: Error) => {
       toast({
         title: "Registration failed",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+function useVerifyEmailMutation() {
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async (data: VerifyEmailData) => {
+      const res = await apiRequest("POST", "/api/verify-email", data);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Email verification failed");
+      }
+      return await res.json();
+    },
+    onSuccess: (user: ExtendedUser) => {
+      queryClient.setQueryData(["/api/user"], user);
+      toast({
+        title: "Email verified",
+        description: "Your email has been successfully verified.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Verification failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+function useResendVerificationMutation() {
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async (data: ResendVerificationData) => {
+      const res = await apiRequest("POST", "/api/resend-verification", data);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to resend verification code");
+      }
+      return await res.json();
+    },
+    onSuccess: (response) => {
+      toast({
+        title: "Verification code sent",
+        description: response.message || "A new verification code has been sent to your email.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to resend code",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+function useForgotPasswordMutation() {
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async (data: ForgotPasswordData) => {
+      const res = await apiRequest("POST", "/api/forgot-password", data);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to process password reset request");
+      }
+      return await res.json();
+    },
+    onSuccess: (response) => {
+      toast({
+        title: "Password reset email sent",
+        description: response.message || "Check your email for password reset instructions.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Password reset failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+}
+
+function useResetPasswordMutation() {
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async (data: ResetPasswordData) => {
+      const res = await apiRequest("POST", "/api/reset-password", data);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to reset password");
+      }
+      return await res.json();
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      toast({
+        title: "Password reset successful",
+        description: response.message || "Your password has been successfully reset.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Password reset failed",
         description: error.message,
         variant: "destructive",
       });
@@ -100,7 +244,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     error,
     isLoading,
-  } = useQuery<User | null>({
+  } = useQuery<ExtendedUser | null>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
@@ -108,6 +252,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useLoginMutation();
   const registerMutation = useRegisterMutation();
   const logoutMutation = useLogoutMutation();
+  const verifyEmailMutation = useVerifyEmailMutation();
+  const resendVerificationMutation = useResendVerificationMutation();
+  const forgotPasswordMutation = useForgotPasswordMutation();
+  const resetPasswordMutation = useResetPasswordMutation();
 
   return (
     <AuthContext.Provider
@@ -118,6 +266,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginMutation,
         logoutMutation,
         registerMutation,
+        verifyEmailMutation,
+        resendVerificationMutation,
+        forgotPasswordMutation,
+        resetPasswordMutation,
       }}
     >
       {children}
