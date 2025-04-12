@@ -4,6 +4,7 @@ import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
 import { Upload, X, Check, AlertCircle, FileText, Image, Film, File, ArrowRight } from 'lucide-react';
 import AnimatedAurora from '@/components/ui/AnimatedAurora';
+import Logo from '@/components/ui/Logo';
 
 // Document type interface
 interface DocumentRequirement {
@@ -294,170 +295,176 @@ const DocumentUpload: React.FC = () => {
         <AnimatedAurora />
       </div>
       
-      <div className="container mx-auto py-16 px-4 relative z-10">
+      <div className="container mx-auto px-4 py-8 md:py-12 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="max-w-3xl mx-auto"
         >
-          <div className="text-center mb-10">
-            <h1 className="text-3xl font-bold mb-4">Supporting Documents</h1>
-            <p className="text-gray-600 dark:text-gray-400 max-w-xl mx-auto">
-              To finalize your will, please upload the following supporting documents.
-              These documents help establish the authenticity of your assets and identity.
-            </p>
+          {/* Header with Logo */}
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white">Supporting Documents</h1>
+            <a href="/" className="flex items-center">
+              <Logo size="lg" withText={false} />
+            </a>
           </div>
           
+          {/* Progress Bar */}
+          <div className="mb-8">
+            <div className="flex justify-between text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+              <span>Document Upload</span>
+              <span>{uploadedCount} of {requiredCount} required documents</span>
+            </div>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div 
+                className="bg-primary h-2 rounded-full transition-all duration-500" 
+                style={{ width: requiredCount ? `${(uploadedCount / requiredCount) * 100}%` : '0%' }}
+              ></div>
+            </div>
+          </div>
+          
+          <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm md:text-base">
+            These documents help establish the authenticity of your assets and identity.
+          </p>
+          
           {/* Document Upload Area */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-            <div className="space-y-8">
-              {documents.map((document) => (
-                <div key={document.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="font-semibold text-lg flex items-center">
-                        {document.name}
-                        {document.required && (
-                          <span className="text-xs font-medium bg-red-100 text-red-800 ml-2 px-2 py-0.5 rounded-full">
-                            Required
-                          </span>
-                        )}
-                      </h3>
-                      <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
-                        {document.description}
-                      </p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                        Accepted formats: {document.fileTypes.join(', ')} • Max size: {document.maxSize}MB
-                      </p>
-                    </div>
-                    
-                    {uploadedFiles.some(f => f.id === document.id && f.status === 'success') && (
-                      <div className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 p-1.5 rounded-full">
-                        <Check className="h-4 w-4" />
-                      </div>
-                    )}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 md:p-6 space-y-6">
+            {documents.map((document) => (
+              <div key={document.id} className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 md:p-5 hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h3 className="font-medium text-base md:text-lg flex items-center">
+                      {document.name}
+                      {document.required && (
+                        <span className="text-xs font-medium bg-red-100 text-red-800 ml-2 px-2 py-0.5 rounded-full">
+                          Required
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400 mt-1 text-xs md:text-sm">
+                      {document.description}
+                    </p>
                   </div>
                   
-                  {/* Display uploaded file or upload area */}
-                  {uploadedFiles.some(f => f.id === document.id) ? (
-                    // Show uploaded file
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4"
-                    >
-                      {uploadedFiles.map(file => file.id === document.id && (
-                        <div key={file.name} className="w-full">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center space-x-3">
-                              <div className="flex-shrink-0 h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                                {getFileIcon(file.name)}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate">{file.name}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">
-                                  {(file.file.size / (1024 * 1024)).toFixed(2)} MB
-                                </p>
-                              </div>
-                            </div>
-                            
-                            <button 
-                              onClick={() => handleRemoveFile(document.id)}
-                              className="ml-2 p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                            >
-                              <X className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-                            </button>
-                          </div>
-                          
-                          {file.status === 'uploading' && (
-                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-2">
-                              <div 
-                                className="bg-primary h-1.5 rounded-full transition-all duration-300" 
-                                style={{ width: `${file.progress}%` }}
-                              ></div>
-                            </div>
-                          )}
-                          
-                          {file.status === 'error' && (
-                            <div className="mt-2 flex items-center text-sm text-red-500">
-                              <AlertCircle className="h-4 w-4 mr-1" />
-                              <span>{file.error}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </motion.div>
-                  ) : (
-                    // Show file upload area
-                    <div
-                      onDragEnter={handleDragEnter}
-                      onDragLeave={handleDragLeave}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, document.id)}
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
-                        isDragging 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-gray-300 dark:border-gray-600 hover:border-primary hover:bg-primary/5'
-                      }`}
-                    >
-                      <input
-                        key={fileInputKey}
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        accept={document.fileTypes.join(',')}
-                        onChange={(e) => handleFileSelect(e, document.id)}
-                      />
-                      
-                      <Upload className="h-10 w-10 mx-auto text-gray-400 mb-4" />
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        <span className="text-primary font-medium">Click to upload</span> or drag and drop
-                      </p>
+                  {uploadedFiles.some(f => f.id === document.id && f.status === 'success') && (
+                    <div className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-400 p-1.5 rounded-full">
+                      <Check className="h-4 w-4" />
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
+                
+                {/* Display uploaded file or upload area */}
+                {uploadedFiles.some(f => f.id === document.id) ? (
+                  // Show uploaded file
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-gray-50 dark:bg-gray-900 rounded-xl p-3"
+                  >
+                    {uploadedFiles.map(file => file.id === document.id && (
+                      <div key={file.name} className="w-full">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <div className="flex-shrink-0 h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                              {getFileIcon(file.name)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{file.name}</p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                {(file.file.size / (1024 * 1024)).toFixed(2)} MB
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <button 
+                            onClick={() => handleRemoveFile(document.id)}
+                            className="ml-2 p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <X className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                          </button>
+                        </div>
+                        
+                        {file.status === 'uploading' && (
+                          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-2">
+                            <div 
+                              className="bg-primary h-1.5 rounded-full transition-all duration-300" 
+                              style={{ width: `${file.progress}%` }}
+                            ></div>
+                          </div>
+                        )}
+                        
+                        {file.status === 'error' && (
+                          <div className="mt-2 flex items-center text-sm text-red-500">
+                            <AlertCircle className="h-4 w-4 mr-1" />
+                            <span>{file.error}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </motion.div>
+                ) : (
+                  // Show file upload area
+                  <div
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, document.id)}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all ${
+                      isDragging 
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-gray-300 dark:border-gray-600 hover:border-primary hover:bg-primary/5'
+                    }`}
+                  >
+                    <input
+                      key={fileInputKey}
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept={document.fileTypes.join(',')}
+                      onChange={(e) => handleFileSelect(e, document.id)}
+                    />
+                    
+                    <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      <span className="text-primary font-medium">Click to upload</span> or drag and drop
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {document.fileTypes.join(', ')} • Max: {document.maxSize}MB
+                    </p>
+                  </div>
+                )}
+              </div>
+            ))}
             
             {/* Continue Button */}
-            <div className="mt-10 flex justify-center">
+            <div className="flex justify-end pt-4">
               <button
                 onClick={handleContinue}
                 disabled={!allRequired}
-                className={`flex items-center px-8 py-3 rounded-lg text-white font-medium ${
+                className={`flex items-center px-5 py-2.5 rounded-xl text-white font-medium transition-all duration-200 ${
                   allRequired 
-                    ? 'bg-gradient-to-r from-primary to-blue-500 hover:from-primary-dark hover:to-blue-600 shadow-lg hover:shadow-xl transition-all'
+                    ? 'bg-purple-600 hover:bg-purple-700 shadow hover:shadow-lg'
                     : 'bg-gray-400 cursor-not-allowed'
                 }`}
               >
-                Continue to Video Recording
-                <ArrowRight className="ml-2 h-5 w-5" />
+                Continue
+                <ArrowRight className="ml-2 h-4 w-4" />
               </button>
             </div>
             
-            <div className="mt-3 text-center">
-              {!allRequired ? (
-                <p className="text-sm text-amber-500 dark:text-amber-400">
-                  <AlertCircle className="inline h-4 w-4 mr-1 mb-0.5" />
-                  Please upload all required documents to continue
-                </p>
-              ) : (
-                <p className="text-sm text-green-500 dark:text-green-400">
-                  <Check className="inline h-4 w-4 mr-1 mb-0.5" />
-                  All required documents uploaded successfully
-                </p>
-              )}
-              
-              {/* Document count indicator */}
-              <div className="mt-2 flex items-center justify-center">
-                <span className="text-sm font-medium">
-                  {uploadedCount} of {requiredCount} required documents uploaded
-                  {allRequired && ' ✅'}
-                </span>
-              </div>
-            </div>
+            {!allRequired ? (
+              <p className="text-xs text-amber-500 dark:text-amber-400 text-center mt-2">
+                <AlertCircle className="inline h-3 w-3 mr-1 mb-0.5" />
+                Please upload all required documents to continue
+              </p>
+            ) : (
+              <p className="text-xs text-green-500 dark:text-green-400 text-center mt-2">
+                <Check className="inline h-3 w-3 mr-1 mb-0.5" />
+                All required documents uploaded successfully
+              </p>
+            )}
           </div>
         </motion.div>
       </div>

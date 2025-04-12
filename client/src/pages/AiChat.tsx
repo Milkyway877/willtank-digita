@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
 import { Send, ChevronUp, ChevronDown, User, PenSquare, Paperclip, FileText } from 'lucide-react';
+import Logo from '@/components/ui/Logo';
 import AnimatedAurora from '@/components/ui/AnimatedAurora';
 
 // Message types
@@ -454,13 +455,23 @@ const AiChat: React.FC = () => {
         ref={chatContainerRef}
       >
         {/* Chat Header */}
-        <div className="flex items-center p-4 border-b border-gray-200 dark:border-gray-700 bg-white bg-opacity-90 dark:bg-gray-800 dark:bg-opacity-90 backdrop-blur-sm z-10">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-blue-500 flex items-center justify-center mr-3">
-            <span className="text-white font-bold">S</span>
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white bg-opacity-90 dark:bg-gray-800 dark:bg-opacity-90 backdrop-blur-sm z-10">
+          <div className="flex items-center">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-blue-500 flex items-center justify-center mr-3">
+              <span className="text-white font-bold">S</span>
+            </div>
+            <div>
+              <h2 className="font-semibold">Skyler</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">AI Assistant</p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-semibold">Skyler</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400">AI Assistant</p>
+          <div className="flex items-center">
+            <div className="hidden sm:block">
+              <a href="/dashboard" className="text-sm text-primary hover:underline mr-4">Dashboard</a>
+            </div>
+            <a href="/" className="flex items-center">
+              <Logo size="md" withText={false} />
+            </a>
           </div>
         </div>
         
