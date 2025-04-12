@@ -1,0 +1,90 @@
+You are now the senior lead developer of WillTank.
+
+⚠️ Your mission is to **fix the following critical bugs** in the WillTank flow without breaking **ANY existing designs, styles, animations, or functionalities** that are already working.
+
+🚫 Do NOT:
+- Change any visual layout or color scheme
+- Alter animations or design effects
+- Use placeholder data
+- Add extra routing or unauthorized flows
+
+✅ DO:
+- Fix only what is listed below, precisely and surgically
+
+---
+
+🧩 **BUGS TO FIX IMMEDIATELY:**
+
+---
+
+🚨 1. ONBOARDING LOOP + FREEZE
+
+- Problem: After completing onboarding and hitting the paywall, the system **redirects the user back to the start of onboarding**.
+- Worse: The onboarding interface becomes **frozen**, buttons like `Skip` disappear, and no further navigation is possible.
+- Fix Instructions:
+  - Once a user hits the paywall and completes or closes it, they should be redirected **only once** to the template selection page or dashboard depending on access.
+  - Prevent multiple onboarding re-triggers using a `hasCompletedOnboarding` flag (stored in localStorage, auth context, or backend).
+  - Ensure onboarding runs **only once for new users** and **never again on subsequent logins** unless reset manually by an admin.
+
+---
+
+🚨 2. DOCUMENT UPLOAD ISSUES
+
+- Problem A: The “Browse” button works **only once**. On second attempt, it becomes unresponsive.
+- Problem B: Drag and drop works, but that’s not user-friendly for everyone.
+- Problem C: It doesn’t properly count or track uploaded documents vs. required.
+- Problem D: Even after uploading the required number of documents, the “Continue” button stays frozen unless the user uploads one extra document.
+
+- Fix Instructions:
+  - Make sure the `Browse` button resets its internal state and works **every time** it is clicked.
+  - Support multiple file uploads smoothly (with input reset or re-initialization after each upload).
+  - Track uploaded file count and required count using a `documentsUploaded` and `requiredDocuments` state.
+  - If the uploaded documents match the number required, **enable the “Continue” button** automatically.
+  - Display a visual confirmation: "2 of 2 documents uploaded ✅"
+  - Allow user to delete or replace documents as well.
+
+---
+
+🚨 3. VIDEO RECORDING NON-FUNCTIONAL
+
+- Problem: Clicking "Open Camera" **does nothing**. The video section is entirely broken.
+- Fix Instructions:
+  - Implement webcam access using WebRTC or HTML5 `<video>` + `getUserMedia()` API.
+  - On "Open Camera" button click:
+    - Prompt for webcam permissions.
+    - Show live camera feed in a `<video>` element.
+    - Provide buttons: `Start Recording`, `Stop`, and `Save`.
+  - Save the recorded video to local state or upload to backend.
+  - Show a preview or filename after saving.
+  - Handle all camera permission errors gracefully with messages like “Camera access denied.”
+
+---
+
+🚨 4. GET STARTED / LOGIN – AUTO LOGIN BUG
+
+- Problem: Pressing "Get Started" or "Login" auto logs the user in or skips authentication.
+- Fix Instructions:
+  - Always show a **full login or registration form** when “Get Started” or “Login” is clicked.
+  - Do not bypass authentication ever.
+  - If using Clerk or Supabase, make sure those buttons lead to proper auth form components (with email + password or social login options).
+
+---
+
+🧠 REMEMBER:
+
+- The **onboarding flow is only for new users**.
+- Once onboarding is done, users should never be taken through onboarding again unless manually triggered.
+- Do not change UI styles, color schemes, animations, layout structures, or introduce new elements unless explicitly required.
+- All components and flows must remain **smooth, professional, and fully responsive** on all device sizes.
+
+✅ After implementing all the above:
+- Test onboarding, paywall redirect, file uploads, camera access, and login forms on both desktop and mobile.
+- Ensure all functionality works independently and in the correct sequence.
+
+---
+
+🏁 End Goal:
+WillTank must feel like a **world-class, professional, secure, and elegant product** with everything working as intended, no bugs, no broken UX.
+
+THIS IS THE FINAL POLISH STAGE BEFORE LAUNCH.
+

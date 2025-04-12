@@ -32,6 +32,15 @@ const OnboardingContainer: React.FC = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [animateOnExit, setAnimateOnExit] = useState(true)
   
+  // Check if onboarding is already completed
+  useEffect(() => {
+    const hasCompletedOnboarding = localStorage.getItem('onboardingCompleted') === 'true';
+    if (hasCompletedOnboarding) {
+      // Navigate to template selection if onboarding was already completed
+      navigate('/template-selection');
+    }
+  }, [navigate]);
+  
   const handleNext = () => {
     if (currentStep < totalSteps - 1) {
       setCurrentStep(prev => prev + 1)
@@ -47,6 +56,8 @@ const OnboardingContainer: React.FC = () => {
   const handleSkip = () => {
     setAnimateOnExit(false)
     setCurrentStep(totalSteps - 1) // Go to paywall
+    // Mark onboarding as completed when user skips to paywall
+    localStorage.setItem('onboardingCompleted', 'true');
   }
 
   const selectReason = (reason: string) => {
