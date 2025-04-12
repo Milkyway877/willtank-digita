@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 
-const AnimatedAurora: React.FC = () => {
+export const AnimatedAurora: React.FC = () => {
   const auroraRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
