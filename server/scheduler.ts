@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { db } from './db';
 import { users, beneficiaries, executors, checkInResponses } from '../shared/schema';
-import { eq, lt, and } from 'drizzle-orm';
+import { eq, lt, and, isNull, sql } from 'drizzle-orm';
 import { sendEmail, createWeeklyCheckInEmailTemplate } from './email';
 
 /**
@@ -20,10 +20,7 @@ async function sendWeeklyCheckInEmails() {
       .where(
         and(
           eq(users.isEmailVerified, true),
-          or(
-            eq(users.nextCheckInDue, null),
-            lt(users.nextCheckInDue, now)
-          )
+          sql`(${users.nextCheckInDue} IS NULL OR ${users.nextCheckInDue} < ${now})`
         )
       );
 
@@ -83,8 +80,8 @@ async function sendWeeklyCheckInEmails() {
       // Send emails to executors
       for (const executor of userExecutors) {
         // Generate unique URLs for this executor
-        const executorConfirmAliveUrl = `${process.env.CLIENT_URL}/check-in/executor/confirm?userId=${userId}&executorId=${executor.id}&alive=true&token=${generateCheckInToken(userId, true, null, executor.id)}`;
-        const executorReportDeathUrl = `${process.env.CLIENT_URL}/check-in/executor/confirm?userId=${userId}&executorId=${executor.id}&alive=false&token=${generateCheckInToken(userId, false, null, executor.id)}`;
+        const executorConfirmAliveUrl = `${process.env.CLIENT_URL}/check-in/executor/confirm?userId=${userId}&executorId=${executor.id}&alive=true&token=${generateCheckInToken(userId, true, undefined, executor.id)}`;
+        const executorReportDeathUrl = `${process.env.CLIENT_URL}/check-in/executor/confirm?userId=${userId}&executorId=${executor.id}&alive=false&token=${generateCheckInToken(userId, false, undefined, executor.id)}`;
 
         await sendEmail(
           executor.email,
