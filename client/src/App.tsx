@@ -6,13 +6,15 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import AuthRouter from "@/pages/auth";
 import OnboardingContainer from "@/components/onboarding/OnboardingContainer";
+import { AuthProvider } from "@/hooks/use-auth";
+import { ProtectedRoute } from "./lib/protected-route";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/auth/*" component={AuthRouter} />
-      <Route path="/onboarding" component={OnboardingContainer} />
+      <ProtectedRoute path="/onboarding" component={OnboardingContainer} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
@@ -22,8 +24,10 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router />
-      <Toaster />
+      <AuthProvider>
+        <Router />
+        <Toaster />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

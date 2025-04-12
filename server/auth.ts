@@ -92,19 +92,19 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
+    passport.authenticate("local", (err: Error | null, user: Express.User | false, info: { message?: string }) => {
       if (err) return next(err);
-      if (!user) return res.status(401).json({ message: info.message || "Authentication failed" });
+      if (!user) return res.status(401).json({ message: info?.message || "Authentication failed" });
       
-      req.login(user, (err) => {
-        if (err) return next(err);
+      req.login(user, (loginErr: Error | null) => {
+        if (loginErr) return next(loginErr);
         return res.status(200).json(user);
       });
     })(req, res, next);
   });
 
   app.post("/api/logout", (req, res, next) => {
-    req.logout((err) => {
+    req.logout((err: Error | null) => {
       if (err) return next(err);
       res.sendStatus(200);
     });
