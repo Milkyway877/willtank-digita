@@ -39,8 +39,7 @@ const SignIn: React.FC = () => {
   
   const [, navigate] = useLocation();
   
-  // Import will-progress-tracker
-  const { hasUnfinishedWill, getWillProgress, WillCreationStep } = require('@/lib/will-progress-tracker');
+  // Remove duplicate import - already imported at the top
   
   // Redirect if user is already logged in and verified
   useEffect(() => {
@@ -235,9 +234,16 @@ const SignIn: React.FC = () => {
         
         <p className="mt-8 text-center text-neutral-600 dark:text-neutral-400">
           Don't have an account?{' '}
-          <Link href="/auth/sign-up" className="text-primary hover:text-primary-dark transition-colors font-medium">
+          <a 
+            href="/auth/sign-up" 
+            className="text-primary hover:text-primary-dark transition-colors font-medium"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate('/auth/sign-up');
+            }}
+          >
             Sign up
-          </Link>
+          </a>
         </p>
         
         <div className="mt-8 text-center text-xs text-neutral-500 dark:text-neutral-600">

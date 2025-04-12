@@ -377,9 +377,16 @@ const SignUp: React.FC = () => {
         
         <p className="mt-8 text-center text-neutral-600 dark:text-neutral-400">
           Already have an account?{' '}
-          <Link href="/auth/sign-in" className="text-primary hover:text-primary-dark transition-colors font-medium">
+          <a 
+            href="/auth/sign-in" 
+            className="text-primary hover:text-primary-dark transition-colors font-medium"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate('/auth/sign-in');
+            }}
+          >
             Sign in
-          </Link>
+          </a>
         </p>
       </div>
     </AuthLayout>

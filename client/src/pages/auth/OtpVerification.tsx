@@ -6,6 +6,7 @@ import { AlertCircle, CheckCircle2, ArrowLeft, AlertTriangle } from 'lucide-reac
 import AuthLayout from '@/components/auth/AuthLayout';
 import AuthButton from '@/components/auth/AuthButton';
 import { useAuth } from '@/hooks/use-auth';
+import { getWillProgress } from '@/lib/will-progress-tracker';
 
 const OtpVerification: React.FC = () => {
   const [, setLocation] = useLocation();
@@ -156,9 +157,18 @@ const OtpVerification: React.FC = () => {
         message: 'Email verified successfully!'
       });
       
-      // Redirect directly to onboarding after successful verification
+      // Redirect to dashboard for returning users with completed wills
+      // or to onboarding for new users
+      const progress = getWillProgress();
+      
       setTimeout(() => {
-        setLocation('/onboarding');
+        if (progress && progress.completed) {
+          // If will is completed, go to dashboard
+          setLocation('/dashboard');
+        } else {
+          // If no completed will, go to onboarding
+          setLocation('/onboarding');
+        }
       }, 2000);
     } catch (error) {
       setAuthStatus({
@@ -268,9 +278,16 @@ const OtpVerification: React.FC = () => {
             </p>
             <AuthButton 
               type="button" 
-              onClick={() => setLocation('/onboarding')}
+              onClick={() => {
+                const progress = getWillProgress();
+                if (progress && progress.completed) {
+                  setLocation('/dashboard');
+                } else {
+                  setLocation('/onboarding');
+                }
+              }}
             >
-              Continue to Onboarding
+              Continue
             </AuthButton>
           </motion.div>
         )}
