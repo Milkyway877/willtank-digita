@@ -156,9 +156,9 @@ const OtpVerification: React.FC = () => {
         message: 'Email verified successfully!'
       });
       
-      // Redirect after successful verification
+      // Redirect directly to onboarding after successful verification
       setTimeout(() => {
-        setLocation('/');
+        setLocation('/onboarding');
       }, 2000);
     } catch (error) {
       setAuthStatus({
@@ -268,21 +268,23 @@ const OtpVerification: React.FC = () => {
             </p>
             <AuthButton 
               type="button" 
-              onClick={() => setLocation('/auth/sign-in')}
+              onClick={() => setLocation('/onboarding')}
             >
-              Continue to Sign In
+              Continue to Onboarding
             </AuthButton>
           </motion.div>
         )}
         
-        <div className="mt-8">
-          <Link href="/auth/sign-in">
-            <span className="inline-flex items-center text-primary hover:text-primary-dark transition-colors cursor-pointer">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to sign in
-            </span>
-          </Link>
-        </div>
+        {!isSubmitted && (
+          <div className="mt-8">
+            <Link href="/auth/sign-up">
+              <span className="inline-flex items-center text-primary hover:text-primary-dark transition-colors cursor-pointer">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to sign up
+              </span>
+            </Link>
+          </div>
+        )}
       </div>
     </AuthLayout>
   );

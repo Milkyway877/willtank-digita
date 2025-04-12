@@ -37,7 +37,8 @@ const SignIn: React.FC = () => {
   useEffect(() => {
     if (user) {
       if (user.isEmailVerified) {
-        navigate('/');
+        // Redirect to onboarding page for completed authentication
+        navigate('/onboarding');
       } else {
         // If user is logged in but not verified, redirect to verification page
         navigate(`/auth/verify/${encodeURIComponent(user.username)}`);

@@ -26,7 +26,16 @@ export function ProtectedRoute({
   if (!user) {
     return (
       <Route path={path}>
-        <Redirect to="/auth" />
+        <Redirect to="/auth/sign-in" />
+      </Route>
+    );
+  }
+
+  // If user exists but email is not verified, redirect to verification
+  if (user && !user.isEmailVerified) {
+    return (
+      <Route path={path}>
+        <Redirect to={`/auth/verify/${encodeURIComponent(user.username)}`} />
       </Route>
     );
   }
