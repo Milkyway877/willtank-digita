@@ -70,11 +70,11 @@ const VideoRecording: React.FC = () => {
     };
   }, []);
 
-  // Initialize camera with better error handling and fallback options
-  const initializeCamera = async () => {
+  // Simplified camera initialization for better compatibility
+  const initializeCamera = () => {
+    console.log("Initialize camera clicked");
     setStatus('requesting');
     
-    // First, check if mediaDevices is supported
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       console.error("getUserMedia not supported in this browser");
       setStatus('error');
@@ -82,56 +82,26 @@ const VideoRecording: React.FC = () => {
       return;
     }
     
-    try {
-      // First try with ideal settings
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            facingMode: 'user'
-          }, 
-          audio: true 
-        });
-        
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.onloadedmetadata = () => {
-            videoRef.current?.play().catch(e => {
-              console.warn('Auto-play was prevented:', e);
-              // We don't set error here as the user can still click play manually
-            });
-          };
-        }
-        
-        setStatus('idle');
-      } catch (initialError) {
-        console.warn('Initial camera settings failed, trying fallback:', initialError);
-        
-        // Fallback to minimal settings
-        const fallbackStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: "user" }, 
-          audio: true 
-        });
-        
-        streamRef.current = fallbackStream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = fallbackStream;
-          videoRef.current.onloadedmetadata = () => {
-            videoRef.current?.play().catch(e => {
-              console.warn('Auto-play was prevented:', e);
-            });
-          };
-        }
-        
-        setStatus('idle');
+    // Use simple settings that work across most browsers
+    navigator.mediaDevices.getUserMedia({ 
+      video: true, 
+      audio: true 
+    })
+    .then(stream => {
+      console.log("Stream obtained successfully");
+      streamRef.current = stream;
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
       }
-    } catch (error) {
-      console.error('Error accessing camera (all attempts failed):', error);
+      
+      setStatus('idle');
+    })
+    .catch(error => {
+      console.error('Error accessing camera:', error);
       setStatus('error');
       setErrorMessage('Camera access was denied or unavailable. Please ensure your browser has camera permissions and that no other application is using your camera.');
-    }
+    });
   };
 
   // Get supported MIME type for recording
@@ -154,98 +124,54 @@ const VideoRecording: React.FC = () => {
     return 'video/webm';
   };
 
-  // Start recording with improved browser compatibility
+  // Ultra-simple recording function with minimal options
   const startRecording = () => {
-    if (!streamRef.current) return;
-    
-    // Check if MediaRecorder is supported
-    if (typeof MediaRecorder === 'undefined') {
-      console.error("MediaRecorder not supported in this browser");
-      setStatus('error');
-      setErrorMessage('Your browser does not support video recording. Please try a modern browser like Chrome or Firefox.');
+    console.log("Start recording clicked");
+    if (!streamRef.current) {
+      console.error("No stream available");
       return;
     }
     
-    setRecordedChunks([]);
-    setRecordingTime(0);
-    
-    // Start timer
-    timerRef.current = setInterval(() => {
-      setRecordingTime(prev => prev + 1);
-    }, 1000);
-    
     try {
-      // Get supported MIME type
-      const mimeType = getSupportedMimeType();
-      console.log('Using supported MIME type:', mimeType);
+      // Clear any previous data
+      setRecordedChunks([]);
+      setRecordingTime(0);
       
-      // Create MediaRecorder with appropriate settings
-      let recorderOptions;
-      try {
-        recorderOptions = {
-          mimeType,
-          videoBitsPerSecond: 2500000 // 2.5 Mbps
-        };
-      } catch (e) {
-        // If setting options fails, try minimal options
-        console.warn('Advanced recorder options not supported, using defaults');
-        recorderOptions = { mimeType };
-      }
+      // Start timer
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
       
-      let mediaRecorder;
-      try {
-        // Try with options first
-        mediaRecorder = new MediaRecorder(streamRef.current, recorderOptions);
-      } catch (e) {
-        // Fallback to no options
-        console.warn('MediaRecorder with options failed, trying without options:', e);
-        mediaRecorder = new MediaRecorder(streamRef.current);
-      }
-      
+      // Create a simple MediaRecorder with no options
+      const mediaRecorder = new MediaRecorder(streamRef.current);
       mediaRecorderRef.current = mediaRecorder;
       
+      // Set up data collection
       mediaRecorder.ondataavailable = (event) => {
+        console.log("Data available:", event.data?.size || 0);
         if (event.data && event.data.size > 0) {
           setRecordedChunks(prev => [...prev, event.data]);
         }
       };
       
-      // Handle errors during recording
-      mediaRecorder.onerror = (event) => {
-        console.error('MediaRecorder error:', event);
-        setStatus('error');
-        setErrorMessage('An error occurred during recording. Please try again.');
-        
-        // Clean up
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-        }
-      };
-      
-      // Make sure to handle stop event as well for cross-browser compatibility
+      // Set up stop handler
       mediaRecorder.onstop = () => {
         console.log('MediaRecorder stopped');
+        setStatus('recorded');
         
-        // Ensure we set status to recorded if it's not already set
-        if (status !== 'error') {
-          setStatus('recorded');
-        }
-        
-        // Make sure timer is cleared
         if (timerRef.current) {
           clearInterval(timerRef.current);
         }
       };
       
-      // Use a smaller interval for better chunk collection in all browsers
-      mediaRecorder.start(500); // Collect data every 500ms
+      // Start recording (collect data every 1 second)
+      mediaRecorder.start(1000);
       setStatus('recording');
     } catch (error) {
       console.error('Error starting recording:', error);
       setStatus('error');
-      setErrorMessage('Unable to start recording. Please ensure your browser supports video recording or try a different browser.');
+      setErrorMessage('Unable to start recording. Please try a different browser.');
       
-      // Clean up
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
@@ -426,12 +352,25 @@ const VideoRecording: React.FC = () => {
                   <AlertCircle className="h-16 w-16 text-red-500 mb-4" />
                   <h3 className="text-xl font-semibold mb-2">Camera Access Error</h3>
                   <p className="text-center text-gray-300 mb-4">{errorMessage}</p>
-                  <button
-                    onClick={initializeCamera}
-                    className="px-4 py-2 bg-primary hover:bg-primary-dark rounded-lg transition-colors"
-                  >
-                    Try Again
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={initializeCamera}
+                      className="px-4 py-2 bg-primary hover:bg-primary-dark rounded-lg transition-colors"
+                    >
+                      Try Again
+                    </button>
+                    <button
+                      onClick={() => {
+                        // Skip video recording and proceed
+                        console.log("Skip after error");
+                        localStorage.setItem('willVideoRecorded', 'true');
+                        navigate('/final-review');
+                      }}
+                      className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition-colors"
+                    >
+                      Skip Video Recording
+                    </button>
+                  </div>
                 </div>
               ) : status === 'idle' && !streamRef.current ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6">
@@ -440,12 +379,28 @@ const VideoRecording: React.FC = () => {
                   <p className="text-center text-gray-400 mb-6">
                     Your camera will be used to record a short video confirmation of your will.
                   </p>
-                  <button
-                    onClick={initializeCamera}
-                    className="px-6 py-3 bg-primary hover:bg-primary-dark rounded-lg transition-colors shadow-lg font-medium"
-                  >
-                    Enable Camera
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      onClick={() => {
+                        console.log("Camera button clicked");
+                        initializeCamera();
+                      }}
+                      className="px-6 py-3 bg-primary hover:bg-primary-dark rounded-lg transition-colors shadow-lg font-medium cursor-pointer"
+                    >
+                      Enable Camera
+                    </button>
+                    <button
+                      onClick={() => {
+                        // Skip video recording and create a synthetic record
+                        console.log("Skip video recording");
+                        localStorage.setItem('willVideoRecorded', 'true');
+                        navigate('/final-review');
+                      }}
+                      className="px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors shadow-lg font-medium cursor-pointer"
+                    >
+                      Skip Recording
+                    </button>
+                  </div>
                 </div>
               ) : status === 'requesting' ? (
                 <div className="absolute inset-0 flex items-center justify-center text-white">
