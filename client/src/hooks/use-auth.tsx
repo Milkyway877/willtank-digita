@@ -24,6 +24,7 @@ type AuthContextType = {
   user: ExtendedUser | null;
   isLoading: boolean;
   error: Error | null;
+  refetchUser: () => Promise<any>; // Add function to manually fetch user data
   loginMutation: ReturnType<typeof useLoginMutation>;
   logoutMutation: ReturnType<typeof useLogoutMutation>;
   registerMutation: ReturnType<typeof useRegisterMutation>;
@@ -240,13 +241,17 @@ function useLogoutMutation() {
 export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // Disable auto-login by setting enabled to false by default
+  // We'll only fetch when explicitly requested after login/register
   const {
     data: user,
     error,
     isLoading,
+    refetch
   } = useQuery<ExtendedUser | null>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: false, // Disable auto-fetching on page load
   });
 
   const loginMutation = useLoginMutation();
@@ -257,12 +262,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const forgotPasswordMutation = useForgotPasswordMutation();
   const resetPasswordMutation = useResetPasswordMutation();
 
+  // Function to manually fetch user data
+  const refetchUser = async () => {
+    return refetch();
+  };
+
   return (
     <AuthContext.Provider
       value={{
         user: user ?? null,
         isLoading,
         error,
+        refetchUser,
         loginMutation,
         logoutMutation,
         registerMutation,

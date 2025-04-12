@@ -8,6 +8,11 @@ import AuthLayout from '@/components/auth/AuthLayout';
 import AuthInput from '@/components/auth/AuthInput';
 import AuthButton from '@/components/auth/AuthButton';
 import { useAuth } from '@/hooks/use-auth';
+import { 
+  hasUnfinishedWill, 
+  getWillProgress, 
+  WillCreationStep 
+} from '@/lib/will-progress-tracker';
 
 const SignIn: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -28,17 +33,29 @@ const SignIn: React.FC = () => {
   const { 
     user, 
     loginMutation, 
-    resendVerificationMutation 
+    resendVerificationMutation,
+    refetchUser
   } = useAuth();
   
   const [, navigate] = useLocation();
+  
+  // Import will-progress-tracker
+  const { hasUnfinishedWill, getWillProgress, WillCreationStep } = require('@/lib/will-progress-tracker');
   
   // Redirect if user is already logged in and verified
   useEffect(() => {
     if (user) {
       if (user.isEmailVerified) {
-        // Redirect to onboarding page for completed authentication
-        navigate('/onboarding');
+        // Check if the user has a completed will
+        const progress = getWillProgress();
+        
+        if (progress && progress.completed) {
+          // If will is completed, go to dashboard
+          navigate('/dashboard');
+        } else {
+          // If no completed will, go to onboarding or template selection
+          navigate('/onboarding');
+        }
       } else {
         // If user is logged in but not verified, redirect to verification page
         navigate(`/auth/verify/${encodeURIComponent(user.username)}`);
@@ -92,9 +109,13 @@ const SignIn: React.FC = () => {
         
         // Trigger resend verification code
         await resendVerificationMutation.mutateAsync({ email: email.toLowerCase() });
+      } else {
+        // For verified users, check if they have a will and redirect accordingly
+        await refetchUser(); // Explicitly fetch user data
+        
+        // Will check and redirect to dashboard will be handled by useEffect after user is set
+        // We'll add hasWill check to determine if we go to dashboard or template selection
       }
-      // Otherwise, success status is handled by the hook
-      // Navigate is handled by useEffect when user is set
       
     } catch (error) {
       setAuthStatus({
