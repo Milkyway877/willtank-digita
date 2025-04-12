@@ -90,9 +90,10 @@ const SignIn: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
+          className="mb-8"
         >
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Sign in to WillTank</h1>
-          <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Sign in to WillTank</h1>
+          <p className="text-neutral-600 dark:text-neutral-400">
             Enter your credentials to access your account
           </p>
         </motion.div>
@@ -152,10 +153,8 @@ const SignIn: React.FC = () => {
               Remember me
             </label>
             
-            <Link href="/auth/forgot-password">
-              <a className="text-sm text-primary hover:text-primary-dark transition-colors">
-                Forgot password?
-              </a>
+            <Link href="/auth/forgot-password" className="text-sm text-primary hover:text-primary-dark transition-colors">
+              Forgot password?
             </Link>
           </div>
           
@@ -182,10 +181,8 @@ const SignIn: React.FC = () => {
         
         <p className="mt-8 text-center text-neutral-600 dark:text-neutral-400">
           Don't have an account?{' '}
-          <Link href="/auth/sign-up">
-            <a className="text-primary hover:text-primary-dark transition-colors font-medium">
-              Sign up
-            </a>
+          <Link href="/auth/sign-up" className="text-primary hover:text-primary-dark transition-colors font-medium">
+            Sign up
           </Link>
         </p>
         

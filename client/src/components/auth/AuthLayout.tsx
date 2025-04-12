@@ -106,7 +106,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.8, delay: 0.2 }}
       >
-        <div className="max-w-md mx-auto w-full">
+        <div className="max-w-md mx-auto w-full px-4 py-8">
           {children}
         </div>
       </motion.div>

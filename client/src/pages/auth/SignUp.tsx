@@ -108,9 +108,10 @@ const SignUp: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
+          className="mb-8"
         >
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Create an account</h1>
-          <p className="text-neutral-600 dark:text-neutral-400 mb-6">
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Create an account</h1>
+          <p className="text-neutral-600 dark:text-neutral-400">
             Get started with your free account today
           </p>
         </motion.div>
@@ -230,10 +231,8 @@ const SignUp: React.FC = () => {
         
         <p className="mt-8 text-center text-neutral-600 dark:text-neutral-400">
           Already have an account?{' '}
-          <Link href="/auth/sign-in">
-            <a className="text-primary hover:text-primary-dark transition-colors font-medium">
-              Sign in
-            </a>
+          <Link href="/auth/sign-in" className="text-primary hover:text-primary-dark transition-colors font-medium">
+            Sign in
           </Link>
         </p>
       </div>

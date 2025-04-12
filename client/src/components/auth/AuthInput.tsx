@@ -25,36 +25,32 @@ const AuthInput: React.FC<AuthInputProps> = ({
 
   return (
     <motion.div 
-      className="mb-4"
+      className="mb-6"
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
       <div className="relative">
+        <label 
+          className="block text-neutral-500 mb-2 text-sm font-medium"
+        >
+          {label}
+        </label>
+        
         <div className="relative">
-          <label 
-            className={`absolute left-3 transition-all duration-200 pointer-events-none ${
-              isFocused || props.value ? 
-              'text-xs text-primary -top-2 bg-white dark:bg-neutral-900 px-1' : 
-              'text-neutral-500 top-3'
-            }`}
-          >
-            {label}
-          </label>
-          
           <div className="flex">
             {icon && (
-              <div className="flex items-center justify-center pl-3 pr-2">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 flex items-center justify-center">
                 <span className="text-neutral-400">{icon}</span>
               </div>
             )}
             
             <input
               type={inputType}
-              className={`w-full py-3 px-3 rounded-lg border ${
+              className={`w-full py-3 px-4 rounded-lg border ${
                 error ? 'border-red-500' : 'border-neutral-300 dark:border-neutral-700'
               } focus:ring-2 focus:ring-primary focus:outline-none transition-all bg-white dark:bg-neutral-800 dark:text-white ${
-                icon ? 'pl-2' : 'pl-3'
+                icon ? 'pl-10' : 'pl-4'
               }`}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
@@ -64,7 +60,7 @@ const AuthInput: React.FC<AuthInputProps> = ({
             {isPassword && (
               <button
                 type="button"
-                className="absolute right-3 top-3 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 focus:outline-none"
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 focus:outline-none"
                 onClick={togglePasswordVisibility}
               >
                 {inputType === 'password' ? (
