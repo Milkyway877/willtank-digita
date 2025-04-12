@@ -1,18 +1,21 @@
 import nodemailer from 'nodemailer';
+import { createEmailTransporter, createTestEmailTransporter } from './email-services';
 
-// Email configuration using Namecheap SMTP
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'mail.privateemail.com',
-    port: parseInt(process.env.SMTP_PORT || '465', 10),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-    debug: true, // Enable debug logs
-    logger: true, // Enable logger
-  });
+// Function to get email transporter - use the configured service from email-services.ts
+const getTransporter = async () => {
+  try {
+    // Use test transporter if in test mode
+    if (process.env.NODE_ENV === 'test' || process.env.EMAIL_TEST_MODE === 'true') {
+      console.log('Using test email transporter (Ethereal)');
+      return await createTestEmailTransporter();
+    }
+    
+    // Otherwise use the configured email service
+    return createEmailTransporter();
+  } catch (error) {
+    console.error('Error creating email transporter:', error);
+    throw error;
+  }
 };
 
 // Helper function to send emails via SMTP
@@ -26,7 +29,7 @@ export async function sendEmail(
     const from = process.env.SMTP_FROM || '"WillTank Support" <SUPPORT@WILLTANK.COM>';
     
     // Create transporter and send email
-    const transporter = createTransporter();
+    const transporter = await getTransporter();
     const info = await transporter.sendMail({
       from,
       to,
@@ -35,10 +38,41 @@ export async function sendEmail(
     });
 
     console.log(`Email sent via SMTP: ${info.messageId}`);
+    
+    // If it's a test/Ethereal email, show the URL where the email can be viewed
+    if (process.env.NODE_ENV === 'test' || process.env.EMAIL_TEST_MODE === 'true') {
+      // Check if info has a messageId and the getTestMessageUrl function is available
+      if (info.messageId && typeof (info as any).getTestMessageUrl === 'function') {
+        console.log(`Preview URL: ${(info as any).getTestMessageUrl()}`);
+      }
+    }
+    
     return true;
   } catch (error) {
     console.error('Error sending email:', error);
-    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+    
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+      
+      // If it's a NodeMailer error, it might have additional details
+      const nodeMailerError = error as any;
+      if (nodeMailerError.code) {
+        console.error('Error code:', nodeMailerError.code);
+      }
+      if (nodeMailerError.response) {
+        console.error('SMTP Response:', nodeMailerError.response);
+      }
+      if (nodeMailerError.responseCode) {
+        console.error('SMTP Response code:', nodeMailerError.responseCode);
+      }
+      if (nodeMailerError.command) {
+        console.error('SMTP Command:', nodeMailerError.command);
+      }
+    } else {
+      console.error('Unknown error type:', typeof error);
+    }
+    
     return false;
   }
 }
