@@ -1,0 +1,90 @@
+You are a next-level AI developer building a professional, futuristic, and emotionally intelligent post-will user experience for a platform called **WillTank**. This is not a traditional dashboard — it's a calm, minimal, vault-like interface only shown to users who have successfully completed and finalized their will via the WillTank AI assistant.
+
+Build the following components using modern, clean, responsive design with TailwindCSS (or styled components if in React). You may use React + Next.js or a clean HTML/CSS/JS structure.
+
+---
+
+🧠 CONTEXT:
+WillTank is a platform where users can create legally-sound wills through a guided AI chat interface. After completing the will and recording a supporting video, they enter this private dashboard to manage everything.
+
+---
+
+🎯 OBJECTIVE:
+Build a **Minimal Dashboard** and **Check-in Page** that reflects trust, calmness, control, and legacy. It should be minimal yet detailed with a strong sense of emotional presence and clean design.
+
+---
+
+📁 FILE STRUCTURE TO GENERATE:
+- `/pages/dashboard.js` → Main dashboard page (only accessible post-will)
+- `/pages/checkin.js` → A check-in page asking users if their information needs updates
+- `/components/Sidebar.js` → Minimal sidebar navigation
+- `/components/WelcomeBanner.js` → Soft greeting with will status
+- `/components/WillDocumentCard.js` → Preview + Edit/Create New Will
+- `/components/SupportingDocuments.js` → Required documents upload section
+- `/components/VideoSection.js` → View/Re-record legal declaration
+- `/components/Beneficiaries.js` → Manage people (name, phone, location, email)
+- `/components/Reminders.js` → Smart reminders section
+- `/components/DeliveryInstructions.js` → Emergency delivery setup
+- `/components/PlanBilling.js` → View subscription, upgrade, payment history
+- `/components/Settings.js` → Profile, 2FA, recovery email
+- `/components/CheckInPrompt.js` → Gently ask if anything’s changed recently
+- `/components/TrustProgressBar.js` → Show % of will trust strength
+- `/components/LiveDocPreview.js` → Mirror of final document while editing
+
+---
+
+📌 PAGE: `/dashboard.js`
+
+- Display a **WelcomeBanner** with their name and a soft message like “Welcome back to your legacy vault.”
+- Show a **TrustProgressBar** (progress of how complete their legacy plan is)
+- Layout:
+  - Left Side: Sidebar
+  - Right Side: Modular cards (grid layout or stacked on mobile):
+    - WillDocumentCard
+    - SupportingDocuments
+    - VideoSection
+    - Beneficiaries
+    - DeliveryInstructions
+    - Reminders
+    - PlanBilling
+    - Settings
+
+Use animated tab or accordion transitions to open each section if needed. Add gentle hover glows.
+
+---
+
+📌 PAGE: `/checkin.js`
+
+Purpose: Routine gentle prompt asking the user if any major life event has occurred (marriage, divorce, new child, asset change, etc.)
+
+- Ask: “Have any life changes occurred that require an update to your will?”
+- Options:
+  - ✅ Yes, take me to update my will → Redirect to chat interface
+  - ❌ No, everything is fine → Redirect to dashboard
+  - 🔁 Remind me again in 6 months → Save preference
+- Add a friendly AI avatar with a short quote about how "keeping your will fresh is an act of love"
+
+---
+
+✨ DESIGN INSTRUCTIONS:
+- Font: `Inter` + `EB Garamond` for will previews
+- Use soft **glassmorphism**, subtle glowing borders, rainbow-gradient soft background
+- Framer Motion or equivalent for page transitions and smooth animations
+- Add confetti or sparkles after completing a check-in
+- Ensure all buttons feel tappable on mobile
+- Use icons from Lucide or Tabler Icons
+- Make sidebar collapsible on mobile
+
+---
+
+⚙️ TECH USED:
+- React or Next.js (with Tailwind)
+- Framer Motion for animations
+- File upload (drag and drop or click)
+- Local storage or Supabase/Firebase integration-ready
+
+---
+
+🔥 GOAL:
+This dashboard is not about productivity. It’s about giving users the peace of mind that their will and legacy are protected, editable, and always in their hands. Make it sleek, warm, and deeply personal.
+
