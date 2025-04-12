@@ -29,25 +29,31 @@ export async function sendEmail(
     const from = process.env.SMTP_FROM || '"WillTank Support" <SUPPORT@WILLTANK.COM>';
     
     // Create transporter and send email
-    const transporter = await getTransporter();
-    const info = await transporter.sendMail({
-      from,
-      to,
-      subject,
-      html,
-    });
+    try {
+      const transporter = await getTransporter();
+      console.log("Transporter created successfully");
+      const info = await transporter.sendMail({
+        from,
+        to,
+        subject,
+        html,
+      });
 
-    console.log(`Email sent via SMTP: ${info.messageId}`);
-    
-    // If it's a test/Ethereal email, show the URL where the email can be viewed
-    if (process.env.NODE_ENV === 'test' || process.env.EMAIL_TEST_MODE === 'true') {
-      // Check if info has a messageId and the getTestMessageUrl function is available
-      if (info.messageId && typeof (info as any).getTestMessageUrl === 'function') {
-        console.log(`Preview URL: ${(info as any).getTestMessageUrl()}`);
+      console.log(`Email sent via SMTP: ${info.messageId}`);
+      
+      // If it's a test/Ethereal email, show the URL where the email can be viewed
+      if (process.env.NODE_ENV === 'test' || process.env.EMAIL_TEST_MODE === 'true') {
+        // Check if info has a messageId and the getTestMessageUrl function is available
+        if (info.messageId && typeof (info as any).getTestMessageUrl === 'function') {
+          console.log(`Preview URL: ${(info as any).getTestMessageUrl()}`);
+        }
       }
+      
+      return true;
+    } catch (transportError) {
+      console.error('Error during email transport:', transportError);
+      throw transportError; // Rethrow to be caught by the outer catch
     }
-    
-    return true;
   } catch (error) {
     console.error('Error sending email:', error);
     

@@ -72,9 +72,19 @@ export function getOffice365SmtpConfig(): SmtpConfig {
 }
 
 // Create a transporter based on configured service
-export function createEmailTransporter() {
-  // Which service to use? Default to Namecheap
-  const service = process.env.EMAIL_SERVICE || 'namecheap';
+export async function createEmailTransporter() {
+  // Which service to use? Default to Ethereal for testing
+  const service = process.env.EMAIL_SERVICE || 'ethereal';
+  
+  // If using Ethereal or in test mode, create a test account
+  if (service.toLowerCase() === 'ethereal' || process.env.EMAIL_TEST_MODE === 'true') {
+    try {
+      return await createTestEmailTransporter();
+    } catch (error) {
+      console.error('Failed to create Ethereal test account, falling back to configured service:', error);
+      // Fall through to regular configuration
+    }
+  }
   
   let config: SmtpConfig;
   
