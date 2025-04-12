@@ -1,0 +1,130 @@
+You are an elite UX engineer and AI-focused front-end architect. Build me a seamless, intelligent, non-dashboard interface for a platform called **WillTank** — an AI-powered tool that helps users create, store, and deliver legal wills.
+
+💡 CORE IDEA:
+This is not a traditional dashboard. It’s a **single, futuristic chat-based interface** guided by our AI assistant **Skyler**, with real-time previews and smooth transitions. The user is on a journey — guided step-by-step, like a personalized will-creation ritual.
+
+📌 OVERVIEW OF USER FLOW (Step-by-Step):
+
+---
+
+### 1. 📑 TEMPLATE SELECTION SCREEN
+
+- Show a grid of will templates, each with:
+  - Title
+  - Description
+  - Icon or graphic
+  - Who it’s for (e.g., “Simple Will – for individuals with minimal assets”, “Family Will – for guardians & dependents”)
+- When a user selects a template:
+  - The screen **auto-scrolls upward** to reveal a glowing "Continue" button with animation.
+  - Clicking "Continue" begins the chat journey.
+
+---
+
+### 2. 💬 AI CHAT Q&A SCREEN (Skyler Chat Interface)
+
+- The core of the platform. Mimic an AI chat interface where:
+  - Skyler asks one question at a time.
+  - User types or selects an answer.
+  - Upon answering, the screen **auto-scrolls smoothly** to show the next question.
+  - Skyler responds like a real assistant: “Great! Now let’s talk about your assets…”
+
+#### ➕ LIVE DOCUMENT PREVIEW PANEL
+- A dynamic panel on the right (desktop) or collapsible panel (mobile) that:
+  - Updates in real time as user fills data
+  - Shows the legal will taking shape
+  - Styled like a real legal doc (signature lines, structure, serif font)
+  - Show: names, assets, beneficiaries, executors, clauses, etc.
+
+#### 📌 REQUIRED FIELD DETAILS (FOR HUMANS)
+- When the user enters:
+  - **Beneficiaries / Executors / Guardians / Trusted Contacts**
+    - Prompt for: Full Name, Email, Phone Number, Location, Relationship
+    - Validations for required fields
+
+---
+
+### 3. 📁 SUPPORTING DOCUMENTS PAGE
+
+- After the final Q&A step, show:  
+  “To finalize your will, please upload your supporting documents.”
+- Dynamically list document requirements based on previously answered data:
+  - If assets included a car: “Upload car registration”
+  - If property listed: “Upload property title deed”
+  - Always ask for: National ID or Passport
+
+- Document Upload UI:
+  - Drag & drop or browse files
+  - Show file type and size validations
+  - Progress bar on each file upload
+
+- 🔒 CONTINUE BUTTON STAYS DISABLED until all required docs are uploaded
+
+---
+
+### 4. 🎥 VIDEO RECORDING SCREEN
+
+- Now prompt:  
+  “Record a short video to confirm this is your will and you are of sound mind.”
+- Show:
+  - Skyler or guide text: “Introduce yourself, state the date, and confirm the will is yours.”
+  - Optional script shown on screen
+  - Video recorder component with webcam permissions
+  - Playback feature to review video
+  - Option to re-record
+
+---
+
+### 5. ✍️ FINAL REVIEW & EDITING PAGE
+
+- Show the full will in a clean, editable format
+- Sidebar instructions: “You can make minor edits before finalizing.”
+- Allow users to:
+  - Edit text sections (contenteditable)
+  - Fix names, grammar, dates, etc.
+- Track unsaved changes
+
+- CTA: “I’m Satisfied”
+
+---
+
+### 6. ✅ FINALIZE AND SAVE
+
+- Final message from Skyler:  
+  “We’ve completed your legacy journey. You can now finalize and store your will securely.”
+
+- Button: “Finalize and Save”
+- On click:
+  - Save document to secure database
+  - Show success animation
+  - Confirmation screen: “Your will is now securely stored and ready.”
+
+---
+
+🧠 TECHNICAL STRUCTURE & FUNCTIONALITY:
+
+- React + Tailwind CSS preferred
+- Modular components for:
+  - Template Grid
+  - Chat bubble system
+  - Auto-scrolling container
+  - Document preview pane
+  - File upload logic
+  - Video recorder
+  - Final review editor
+- Smooth transitions between each screen (Framer Motion, ScrollTrigger)
+- Mobile + tablet + desktop optimized
+- Dark mode supported
+
+🎨 DESIGN VIBE:
+- Soft gradients, white glass UI, floating interface feel
+- Use a blend of modern fonts (e.g., Inter for UI, EB Garamond for preview doc)
+- Smooth rainbow or aurora background animation
+- AI elements: Typing animation, Skyler avatar, subtle response delays
+
+🏁 FINAL OUTPUT:
+→ Full non-dashboard chat-based flow  
+→ Includes: template selector → chat Q&A → live preview → doc upload → video recording → final edit → finalize  
+→ All transitions, animations, scrolls, and validations working  
+→ Responsive, secure, and cleanly structured
+
+DO NOT break this flow. Make all logic reusable and components elegant. Deliver perfection.
