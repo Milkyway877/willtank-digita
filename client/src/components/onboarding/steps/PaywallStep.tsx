@@ -74,6 +74,13 @@ const PaywallStep: React.FC<PaywallStepProps> = ({ onNext }) => {
   const handleSubscribe = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    // Store information that user has completed onboarding
+    localStorage.setItem('onboardingCompleted', 'true');
+    
+    // Store selected billing period
+    localStorage.setItem('selectedBillingPeriod', period);
+    
     // Navigate directly to the subscription page without going through onNext
     navigate('/subscription');
   }

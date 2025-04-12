@@ -63,7 +63,11 @@ const plans = [
 
 const SubscriptionPage = () => {
   const [selectedPlan, setSelectedPlan] = useState<string>('pro');
-  const [isYearly, setIsYearly] = useState<boolean>(true);
+  // Check localStorage for billing period preference from the onboarding flow
+  const [isYearly, setIsYearly] = useState<boolean>(() => {
+    const savedPeriod = localStorage.getItem('selectedBillingPeriod');
+    return savedPeriod ? savedPeriod === 'yearly' : true;
+  });
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [, navigate] = useLocation();
@@ -79,6 +83,21 @@ const SubscriptionPage = () => {
     try {
       // Simulate API call for subscription processing
       await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Store subscription information in localStorage
+      const selectedPlanData = plans.find(p => p.id === selectedPlan);
+      localStorage.setItem('subscriptionActive', 'true');
+      localStorage.setItem('subscriptionPlan', selectedPlan);
+      localStorage.setItem('subscriptionDate', new Date().toISOString());
+      localStorage.setItem('subscriptionBilling', isYearly ? 'yearly' : 'monthly');
+      if (selectedPlanData) {
+        localStorage.setItem('subscriptionName', selectedPlanData.name);
+        localStorage.setItem('subscriptionPrice', 
+          isYearly ? 
+            (parseFloat(selectedPlanData.price.replace('$', '')) * 12 * 0.8).toFixed(2) : 
+            selectedPlanData.price.replace('$', '')
+        );
+      }
       
       setIsProcessing(false);
       setIsSuccess(true);

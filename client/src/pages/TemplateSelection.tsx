@@ -85,6 +85,8 @@ const TemplateSelection: React.FC = () => {
     if (selectedTemplate) {
       // Store selected template in localStorage for the chat interface
       localStorage.setItem('selectedWillTemplate', selectedTemplate);
+      // Also store template selection time to track progress
+      localStorage.setItem('templateSelectedAt', new Date().toISOString());
       navigate('/ai-chat');
     }
   };
