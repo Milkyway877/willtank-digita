@@ -9,7 +9,6 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  updateUserOnboardingStatus(userId: number, completed: boolean): Promise<User>;
   sessionStore: session.Store;
 }
 
@@ -39,15 +38,6 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db
       .insert(users)
       .values(insertUser)
-      .returning();
-    return user;
-  }
-  
-  async updateUserOnboardingStatus(userId: number, completed: boolean): Promise<User> {
-    const [user] = await db
-      .update(users)
-      .set({ completedOnboarding: completed })
-      .where(eq(users.id, userId))
       .returning();
     return user;
   }
