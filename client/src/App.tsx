@@ -6,6 +6,8 @@ import UnfinishedWillNotification from "@/components/UnfinishedWillNotification"
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import AuthRouter from "@/pages/auth";
+import SignIn from "@/pages/auth/SignIn";
+import SignUp from "@/pages/auth/SignUp";
 import OnboardingContainer from "@/components/onboarding/OnboardingContainer";
 import Dashboard from "@/pages/Dashboard";
 import DashboardIndex from "@/pages/dashboard";
@@ -38,6 +40,13 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/auth" component={AuthRouter} />
       <Route path="/auth/*" component={AuthRouter} />
+      {/* Direct routes to auth components for easier testing */}
+      <Route path="/signup">
+        <SignUp />
+      </Route>
+      <Route path="/login">
+        <SignIn />
+      </Route>
       <ProtectedRoute path="/onboarding" component={OnboardingContainer} />
       <ProtectedRoute path="/subscription" component={SubscriptionPage} />
       <ProtectedRoute path="/dashboard" component={DashboardIndex} />
