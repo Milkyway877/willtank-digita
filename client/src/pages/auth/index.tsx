@@ -13,7 +13,9 @@ const AuthRouter: React.FC = () => {
       <Route path="/auth/sign-in" component={SignIn} />
       <Route path="/auth/sign-up" component={SignUp} />
       <Route path="/auth/forgot-password" component={ForgotPassword} />
+      <Route path="/auth/reset-password/:token" component={ResetPassword} />
       <Route path="/auth/reset-password" component={ResetPassword} />
+      <Route path="/auth/verify/:email" component={OtpVerification} />
       <Route path="/auth/verify" component={OtpVerification} />
       <Route>
         <SignIn />

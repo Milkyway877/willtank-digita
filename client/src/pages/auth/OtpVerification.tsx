@@ -1,19 +1,39 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useLocation } from 'wouter';
-import { AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Link, useLocation, useRoute } from 'wouter';
+import { AlertCircle, CheckCircle2, ArrowLeft, AlertTriangle } from 'lucide-react';
 
 import AuthLayout from '@/components/auth/AuthLayout';
 import AuthButton from '@/components/auth/AuthButton';
+import { useAuth } from '@/hooks/use-auth';
 
 const OtpVerification: React.FC = () => {
   const [, setLocation] = useLocation();
+  const [match, params] = useRoute('/auth/verify/:email');
+  const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [authStatus, setAuthStatus] = useState<{type?: 'success' | 'error'; message?: string}>({});
+  const [authStatus, setAuthStatus] = useState<{type?: 'success' | 'error' | 'warning'; message?: string}>({});
   const [countdown, setCountdown] = useState(30);
   const inputRefs = useRef<(HTMLInputElement | null)[]>(Array(6).fill(null));
+  
+  const { verifyEmailMutation, resendVerificationMutation } = useAuth();
+  
+  // Extract email from URL
+  useEffect(() => {
+    if (match && params?.email) {
+      try {
+        // Decode the email from URL
+        const decodedEmail = decodeURIComponent(params.email);
+        setEmail(decodedEmail);
+      } catch (error) {
+        setAuthStatus({
+          type: 'error',
+          message: 'Invalid email address in URL.'
+        });
+      }
+    }
+  }, [match, params]);
   
   // Set up countdown timer
   useEffect(() => {
@@ -75,16 +95,42 @@ const OtpVerification: React.FC = () => {
   };
   
   const resendOtp = async () => {
+    if (!email) {
+      setAuthStatus({
+        type: 'error',
+        message: 'Email address is missing.'
+      });
+      return;
+    }
+    
     setCountdown(30);
-    // Here you would call your API to resend OTP
-    setAuthStatus({
-      type: 'success',
-      message: 'A new verification code has been sent.'
-    });
+    setAuthStatus({});
+    
+    try {
+      await resendVerificationMutation.mutateAsync({ email });
+      
+      setAuthStatus({
+        type: 'success',
+        message: 'A new verification code has been sent to your email.'
+      });
+    } catch (error) {
+      setAuthStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to resend verification code.'
+      });
+    }
   };
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!email) {
+      setAuthStatus({
+        type: 'error',
+        message: 'Email address is missing. Please go back to the sign-up page.'
+      });
+      return;
+    }
     
     if (otp.some(digit => !digit)) {
       setAuthStatus({
@@ -94,40 +140,31 @@ const OtpVerification: React.FC = () => {
       return;
     }
     
-    setIsLoading(true);
     setAuthStatus({});
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const verificationCode = otp.join('');
       
-      const otpCode = otp.join('');
+      await verifyEmailMutation.mutateAsync({
+        email: email,
+        code: verificationCode
+      });
       
-      // Simulated verification
-      if (otpCode === '123456') {
-        setIsSubmitted(true);
-        setAuthStatus({
-          type: 'success',
-          message: 'Verification successful!'
-        });
-        
-        // Redirect after successful verification
-        setTimeout(() => {
-          setLocation('/auth/sign-in');
-        }, 2000);
-      } else {
-        setAuthStatus({
-          type: 'error',
-          message: 'Invalid verification code. Please try again.'
-        });
-      }
+      setIsSubmitted(true);
+      setAuthStatus({
+        type: 'success',
+        message: 'Email verified successfully!'
+      });
+      
+      // Redirect after successful verification
+      setTimeout(() => {
+        setLocation('/');
+      }, 2000);
     } catch (error) {
       setAuthStatus({
         type: 'error',
-        message: 'Something went wrong. Please try again.'
+        message: error instanceof Error ? error.message : 'Verification failed. Please try again.'
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -210,7 +247,7 @@ const OtpVerification: React.FC = () => {
             </div>
             
             <div className="mt-6 space-y-4">
-              <AuthButton type="submit" isLoading={isLoading}>
+              <AuthButton type="submit" isLoading={verifyEmailMutation.isPending}>
                 Verify
               </AuthButton>
             </div>

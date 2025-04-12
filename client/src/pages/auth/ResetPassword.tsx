@@ -1,25 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useLocation } from 'wouter';
-import { Lock, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Link, useLocation, useRoute } from 'wouter';
+import { Lock, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
 
 import AuthLayout from '@/components/auth/AuthLayout';
 import AuthInput from '@/components/auth/AuthInput';
 import AuthButton from '@/components/auth/AuthButton';
+import { useAuth } from '@/hooks/use-auth';
+
+// Process steps
+enum ResetStep {
+  RESET = 'reset',
+  SUCCESS = 'success',
+}
 
 const ResetPassword: React.FC = () => {
-  const [, setLocation] = useLocation();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [errors, setErrors] = useState<{password?: string; confirmPassword?: string}>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [resetToken, setResetToken] = useState('');
+  const [currentStep, setCurrentStep] = useState<ResetStep>(ResetStep.RESET);
+  const [errors, setErrors] = useState<{
+    password?: string;
+    confirmPassword?: string;
+  }>({});
   const [authStatus, setAuthStatus] = useState<{type?: 'success' | 'error'; message?: string}>({});
   
+  const { resetPasswordMutation } = useAuth();
+  const [, navigate] = useLocation();
+  const [match, params] = useRoute('/auth/reset-password/:token');
+  
+  // Extract token from URL
+  useEffect(() => {
+    if (match && params?.token) {
+      setResetToken(params.token);
+    }
+  }, [match, params]);
+  
   const validateForm = () => {
-    const newErrors: {password?: string; confirmPassword?: string} = {};
+    const newErrors: typeof errors = {};
     let isValid = true;
     
+    // Password validation
     if (!password) {
       newErrors.password = 'Password is required';
       isValid = false;
@@ -28,6 +49,7 @@ const ResetPassword: React.FC = () => {
       isValid = false;
     }
     
+    // Confirm password validation
     if (!confirmPassword) {
       newErrors.confirmPassword = 'Please confirm your password';
       isValid = false;
@@ -45,94 +67,80 @@ const ResetPassword: React.FC = () => {
     
     if (!validateForm()) return;
     
-    setIsLoading(true);
+    if (!resetToken) {
+      setAuthStatus({
+        type: 'error',
+        message: 'Reset token is missing. Please use the link from your email.'
+      });
+      return;
+    }
+    
     setAuthStatus({});
     
-    // Simulate API call
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setIsSubmitted(true);
-      setAuthStatus({
-        type: 'success',
-        message: 'Your password has been reset successfully!'
+      await resetPasswordMutation.mutateAsync({
+        token: resetToken,
+        password: password
       });
       
-      // Redirect to login after successful password reset
-      setTimeout(() => {
-        setLocation('/auth/sign-in');
-      }, 2000);
+      // Show success state
+      setCurrentStep(ResetStep.SUCCESS);
+      
     } catch (error) {
       setAuthStatus({
         type: 'error',
-        message: 'Something went wrong. Please try again.'
+        message: error instanceof Error 
+          ? error.message 
+          : 'Password reset failed. The link may have expired.'
       });
-    } finally {
-      setIsLoading(false);
     }
   };
   
-  // Password strength indicator
-  const getPasswordStrength = () => {
-    if (!password) return { strength: 0, label: '' };
-    
-    let strength = 0;
-    let label = 'Very weak';
-    
-    // Length check
-    if (password.length >= 8) strength += 1;
-    if (password.length >= 12) strength += 1;
-    
-    // Character variety checks
-    if (/[A-Z]/.test(password)) strength += 1;
-    if (/[a-z]/.test(password)) strength += 1;
-    if (/[0-9]/.test(password)) strength += 1;
-    if (/[^A-Za-z0-9]/.test(password)) strength += 1;
-    
-    // Assign label based on strength score
-    if (strength >= 6) label = 'Strong';
-    else if (strength >= 4) label = 'Good';
-    else if (strength >= 2) label = 'Fair';
-    else if (strength >= 1) label = 'Weak';
-    
-    // Normalize to 0-100 scale
-    const normalizedStrength = Math.min(Math.round((strength / 6) * 100), 100);
-    
-    return { 
-      strength: normalizedStrength, 
-      label 
-    };
+  // Animation variants
+  const containerAnimation = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
   };
   
-  const passwordStrength = getPasswordStrength();
-  
-  // Get color for password strength indicator
-  const getStrengthColor = () => {
-    const { strength } = passwordStrength;
-    if (strength >= 80) return 'bg-green-500';
-    if (strength >= 60) return 'bg-emerald-500';
-    if (strength >= 40) return 'bg-yellow-500';
-    if (strength >= 20) return 'bg-orange-500';
-    return 'bg-red-500';
+  const itemAnimation = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.4 } }
   };
 
   return (
     <AuthLayout 
       title="Reset your password"
-      subtitle="Create a new secure password for your WillTank account."
-      quote="With security comes confidence. With confidence comes peace of mind."
+      subtitle="Create a new secure password for your account."
     >
-      <div>
+      <motion.div
+        variants={containerAnimation}
+        initial="hidden"
+        animate="show"
+      >
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-6"
+          variants={itemAnimation}
+          className="mb-8"
         >
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Create New Password</h1>
-          <p className="text-neutral-600 dark:text-neutral-400">
-            Your password must be different from previously used passwords
-          </p>
+          {currentStep === ResetStep.RESET ? (
+            <>
+              <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Create new password</h1>
+              <p className="text-neutral-600 dark:text-neutral-400">
+                Your new password must be different from previous passwords.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Password reset complete</h1>
+              <p className="text-neutral-600 dark:text-neutral-400">
+                Your password has been successfully reset.
+              </p>
+            </>
+          )}
         </motion.div>
         
         {authStatus.message && (
@@ -154,92 +162,85 @@ const ResetPassword: React.FC = () => {
           </motion.div>
         )}
         
-        {!isSubmitted ? (
+        {currentStep === ResetStep.RESET ? (
           <form onSubmit={handleSubmit}>
-            <AuthInput
-              label="New Password"
-              type="password"
-              name="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              error={errors.password}
-              icon={<Lock className="h-5 w-5" />}
-              autoComplete="new-password"
-              required
-            />
+            <motion.div variants={itemAnimation}>
+              <AuthInput
+                label="New Password"
+                type="password"
+                name="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                error={errors.password}
+                icon={<Lock className="h-5 w-5" />}
+                placeholder="Create a new password"
+                autoComplete="new-password"
+                required
+              />
+            </motion.div>
             
-            {password && (
-              <div className="mb-4 mt-1 px-1">
-                <div className="h-1 w-full bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
-                  <motion.div 
-                    className={`h-full ${getStrengthColor()}`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${passwordStrength.strength}%` }}
-                    transition={{ duration: 0.5 }}
-                  ></motion.div>
-                </div>
-                <div className="flex justify-between mt-1">
-                  <span className="text-xs text-neutral-500">Password strength</span>
-                  <span className={`text-xs font-medium ${
-                    passwordStrength.strength >= 60 ? 'text-green-600 dark:text-green-400' : 
-                    passwordStrength.strength >= 40 ? 'text-yellow-600 dark:text-yellow-400' : 
-                    'text-red-600 dark:text-red-400'
-                  }`}>
-                    {passwordStrength.label}
-                  </span>
-                </div>
-              </div>
-            )}
+            <motion.div variants={itemAnimation}>
+              <AuthInput
+                label="Confirm Password"
+                type="password"
+                name="confirmPassword"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                error={errors.confirmPassword}
+                icon={<Lock className="h-5 w-5" />}
+                placeholder="Confirm your password"
+                autoComplete="new-password"
+                required
+              />
+            </motion.div>
             
-            <AuthInput
-              label="Confirm Password"
-              type="password"
-              name="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              error={errors.confirmPassword}
-              icon={<Lock className="h-5 w-5" />}
-              autoComplete="new-password"
-              required
-            />
-            
-            <div className="mt-6 space-y-4">
-              <AuthButton type="submit" isLoading={isLoading}>
+            <motion.div
+              variants={itemAnimation}
+              className="mt-6 space-y-4"
+            >
+              <AuthButton type="submit" isLoading={resetPasswordMutation.isPending}>
                 Reset Password
               </AuthButton>
-            </div>
+            </motion.div>
           </form>
         ) : (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }}
-            className="text-center p-6 bg-primary/5 rounded-lg my-4"
+          <motion.div 
+            variants={itemAnimation} 
+            className="text-center space-y-6"
           >
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ShieldCheck className="h-8 w-8 text-primary" />
+            <div className="flex justify-center">
+              <div className="bg-green-50 dark:bg-green-900/20 w-20 h-20 flex items-center justify-center rounded-full">
+                <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
+              </div>
             </div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">Password Reset Complete</h3>
-            <p className="text-neutral-600 dark:text-neutral-400 mb-4">
-              Your password has been successfully reset. You will be redirected to the login page shortly.
+            
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm">
+              Your password has been successfully reset. You can now use your new password to sign in to your account.
             </p>
-            <AuthButton 
-              type="button" 
-              onClick={() => setLocation('/auth/sign-in')}
-            >
-              Go to Sign In
-            </AuthButton>
+            
+            <div className="mt-4">
+              <AuthButton
+                type="button"
+                onClick={() => navigate('/auth/sign-in')}
+              >
+                Sign in
+              </AuthButton>
+            </div>
           </motion.div>
         )}
         
-        <div className="mt-8 text-center">
+        <motion.div 
+          variants={itemAnimation}
+          className="mt-8 text-center"
+        >
           <Link href="/auth/sign-in">
-            <span className="text-primary hover:text-primary-dark transition-colors cursor-pointer">
-              Remember your password? Sign in
-            </span>
+            <button type="button" className="text-sm text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors inline-flex items-center">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to sign in
+            </button>
           </Link>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </AuthLayout>
   );
 };

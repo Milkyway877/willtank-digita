@@ -1,29 +1,42 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'wouter';
-import { Mail, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { Link, useLocation } from 'wouter';
+import { Mail, ArrowLeft, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 import AuthLayout from '@/components/auth/AuthLayout';
 import AuthInput from '@/components/auth/AuthInput';
 import AuthButton from '@/components/auth/AuthButton';
+import { useAuth } from '@/hooks/use-auth';
+
+// Process steps
+enum ResetStep {
+  REQUEST = 'request',
+  CONFIRMATION = 'confirmation',
+}
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
-  const [errors, setErrors] = useState<{email?: string}>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [currentStep, setCurrentStep] = useState<ResetStep>(ResetStep.REQUEST);
+  const [errors, setErrors] = useState<{ email?: string }>({});
   const [authStatus, setAuthStatus] = useState<{type?: 'success' | 'error'; message?: string}>({});
   
+  const { forgotPasswordMutation } = useAuth();
+  const [, navigate] = useLocation();
+  
   const validateForm = () => {
-    const newErrors: {email?: string} = {};
+    const newErrors: typeof errors = {};
     let isValid = true;
     
+    // Email validation
     if (!email.trim()) {
       newErrors.email = 'Email is required';
       isValid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = 'Please enter a valid email address';
-      isValid = false;
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        newErrors.email = 'Please enter a valid email address';
+        isValid = false;
+      }
     }
     
     setErrors(newErrors);
@@ -35,45 +48,67 @@ const ForgotPassword: React.FC = () => {
     
     if (!validateForm()) return;
     
-    setIsLoading(true);
     setAuthStatus({});
     
-    // Simulate API call
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      await forgotPasswordMutation.mutateAsync({ email: email.toLowerCase() });
       
-      setIsSubmitted(true);
-      setAuthStatus({
-        type: 'success',
-        message: 'Password reset instructions have been sent to your email.'
-      });
+      // Move to confirmation step
+      setCurrentStep(ResetStep.CONFIRMATION);
+      
     } catch (error) {
       setAuthStatus({
         type: 'error',
-        message: 'Something went wrong. Please try again.'
+        message: error instanceof Error ? error.message : 'Failed to process request. Please try again.'
       });
-    } finally {
-      setIsLoading(false);
     }
+  };
+  
+  // Animation variants
+  const containerAnimation = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+  
+  const itemAnimation = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.4 } }
   };
 
   return (
     <AuthLayout 
       title="Reset your password"
-      subtitle="Enter your email and we'll send you instructions to reset your password."
-      quote="Peace of mind comes from knowing your legacy is secure."
+      subtitle="We'll send you instructions to reset your password."
     >
-      <div>
+      <motion.div
+        variants={containerAnimation}
+        initial="hidden"
+        animate="show"
+      >
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-6"
+          variants={itemAnimation}
+          className="mb-8"
         >
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">Forgot Password</h1>
-          <p className="text-neutral-600 dark:text-neutral-400">
-            Don't worry, it happens to the best of us
-          </p>
+          {currentStep === ResetStep.REQUEST ? (
+            <>
+              <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Forgot password?</h1>
+              <p className="text-neutral-600 dark:text-neutral-400">
+                No worries, we'll send you reset instructions.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Check your email</h1>
+              <p className="text-neutral-600 dark:text-neutral-400">
+                We've sent a password reset link to <span className="font-medium">{email}</span>
+              </p>
+            </>
+          )}
         </motion.div>
         
         {authStatus.message && (
@@ -95,63 +130,73 @@ const ForgotPassword: React.FC = () => {
           </motion.div>
         )}
         
-        {!isSubmitted ? (
+        {currentStep === ResetStep.REQUEST ? (
           <form onSubmit={handleSubmit}>
-            <AuthInput
-              label="Email"
-              type="email"
-              name="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              error={errors.email}
-              icon={<Mail className="h-5 w-5" />}
-              autoComplete="email"
-              required
-            />
+            <motion.div variants={itemAnimation}>
+              <AuthInput
+                label="Email"
+                type="email"
+                name="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                error={errors.email}
+                icon={<Mail className="h-5 w-5" />}
+                placeholder="Enter your email address"
+                autoComplete="email"
+                required
+              />
+            </motion.div>
             
-            <div className="mt-6 space-y-4">
-              <AuthButton type="submit" isLoading={isLoading}>
-                Send Reset Instructions
+            <motion.div
+              variants={itemAnimation}
+              className="mt-6 space-y-4"
+            >
+              <AuthButton type="submit" isLoading={forgotPasswordMutation.isPending}>
+                Send reset instructions
               </AuthButton>
-            </div>
+              
+              <Link href="/auth/sign-in">
+                <button type="button" className="w-full flex items-center justify-center text-sm text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors mt-4">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to sign in
+                </button>
+              </Link>
+            </motion.div>
           </form>
         ) : (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.3 }}
-            className="text-center p-6 bg-primary/5 rounded-lg my-4"
+          <motion.div 
+            variants={itemAnimation} 
+            className="text-center space-y-6"
           >
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="h-8 w-8 text-primary" />
+            <div className="flex justify-center">
+              <div className="bg-primary/10 w-20 h-20 flex items-center justify-center rounded-full">
+                <Mail className="h-10 w-10 text-primary" />
+              </div>
             </div>
-            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">Check your inbox</h3>
-            <p className="text-neutral-600 dark:text-neutral-400 mb-4">
-              We've sent password reset instructions to:
+            
+            <p className="text-neutral-600 dark:text-neutral-400 text-sm">
+              If you don't see the email in your inbox, please check your spam folder.
+              If you still don't see it, try requesting another reset link.
             </p>
-            <p className="font-medium text-neutral-900 dark:text-white mb-4">{email}</p>
-            <p className="text-sm text-neutral-500 dark:text-neutral-500 mb-6">
-              If you don't see the email, check other places it might be, like your junk, spam, social, or other folders.
-            </p>
-            <AuthButton 
-              type="button" 
-              variant="secondary"
-              onClick={() => setIsSubmitted(false)}
-            >
-              Use a different email
-            </AuthButton>
+            
+            <div className="space-y-4 mt-4">
+              <AuthButton 
+                type="button" 
+                onClick={() => setCurrentStep(ResetStep.REQUEST)}
+              >
+                Resend email
+              </AuthButton>
+              
+              <Link href="/auth/sign-in">
+                <button type="button" className="w-full flex items-center justify-center text-sm text-neutral-600 dark:text-neutral-400 hover:text-primary transition-colors mt-4">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to sign in
+                </button>
+              </Link>
+            </div>
           </motion.div>
         )}
-        
-        <div className="mt-8">
-          <Link href="/auth/sign-in">
-            <a className="inline-flex items-center text-primary hover:text-primary-dark transition-colors">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to sign in
-            </a>
-          </Link>
-        </div>
-      </div>
+      </motion.div>
     </AuthLayout>
   );
 };
