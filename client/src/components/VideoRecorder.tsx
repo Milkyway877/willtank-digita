@@ -15,29 +15,44 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onComplete, onSkip }) => 
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      // Request video (with audio for a complete recording)
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: true,
+        audio: true 
+      });
+      
+      // Connect stream to video element
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
       }
 
+      // Create media recorder from stream
       mediaRecorderRef.current = new MediaRecorder(stream);
 
+      // Set up recorder event handlers
       mediaRecorderRef.current.ondataavailable = (e) => {
-        chunksRef.current.push(e.data);
+        if (e.data && e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
       };
 
       mediaRecorderRef.current.onstop = () => {
+        // Create video blob from collected chunks
         const blob = new Blob(chunksRef.current, { type: "video/webm" });
         chunksRef.current = [];
+        
+        // Create URL for playback
         const videoURL = URL.createObjectURL(blob);
         setRecordedVideo(videoURL);
 
-        // Optional: save locally
+        // Save locally (download)
         saveAs(blob, "willtank-recording.webm");
 
-        // Optional: send blob to backend via onComplete(blob)
+        // Send blob to parent component
         if (onComplete) onComplete(blob);
       };
+
+      console.log("Camera initialized successfully");
     } catch (err) {
       alert("Camera access denied or not supported.");
       console.error("Camera error:", err);
@@ -45,17 +60,52 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onComplete, onSkip }) => 
   };
 
   const startRecording = () => {
-    setRecording(true);
-    mediaRecorderRef.current?.start();
+    if (!mediaRecorderRef.current) {
+      console.error("Media recorder not initialized");
+      alert("Please enable camera first");
+      return;
+    }
+    
+    // Clear any previous recording chunks
+    chunksRef.current = [];
+    
+    try {
+      // Start recording with 1-second chunks for better reliability
+      mediaRecorderRef.current.start(1000);
+      setRecording(true);
+      console.log("Recording started");
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+      alert("Failed to start recording. Please try again.");
+    }
   };
 
   const stopRecording = () => {
-    setRecording(false);
-    mediaRecorderRef.current?.stop();
-    const tracks = videoRef.current?.srcObject instanceof MediaStream 
-      ? videoRef.current.srcObject.getTracks() 
-      : undefined;
-    tracks?.forEach((track) => track.stop());
+    if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') {
+      console.error("Cannot stop: no active recording");
+      return;
+    }
+    
+    try {
+      // Stop the media recorder
+      mediaRecorderRef.current.stop();
+      console.log("Recording stopped");
+      
+      // Update UI state
+      setRecording(false);
+      
+      // Optional: Stop camera tracks if you want to turn off the camera
+      // If you want to keep the camera on for another recording, comment this out
+      /*
+      const tracks = videoRef.current?.srcObject instanceof MediaStream 
+        ? videoRef.current.srcObject.getTracks() 
+        : undefined;
+      tracks?.forEach((track) => track.stop());
+      */
+    } catch (err) {
+      console.error("Error stopping recording:", err);
+      setRecording(false);
+    }
   };
 
   return (
