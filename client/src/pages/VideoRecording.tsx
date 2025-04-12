@@ -6,7 +6,7 @@ import { Play, Pause, RotateCcw, CheckCircle, Camera, Info, FileVideo, AlertCirc
 import AnimatedAurora from '@/components/ui/AnimatedAurora';
 
 const VideoRecording: React.FC = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
   
   // Refs
@@ -21,79 +21,140 @@ const VideoRecording: React.FC = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [errorMessage, setErrorMessage] = useState('');
   const [showScript, setShowScript] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   // Redirect to auth if not logged in
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!authLoading && !user) {
       navigate('/auth/sign-in');
+    } else {
+      // Only set loading to false after auth check
+      setLoading(false);
     }
-  }, [user, isLoading, navigate]);
+  }, [user, authLoading, navigate]);
 
-  // Clean up media resources when component unmounts
+  // Cleanup when unmounting
   useEffect(() => {
     return () => {
+      console.log("Cleanup: Stopping any active streams and timers");
+      
       // Stop all media tracks
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        try {
+          streamRef.current.getTracks().forEach(track => {
+            track.stop();
+            console.log("Track stopped:", track.kind);
+          });
+        } catch (error) {
+          console.error("Error stopping tracks:", error);
+        }
       }
       
-      // Clear any timers
+      // Clear any active timers
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
       
-      // Revoke any blob URLs to prevent memory leaks
+      // Revoke any blob URLs
       if (videoRef.current && videoRef.current.src && videoRef.current.src.startsWith('blob:')) {
         URL.revokeObjectURL(videoRef.current.src);
       }
     };
   }, []);
 
-  // Initialize camera
+  // Initialize camera - BULLETPROOF VERSION
   const initializeCamera = () => {
-    console.log("**** Enable Camera button clicked ****");
+    console.log("ENABLE CAMERA BUTTON CLICKED");
+    
+    // First set requesting state to show loading spinner
     setStatus('requesting');
     
-    // Check if browser supports getUserMedia
+    // Check for browser support
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      console.error("getUserMedia not supported in this browser");
+      console.error("getUserMedia is not supported in this browser");
       setStatus('error');
-      setErrorMessage('Your browser does not support camera access. Please try a modern browser like Chrome, Firefox, or Safari.');
+      setErrorMessage('Your browser does not support camera access. Please try a different browser like Chrome or Firefox.');
       return;
     }
     
-    // Request camera with default settings for maximum compatibility
+    // Stop any existing streams first
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+      });
+      streamRef.current = null;
+    }
+
+    // Get access to camera with minimal options for best compatibility
     navigator.mediaDevices.getUserMedia({ 
-      video: true, 
+      video: { facingMode: "user" },  // Simple user-facing camera request
       audio: true 
     })
     .then(stream => {
       console.log("Camera access granted successfully");
+      
+      // Store the stream
       streamRef.current = stream;
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.muted = true; // Mute preview to avoid feedback
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play()
-            .catch(e => console.warn("Auto-play prevented:", e));
-        };
+      // Ensure we have the video element
+      if (!videoRef.current) {
+        throw new Error("Video element not available");
       }
       
-      setStatus('idle');
+      // Connect stream to video element
+      try {
+        videoRef.current.srcObject = stream;
+        videoRef.current.muted = true; // Prevent feedback
+        
+        // Listen for metadata loaded to start play
+        videoRef.current.onloadedmetadata = () => {
+          if (!videoRef.current) return;
+          
+          try {
+            const playPromise = videoRef.current.play();
+            if (playPromise) {
+              playPromise.catch(e => {
+                console.warn("Auto-play was prevented:", e);
+                // Continue anyway, user can click play manually
+              });
+            }
+          } catch (err) {
+            console.error("Error playing video:", err);
+          }
+        };
+        
+        // Set UI state to idle with camera
+        setStatus('idle');
+      } catch (err) {
+        console.error("Error setting video source:", err);
+        setStatus('error');
+        setErrorMessage('Error connecting to camera. Please try again or use a different browser.');
+      }
     })
     .catch(error => {
-      console.error('Camera access denied or error:', error);
+      console.error('Camera access error:', error);
       setStatus('error');
-      setErrorMessage('Camera access was denied or unavailable. Please ensure your browser has camera permissions and that no other application is using your camera.');
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        setErrorMessage('Camera access was denied. Please grant permission and try again.');
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        setErrorMessage('No camera found. Please ensure your device has a working camera.');
+      } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+        setErrorMessage('Camera is already in use by another application. Please close other apps using your camera.');
+      } else {
+        setErrorMessage('Unable to access camera. Please check your permissions or try a different browser.');
+      }
     });
   };
 
   // Start recording
   const startRecording = () => {
-    console.log("**** Start Recording button clicked ****");
+    console.log("START RECORDING BUTTON CLICKED");
+    
+    // Check if we have a stream
     if (!streamRef.current) {
-      console.error("No camera stream available");
+      console.error("Cannot start recording: No camera stream available");
+      setErrorMessage('Camera stream not available. Please enable your camera first.');
+      setStatus('error');
       return;
     }
     
@@ -102,43 +163,72 @@ const VideoRecording: React.FC = () => {
       setRecordedChunks([]);
       setRecordingTime(0);
       
-      // Start timer for recording duration
+      // Start timer to track recording duration
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
       
       // Create MediaRecorder with basic settings
-      const mediaRecorder = new MediaRecorder(streamRef.current);
+      let mediaRecorder: MediaRecorder;
+      
+      try {
+        // Try to create with MIME type
+        mediaRecorder = new MediaRecorder(streamRef.current);
+      } catch (error) {
+        console.error("Failed to create MediaRecorder:", error);
+        throw error;
+      }
+      
+      // Store reference
       mediaRecorderRef.current = mediaRecorder;
       
-      // Handle data chunks
+      // Set up data handler
       mediaRecorder.ondataavailable = (event) => {
-        console.log(`Data chunk received: ${event.data?.size || 0} bytes`);
+        console.log(`Recording chunk received: ${event.data?.size || 0} bytes`);
         if (event.data && event.data.size > 0) {
           setRecordedChunks(prev => [...prev, event.data]);
         }
       };
       
-      // Handle recording stop
+      // Set up stop handler
       mediaRecorder.onstop = () => {
-        console.log('Recording stopped');
-        setStatus('recorded');
+        console.log('MediaRecorder stopped');
         
+        // Clear timer
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        
+        // Set recorded state
+        setStatus('recorded');
+      };
+      
+      // Set up error handler
+      mediaRecorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event);
+        setStatus('error');
+        setErrorMessage('An error occurred during recording. Please try again.');
+        
+        // Clear timer
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
       };
       
-      // Start recording with 1-second chunks
-      mediaRecorder.start(1000);
+      // Start recording with small time slices for better compatibility
+      mediaRecorder.start(1000); // Collect data every 1 second
+      console.log("MediaRecorder started successfully");
+      
+      // Update UI state
       setStatus('recording');
-      console.log("MediaRecorder started");
     } catch (error) {
       console.error('Error starting recording:', error);
       setStatus('error');
-      setErrorMessage('Unable to start recording. Your browser may not support this feature.');
+      setErrorMessage('Unable to start recording. Your browser may not support this feature or your camera may be in use by another application.');
       
+      // Clear timer if it was started
       if (timerRef.current) {
         clearInterval(timerRef.current);
         timerRef.current = null;
@@ -148,72 +238,110 @@ const VideoRecording: React.FC = () => {
 
   // Pause recording
   const pauseRecording = () => {
-    if (mediaRecorderRef.current && status === 'recording') {
-      try {
-        mediaRecorderRef.current.pause();
-        setStatus('paused');
-        
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-        }
-        
-        console.log("Recording paused");
-      } catch (error) {
-        console.error('Error pausing recording:', error);
+    console.log("PAUSE RECORDING BUTTON CLICKED");
+    
+    if (!mediaRecorderRef.current || status !== 'recording') {
+      console.error("Cannot pause: No active recording");
+      return;
+    }
+    
+    try {
+      mediaRecorderRef.current.pause();
+      console.log("Recording paused");
+      
+      // Update UI
+      setStatus('paused');
+      
+      // Pause timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
       }
+    } catch (error) {
+      console.error('Error pausing recording:', error);
+      // Continue recording if pause fails
     }
   };
 
   // Resume recording
   const resumeRecording = () => {
-    if (mediaRecorderRef.current && status === 'paused') {
+    console.log("RESUME RECORDING BUTTON CLICKED");
+    
+    if (!mediaRecorderRef.current || status !== 'paused') {
+      console.error("Cannot resume: No paused recording");
+      return;
+    }
+    
+    try {
+      mediaRecorderRef.current.resume();
+      console.log("Recording resumed");
+      
+      // Update UI
+      setStatus('recording');
+      
+      // Resume timer
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (error) {
+      console.error('Error resuming recording:', error);
+      // Try to recover by stopping the recording
       try {
-        mediaRecorderRef.current.resume();
-        setStatus('recording');
-        
-        // Resume timer
-        timerRef.current = setInterval(() => {
-          setRecordingTime(prev => prev + 1);
-        }, 1000);
-        
-        console.log("Recording resumed");
-      } catch (error) {
-        console.error('Error resuming recording:', error);
+        mediaRecorderRef.current.stop();
+      } catch (e) {
+        // Ignore any errors
       }
+      setStatus('error');
+      setErrorMessage('Error resuming recording. Please try again.');
     }
   };
 
   // Stop recording
   const stopRecording = () => {
-    console.log("**** Stop Recording button clicked ****");
-    if (mediaRecorderRef.current && (status === 'recording' || status === 'paused')) {
-      try {
-        mediaRecorderRef.current.stop();
-        console.log("MediaRecorder stopped");
+    console.log("STOP RECORDING BUTTON CLICKED");
+    
+    if (!mediaRecorderRef.current || (status !== 'recording' && status !== 'paused')) {
+      console.error("Cannot stop: No active recording");
+      return;
+    }
+    
+    try {
+      // Stop the recorder
+      mediaRecorderRef.current.stop();
+      console.log("MediaRecorder stopped explicitly");
+      
+      // The onstop handler will set the status and clear the timer
+      
+      // Stop camera tracks
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => {
+          track.stop();
+          console.log(`Track ${track.kind} stopped`);
+        });
         
-        // Status will be set by onstop handler
-        
-        // Stop camera tracks
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
-          
-          // Clear video element
-          if (videoRef.current) {
-            videoRef.current.srcObject = null;
-          }
+        // Clear video source
+        if (videoRef.current) {
+          videoRef.current.srcObject = null;
         }
-      } catch (error) {
-        console.error('Error stopping recording:', error);
-        setStatus('error');
-        setErrorMessage('Error stopping recording. The video may still be usable.');
+      }
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      
+      // Force UI update even if error
+      setStatus('recorded');
+      
+      // Clear timer
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
       }
     }
   };
 
   // Play recorded video
   const playRecordedVideo = () => {
-    console.log("**** Play Recording button clicked ****");
+    console.log("PLAY RECORDING BUTTON CLICKED");
+    
     if (recordedChunks.length === 0) {
       console.error("No recorded video chunks available");
       return;
@@ -221,49 +349,56 @@ const VideoRecording: React.FC = () => {
     
     try {
       // Create blob from recorded chunks
-      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const mimeType = 'video/webm';
+      const blob = new Blob(recordedChunks, { type: mimeType });
       console.log(`Created video blob: ${blob.size} bytes`);
       
-      if (videoRef.current) {
-        // Clean up previous blob URL
-        if (videoRef.current.src && videoRef.current.src.startsWith('blob:')) {
-          URL.revokeObjectURL(videoRef.current.src);
-        }
-        
-        // Create and set up video element
-        const objectUrl = URL.createObjectURL(blob);
-        videoRef.current.src = objectUrl;
-        videoRef.current.controls = true;
-        videoRef.current.muted = false;
-        
-        // Set up playback event handlers
-        videoRef.current.onplay = () => setStatus('playing');
-        videoRef.current.onpause = () => setStatus('recorded');
-        videoRef.current.onended = () => setStatus('recorded');
-        
-        // Start playback
-        videoRef.current.play()
-          .catch(error => {
-            console.warn('Auto-play prevented:', error);
-            setStatus('recorded');
-          });
+      if (!videoRef.current) {
+        throw new Error("Video element not available");
+      }
+      
+      // Clean up previous blob URL
+      if (videoRef.current.src && videoRef.current.src.startsWith('blob:')) {
+        URL.revokeObjectURL(videoRef.current.src);
+      }
+      
+      // Create and set new blob URL
+      const objectUrl = URL.createObjectURL(blob);
+      videoRef.current.src = objectUrl;
+      videoRef.current.controls = true;
+      videoRef.current.muted = false;
+      
+      // Event handlers
+      videoRef.current.onplay = () => setStatus('playing');
+      videoRef.current.onpause = () => setStatus('recorded');
+      videoRef.current.onended = () => setStatus('recorded');
+      
+      // Start playback
+      const playPromise = videoRef.current.play();
+      if (playPromise) {
+        playPromise.catch(error => {
+          console.warn('Auto-play prevented:', error);
+          // Allow user to start playback manually
+          setStatus('recorded');
+        });
       }
     } catch (error) {
       console.error('Error playing recorded video:', error);
       setStatus('error');
-      setErrorMessage('Unable to play the recording. Your browser may not support this video format.');
+      setErrorMessage('Unable to play the recording. Please try recording again.');
     }
   };
 
-  // Record a new video
+  // Re-record video
   const reRecord = () => {
-    console.log("**** Re-record button clicked ****");
+    console.log("RE-RECORD BUTTON CLICKED");
+    
     // Reset state
     setRecordedChunks([]);
     setRecordingTime(0);
     setStatus('idle');
     
-    // Reset video element
+    // Clean up video element
     if (videoRef.current) {
       if (videoRef.current.src && videoRef.current.src.startsWith('blob:')) {
         URL.revokeObjectURL(videoRef.current.src);
@@ -272,18 +407,28 @@ const VideoRecording: React.FC = () => {
       videoRef.current.controls = false;
     }
     
-    // Initialize camera again
+    // Re-initialize camera
     initializeCamera();
   };
 
   // Skip recording and continue
   const skipRecording = () => {
-    console.log("**** Skip Recording button clicked ****");
+    console.log("SKIP RECORDING BUTTON CLICKED");
+    
+    // Clean up any active streams
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    // Mark as completed in localStorage
     localStorage.setItem('willVideoRecorded', 'true');
+    
+    // Navigate to next step
     navigate('/final-review');
   };
 
-  // Format time display (mm:ss)
+  // Format time for display (mm:ss)
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -292,16 +437,37 @@ const VideoRecording: React.FC = () => {
 
   // Continue to final review
   const handleContinue = () => {
-    console.log("**** Continue to Final Review button clicked ****");
-    if (recordedChunks.length > 0) {
-      // In production, you would upload the video to a server here
-      localStorage.setItem('willVideoRecorded', 'true');
-      navigate('/final-review');
+    console.log("CONTINUE TO FINAL REVIEW BUTTON CLICKED");
+    
+    if (recordedChunks.length === 0 && status !== 'recorded' && status !== 'playing') {
+      console.error("Cannot continue: No recording available");
+      return;
     }
+    
+    // In a real app, you would upload the video to a server here
+    
+    // Mark as completed in localStorage
+    localStorage.setItem('willVideoRecorded', 'true');
+    
+    // Store the video blob if needed (in a real app you'd upload it)
+    if (recordedChunks.length > 0) {
+      try {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        console.log(`Saved video blob: ${blob.size} bytes`);
+        
+        // In a real implementation, you'd upload the blob to your server
+        // For now, we'll just store the fact that recording was completed
+      } catch (error) {
+        console.error("Error creating final blob:", error);
+      }
+    }
+    
+    // Navigate to next step
+    navigate('/final-review');
   };
 
-  // Loading state
-  if (isLoading) {
+  // Loading state during auth check
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
@@ -401,7 +567,7 @@ const VideoRecording: React.FC = () => {
             
             {/* Controls */}
             <div className="p-6">
-              <div className="flex flex-wrap justify-center space-x-3 gap-3 mb-6">
+              <div className="flex flex-wrap justify-center gap-3 mb-6">
                 {(status === 'idle' && streamRef.current) && (
                   <button
                     onClick={startRecording}

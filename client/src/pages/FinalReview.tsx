@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
-import { Check, Edit, FileText, AlertCircle, Save, ArrowRight, CheckCircle } from 'lucide-react';
+import { Check, Edit, FileText, AlertCircle, Save, ArrowRight, CheckCircle, Download } from 'lucide-react';
 import AnimatedAurora from '@/components/ui/AnimatedAurora';
 
 // Will document data structure
@@ -194,6 +194,39 @@ Date                               Date`;
     localStorage.setItem('willFinalDocument', editableContent);
   };
 
+  // Generate PDF from will content
+  const generatePDF = () => {
+    // In a real implementation, this would use a proper PDF library
+    // For now, create a text blob and trigger download
+    try {
+      const blob = new Blob([editableContent], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      
+      // Set filename with user name if available
+      const filename = willData?.personalInfo?.fullName 
+        ? `${willData.personalInfo.fullName.replace(/\s+/g, '_')}_Will.txt` 
+        : 'WillTank_Document.txt';
+      
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      console.log("Document downloaded successfully");
+      return true;
+    } catch (error) {
+      console.error("Error generating document:", error);
+      return false;
+    }
+  };
+  
   // Finalize and save will
   const handleFinalize = () => {
     // Save final document
@@ -204,12 +237,16 @@ Date                               Date`;
     // Mark as complete
     setDocumentComplete(true);
     
-    // In a real app, you'd submit the document to your backend
+    // Save completion status in localStorage
     localStorage.setItem('willCompleted', 'true');
+    
+    // Generate and download PDF automatically
+    generatePDF();
     
     // Show success state first, then navigate after delay
     setTimeout(() => {
-      navigate('/completion');
+      // Navigate to dashboard instead of completion
+      navigate('/dashboard');
     }, 3000);
   };
 
@@ -277,7 +314,17 @@ Date                               Date`;
                     <h3 className="font-medium">Last Will and Testament</h3>
                   </div>
                   
-                  <div>
+                  <div className="flex space-x-2">
+                    {!isEditing && (
+                      <button
+                        onClick={generatePDF}
+                        className="flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                      >
+                        <Download className="h-4 w-4 mr-1.5" />
+                        Download
+                      </button>
+                    )}
+
                     {isEditing ? (
                       <button
                         onClick={handleSave}
