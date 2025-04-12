@@ -1,0 +1,67 @@
+You are a world-class developer and UI/UX designer. Build me the ultimate modern, responsive, animated landing page for a platform called **WillTank** – a futuristic tool that lets users create, store, and deliver their wills with AI guidance.
+
+✅ REQUIREMENTS (Read ALL carefully):
+
+1. **Platform Summary (Feed this into AI)**:
+   - WillTank is an AI-powered platform that allows users to create, store, and securely deliver wills.
+   - It has a clean, minimal interface centered around an AI assistant called **Skyler** who guides users through will creation.
+   - Users can upload documents, record videos, choose executors and beneficiaries, and complete the entire process in one seamless chat interface.
+   - The platform is accessible on desktop, tablet, and mobile and focuses on simplicity, security, and futuristic elegance.
+   - The vibe is similar to Stripe.com: clean, animated, modern, and trust-inducing.
+
+2. **Design & Style**:
+   - Hero section must be 2-sided:
+     - Left: Bold heading, subheading, CTA buttons.
+     - Right: Animated Lottie or SVG animation that matches the theme (AI, security, legal, digital assistant).
+   - Smooth rainbow gradient slow animated **background** (like a floating aurora effect).
+   - Smooth scroll navigation.
+   - Sleek typography and spacing (use Tailwind or equivalent).
+   - Animate sections as they come into view (scroll-based animations).
+   - Use framer-motion or ScrollReveal if available.
+
+3. **Navbar Links (All must scroll to real sections):**
+   - Home
+   - How It Works
+   - Features
+   - Templates
+   - Testimonials
+   - FAQ
+   - Contact
+
+4. **Footer Links (All with content):**
+   - About WillTank
+   - Privacy Policy
+   - Terms of Use
+   - Blog (show 2–3 recent posts)
+   - Socials (Twitter, LinkedIn, Instagram)
+   - Newsletter signup
+
+5. **Page Sections (All must be real, no dummy text):**
+   - Hero Section (with text + animation)
+   - How It Works (step-by-step with icons or illustrations)
+   - Features (Skyler AI, secure vaults, executor tools, etc.)
+   - Will Templates (with icons and brief descriptions)
+   - Testimonials (slider or cards with 3 user reviews)
+   - FAQ (5+ expandable items)
+   - Contact Us (simple form with name, email, message)
+   - Blog Preview (2–3 article cards with title, image, summary)
+   - Footer with links and newsletter input
+
+6. **Visual Touches:**
+   - Rounded corners, shadows, hover effects on buttons and cards.
+   - Use a custom font like Inter, Poppins, or Sora.
+   - Add subtle floating background particles, soft pulse, or glow on CTA buttons.
+   - Optional sticky navbar on scroll.
+
+7. **Responsive Design:**
+   - Must work perfectly on mobile, tablet, and desktop.
+
+🔁 Output format:
+→ Full working HTML + CSS + JavaScript (React or Vanilla preferred)
+→ Include Lottie animation via CDN or use animated SVG
+→ If React: use Tailwind + Framer Motion + simple file structure
+
+🎯 Final Notes:
+This is not a placeholder mockup — it's the actual front-facing homepage of WillTank. It must be fast, beautiful, and functional, with working internal links and gorgeous smooth transitions. Think Stripe, Linear, and Notion vibes combined. Use best practices and make it easy to expand into a full PWA.
+
+Deliver a masterpiece.
