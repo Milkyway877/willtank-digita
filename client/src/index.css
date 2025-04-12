@@ -26,6 +26,19 @@
     @apply shadow-[0_0_20px_rgba(94,23,235,0.8)] transform -translate-y-0.5;
   }
 
+  /* Improved section hover effects */
+  .hover-card {
+    @apply transition-all duration-500;
+  }
+  
+  .hover-card:hover {
+    @apply transform -translate-y-2 shadow-xl;
+  }
+  
+  .hover-gradient:hover {
+    background-position: right center;
+  }
+
   .testimonial-section {
     position: relative;
     overflow: hidden;
@@ -38,7 +51,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(94,23,235,0.05) 0%, rgba(6,182,212,0.05) 100%);
+    background: linear-gradient(135deg, rgba(94,23,235,0.08) 0%, rgba(6,182,212,0.08) 100%);
     z-index: -1;
   }
 
@@ -47,24 +60,97 @@
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.5);
     pointer-events: none;
+    opacity: 0.6;
+    filter: blur(1px);
   }
 
-  .aurora-bg {
-    @apply fixed inset-0 z-[-1];
-    background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+  /* Enhanced Aurora Background */
+  .aurora-container {
+    pointer-events: none;
+    background: linear-gradient(to bottom, #000428, #01021e);
+    opacity: 0.06;
+  }
+  
+  .aurora-wrapper {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+  }
+  
+  .aurora-layer {
+    position: absolute;
+    inset: 0;
+    opacity: 0.5;
+    border-radius: 50%;
+    filter: blur(80px);
+  }
+  
+  .aurora-layer-1 {
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(-45deg, #ff7676, #4643f5, #10e0d4, #00e5ff);
     background-size: 400% 400%;
-    animation: aurora 15s ease infinite;
-    opacity: 0.08;
+    animation: aurora 25s ease infinite alternate;
+    transform-origin: center;
+  }
+  
+  .aurora-layer-2 {
+    top: -30%;
+    right: -30%;
+    width: 160%;
+    height: 160%;
+    background: linear-gradient(-45deg, #7a42ff, #e344ff, #aabdff, #67daff);
+    background-size: 300% 300%;
+    animation: aurora 30s ease-in-out infinite alternate-reverse;
+    transform-origin: center;
+  }
+  
+  .aurora-layer-3 {
+    bottom: -40%;
+    left: -20%;
+    width: 180%;
+    height: 180%;
+    background: linear-gradient(-45deg, #1a8bff, #c635ff, #00e1ff, #4affed);
+    background-size: 350% 350%;
+    animation: aurora 35s ease infinite;
+    transform-origin: center;
+  }
+  
+  /* Enhanced section background gradients */
+  .gradient-bg-1 {
+    background: linear-gradient(135deg, rgba(94,23,235,0.03) 0%, rgba(6,182,212,0.03) 100%);
+  }
+  
+  .gradient-bg-2 {
+    background: linear-gradient(135deg, rgba(6,182,212,0.03) 0%, rgba(94,23,235,0.03) 100%);
+  }
+  
+  /* Button hover effects */
+  .btn-gradient {
+    background-size: 200% auto;
+    transition: all 0.5s ease;
+    background-image: linear-gradient(to right, #5e17eb 0%, #06b6d4 51%, #5e17eb 100%);
+  }
+  
+  .btn-gradient:hover {
+    background-position: right center;
   }
 
   @keyframes aurora {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    0% { background-position: 0% 0%; }
+    50% { background-position: 100% 100%; }
+    100% { background-position: 0% 0%; }
   }
 
   @keyframes float {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-10px); }
+  }
+  
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 10px rgba(94,23,235,0.5); }
+    50% { box-shadow: 0 0 20px rgba(94,23,235,0.8); }
   }
 }
