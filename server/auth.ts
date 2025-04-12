@@ -43,33 +43,53 @@ async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
-// Send verification email using the email service
-async function sendVerificationEmail(email: string, code: string) {
+// Send verification email using the enhanced email service
+async function sendVerificationEmail(email: string, code: string): Promise<{success: boolean; error?: string}> {
   try {
     console.log(`Sending verification email to ${email} with code: ${code}`);
     const subject = "Verify Your WillTank Account";
     const htmlContent = createVerificationEmailTemplate(code);
     
     const result = await sendEmail(email, subject, htmlContent);
-    return result;
+    
+    if (result.success) {
+      console.log(`Verification email successfully sent to ${email}`);
+      return { success: true };
+    } else {
+      console.error(`Failed to send verification email to ${email}: ${result.details}`);
+      return { success: false, error: result.details };
+    }
   } catch (error) {
     console.error("Error sending verification email:", error);
-    return false;
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Unknown error occurred" 
+    };
   }
 }
 
-// Send password reset email using the email service
-async function sendPasswordResetEmail(email: string, token: string) {
+// Send password reset email using the enhanced email service
+async function sendPasswordResetEmail(email: string, token: string): Promise<{success: boolean; error?: string}> {
   try {
     console.log(`Sending password reset email to ${email}`);
     const subject = "Reset Your WillTank Password";
     const htmlContent = createPasswordResetEmailTemplate(token);
     
     const result = await sendEmail(email, subject, htmlContent);
-    return result;
+    
+    if (result.success) {
+      console.log(`Password reset email successfully sent to ${email}`);
+      return { success: true };
+    } else {
+      console.error(`Failed to send password reset email to ${email}: ${result.details}`);
+      return { success: false, error: result.details };
+    }
   } catch (error) {
     console.error("Error sending password reset email:", error);
-    return false;
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "Unknown error occurred" 
+    };
   }
 }
 
@@ -154,14 +174,16 @@ export function setupAuth(app: Express) {
       await storage.setVerificationCode(user.id, verificationCode, 30); // 30 minutes expiry
 
       // Send verification email
-      sendVerificationEmail(user.username, verificationCode);
-
+      const emailResult = await sendVerificationEmail(user.username, verificationCode);
+      
       // Return user data without auto-login
       return res.status(201).json({ 
         id: user.id,
         username: user.username,
         isEmailVerified: user.isEmailVerified,
-        message: "Registration successful. Please check your email for verification code."
+        message: "Registration successful. Please check your email for verification code.",
+        emailSent: emailResult.success,
+        emailError: !emailResult.success ? emailResult.error : undefined
       });
     } catch (err) {
       next(err);
@@ -240,9 +262,18 @@ export function setupAuth(app: Express) {
       await storage.setVerificationCode(user.id, verificationCode, 30);
 
       // Send verification email
-      sendVerificationEmail(user.username, verificationCode);
+      const emailResult = await sendVerificationEmail(user.username, verificationCode);
 
-      return res.status(200).json({ message: "Verification code sent successfully" });
+      if (emailResult.success) {
+        return res.status(200).json({ 
+          message: "Verification code sent successfully"
+        });
+      } else {
+        return res.status(500).json({ 
+          message: "Failed to send verification code", 
+          error: emailResult.error 
+        });
+      }
     } catch (err) {
       return res.status(500).json({ message: "Server error" });
     }
@@ -286,7 +317,13 @@ export function setupAuth(app: Express) {
       await storage.setResetToken(user.id, resetToken, 60); // 1 hour expiry
 
       // Send password reset email
-      sendPasswordResetEmail(user.username, resetToken);
+      const emailResult = await sendPasswordResetEmail(user.username, resetToken);
+
+      // For security reasons, always return success even if email fails
+      // But log the error server-side
+      if (!emailResult.success) {
+        console.error(`Failed to send password reset email to ${user.username}: ${emailResult.error}`);
+      }
 
       return res.status(200).json({ message: "Password reset instructions sent to your email" });
     } catch (err) {
