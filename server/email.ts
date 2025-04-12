@@ -1,89 +1,133 @@
 import nodemailer from 'nodemailer';
 import { createEmailTransporter, createTestEmailTransporter } from './email-services';
 
+// Helper to strip HTML for plain text alternative
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>?/gm, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // Function to get email transporter - use the configured service from email-services.ts
 const getTransporter = async () => {
   try {
-    // Use test transporter if in test mode
-    if (process.env.NODE_ENV === 'test' || process.env.EMAIL_TEST_MODE === 'true') {
-      console.log('Using test email transporter (Ethereal)');
-      return await createTestEmailTransporter();
+    // In production mode, we use the configured email service
+    if (process.env.EMAIL_TEST_MODE !== 'true') {
+      console.log(`Using production email service: ${process.env.EMAIL_SERVICE}`);
+      const transporter = await createEmailTransporter();
+      return transporter;
     }
     
-    // Otherwise use the configured email service
-    return createEmailTransporter();
+    // In test mode, use Ethereal
+    console.log('Using test email transporter (Ethereal)');
+    return await createTestEmailTransporter();
   } catch (error) {
     console.error('Error creating email transporter:', error);
     throw error;
   }
 };
 
-// Helper function to send emails via SMTP
+// Enhanced function to send emails via SMTP with improved error handling and response
 export async function sendEmail(
   to: string,
   subject: string,
   html: string
-): Promise<boolean> {
+): Promise<{ success: boolean; message: string; details?: string; previewUrl?: string }> {
   try {
     // Get the from address
     const from = process.env.SMTP_FROM || '"WillTank Support" <SUPPORT@WILLTANK.COM>';
     
     // Create transporter and send email
-    try {
-      const transporter = await getTransporter();
-      console.log("Transporter created successfully");
-      const info = await transporter.sendMail({
-        from,
-        to,
-        subject,
-        html,
-      });
-
-      console.log(`Email sent via SMTP: ${info.messageId}`);
-      
-      // If it's a test/Ethereal email, show the URL where the email can be viewed
-      if (process.env.NODE_ENV === 'test' || process.env.EMAIL_TEST_MODE === 'true') {
-        // Check if info has a messageId and the getTestMessageUrl function is available
-        if (info.messageId && typeof (info as any).getTestMessageUrl === 'function') {
-          const previewUrl = (info as any).getTestMessageUrl();
-          console.log(`Preview URL: ${previewUrl}`);
-          
-          // Save the preview URL to a global variable so it can be accessed in routes
-          (global as any).testEmailPreviewUrl = previewUrl;
-        }
+    const transporter = await getTransporter();
+    
+    // Enhanced email options with proper headers and text alternative
+    const mailOptions = {
+      from,
+      to,
+      subject,
+      text: stripHtml(html), // Plain text alternative
+      html,
+      headers: {
+        'X-Priority': '1', // High priority
+        'X-Mailer': 'WillTank Mailer',
+        'Message-ID': `<${Date.now()}.${Math.random().toString(36).substring(2)}@willtank.com>`
       }
-      
-      return true;
-    } catch (transportError) {
-      console.error('Error during email transport:', transportError);
-      throw transportError; // Rethrow to be caught by the outer catch
+    };
+
+    // Send mail with more detailed logging
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Email successfully delivered: ${info.messageId}`);
+    
+    // Handle preview URL for Ethereal test emails
+    let previewUrl = undefined;
+    let details = undefined;
+    
+    // If it's a test/Ethereal email, capture the URL where the email can be viewed
+    if (process.env.EMAIL_TEST_MODE === 'true') {
+      if (info.messageId && typeof (info as any).getTestMessageUrl === 'function') {
+        previewUrl = (info as any).getTestMessageUrl();
+        console.log(`Preview URL: ${previewUrl}`);
+        details = 'Test email captured (preview available)';
+      }
+    } else {
+      details = `Message delivered with ID: ${info.messageId}`;
     }
-  } catch (error) {
+    
+    return { 
+      success: true, 
+      message: 'Email sent successfully',
+      details,
+      previewUrl
+    };
+  } catch (error: any) {
     console.error('Error sending email:', error);
     
+    // Detailed error categorization
+    let details = error.message;
+    
+    // Enhanced error detection
+    if (error.code === 'EAUTH') {
+      details = 'Authentication failed. Check your SMTP username and password.';
+    } 
+    else if (error.code === 'ESOCKET' || error.code === 'ECONNECTION') {
+      details = 'Connection error. Check your SMTP host, port, and firewall settings.';
+    }
+    else if (error.code === 'ETIMEDOUT') {
+      details = 'Connection timed out. The mail server may be unavailable or blocked.';
+    }
+    else if (error.code === 'EENVELOPE') {
+      details = 'Invalid envelope (from/to addresses). Check email format.';
+    }
+    else if (error.responseCode >= 500) {
+      details = `Server error (${error.responseCode}): ${error.response}`;
+    }
+    
+    // Log detailed error info for server-side troubleshooting
     if (error instanceof Error) {
       console.error('Error details:', error.message);
       console.error('Error stack:', error.stack);
       
-      // If it's a NodeMailer error, it might have additional details
-      const nodeMailerError = error as any;
-      if (nodeMailerError.code) {
-        console.error('Error code:', nodeMailerError.code);
+      // If it's a NodeMailer error, log additional details
+      if ('code' in error) {
+        console.error('Error code:', error.code);
       }
-      if (nodeMailerError.response) {
-        console.error('SMTP Response:', nodeMailerError.response);
+      if ('response' in error) {
+        console.error('SMTP Response:', error.response);
       }
-      if (nodeMailerError.responseCode) {
-        console.error('SMTP Response code:', nodeMailerError.responseCode);
+      if ('responseCode' in error) {
+        console.error('SMTP Response code:', error.responseCode);
       }
-      if (nodeMailerError.command) {
-        console.error('SMTP Command:', nodeMailerError.command);
+      if ('command' in error) {
+        console.error('SMTP Command:', error.command);
       }
-    } else {
-      console.error('Unknown error type:', typeof error);
     }
     
-    return false;
+    return { 
+      success: false, 
+      message: 'Failed to send email', 
+      details
+    };
   }
 }
 

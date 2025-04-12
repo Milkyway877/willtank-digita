@@ -136,21 +136,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createVerificationEmailTemplate(testCode)
         );
         
-        // Get the preview URL from server logs (for Ethereal emails)
-        const logOutput = (global as any).testEmailPreviewUrl || "";
-        
-        if (result) {
+        if (result.success) {
           return res.status(200).json({ 
-            message: "Test email sent successfully",
-            details: process.env.EMAIL_TEST_MODE === 'true' 
+            message: result.message,
+            details: result.details || (process.env.EMAIL_TEST_MODE === 'true' 
               ? "This is a test email that was not actually sent. View it at the preview URL below." 
-              : "Check your inbox for a verification code email",
-            previewUrl: logOutput
+              : "Check your inbox for a verification code email"),
+            previewUrl: result.previewUrl
           });
         } else {
           return res.status(500).json({ 
-            message: "Failed to send test email",
-            details: "Check server logs for more details" 
+            message: result.message,
+            details: result.details || "Check server logs for more details" 
           });
         }
       } catch (error) {

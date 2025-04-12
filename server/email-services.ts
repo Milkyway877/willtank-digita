@@ -31,14 +31,15 @@ export function getNamecheapSmtpConfig(): SmtpConfig {
       user: process.env.SMTP_USER || '',
       pass: process.env.SMTP_PASS || '',
     },
+    // Using more reliable settings for production
     tls: {
-      rejectUnauthorized: false, // For development only
+      rejectUnauthorized: true, // More secure for production
     },
-    debug: true,
-    logger: true,
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
+    debug: false, // Disable debugging in production
+    logger: true, // Keep logging for troubleshooting
+    connectionTimeout: 30000, // 30 seconds - more generous timeout
+    greetingTimeout: 30000, // 30 seconds
+    socketTimeout: 60000, // 60 seconds - more time for operations
   };
 }
 
