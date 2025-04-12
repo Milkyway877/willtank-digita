@@ -4,6 +4,7 @@ import { useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import Sidebar from '@/components/dashboard/Sidebar';
 import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import SkylerChatbot from '@/components/SkylerChatbot';
 import { AnimatedAurora } from '@/components/ui/AnimatedAurora';
 import { useIsMobile } from '@/hooks/use-mobile';
 

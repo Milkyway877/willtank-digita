@@ -8,7 +8,76 @@ import { checkInResponses, users, wills } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { sendEmail, createVerificationEmailTemplate } from "./email";
 
+import { getChatCompletion, getStreamingChatCompletion } from './openai';
+
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Skyler AI Chat Endpoint
+  app.post("/api/skyler/chat", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const { messages } = req.body;
+      
+      if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ error: "Messages must be an array" });
+      }
+
+      const result = await getChatCompletion(messages);
+      
+      if (result.success) {
+        res.json({ message: result.data });
+      } else {
+        res.status(500).json({ error: result.error });
+      }
+    } catch (error: any) {
+      console.error("Error in Skyler chat endpoint:", error);
+      res.status(500).json({ error: error.message || "Internal server error" });
+    }
+  });
+
+  // Skyler AI Chat Streaming Endpoint
+  app.post("/api/skyler/chat-stream", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const { messages } = req.body;
+      
+      if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ error: "Messages must be an array" });
+      }
+
+      const result = await getStreamingChatCompletion(messages);
+      
+      if (!result.success) {
+        return res.status(500).json({ error: result.error });
+      }
+
+      // Set headers for streaming
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+
+      // Handle streaming response
+      for await (const chunk of result.stream) {
+        // Send the content as an event
+        const content = chunk.choices[0]?.delta?.content || '';
+        if (content) {
+          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+        }
+      }
+
+      // End the stream
+      res.write('data: [DONE]\n\n');
+      res.end();
+    } catch (error: any) {
+      console.error("Error in Skyler streaming chat endpoint:", error);
+      res.status(500).json({ error: error.message || "Internal server error" });
+    }
+  });
   // Set up auth routes (/api/register, /api/login, /api/logout, /api/user)
   setupAuth(app);
 

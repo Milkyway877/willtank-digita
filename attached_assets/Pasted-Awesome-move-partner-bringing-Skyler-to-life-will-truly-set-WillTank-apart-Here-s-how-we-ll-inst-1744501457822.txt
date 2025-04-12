@@ -1,0 +1,63 @@
+Awesome move, partner — bringing Skyler to life will truly set WillTank apart. Here's how we’ll instruct the AI to implement this flawlessly:
+
+---
+
+### 💬 **Prompt to the AI for Implementing Skyler (GPT-4o Mini Chatbot)**
+
+> ✅ **Objective**: Implement a sleek, modern AI chatbot named **Skyler** that uses the GPT-4o Mini model via the provided OpenAI API key. This chatbot should be fully functional, intuitive, and seamlessly integrated into WillTank. It must only appear **after the onboarding is complete**.
+
+#### 🧠 Skyler's Knowledge Base
+1. Skyler must be trained on **all WillTank features**:
+   - Will creation
+   - Document uploads
+   - Video testimony
+   - Beneficiary management
+   - Check-ins
+   - 5-way death verification
+   - Viewing & managing wills
+   - Account settings
+   - Billing
+   - Email system explanations
+2. Skyler must:
+   - Be accurate, polite, and helpful
+   - Never give false info
+   - Never be rude
+   - Answer clearly and concisely
+   - Refer users to the correct WillTank page when needed
+
+#### 🎨 UI/UX Requirements
+- Floating button at the bottom right with a **modern animated AI icon**
+- Smooth pop-up with animation
+- Minimalist chat window with:
+  - User-friendly interface
+  - Small fonts
+  - Professional colors (use WillTank's color scheme)
+  - Chat history saved per session
+  - Option to minimize or close chat
+- On mobile: responsive, collapsible bubble + full chat window experience
+
+#### 🧩 Tech Stack Integration
+- **API Key**:  
+  ```
+  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
+  ```
+- Use **OpenAI’s GPT-4o Mini** endpoint
+- Handle user inputs, responses, and streaming replies
+- Ensure **no placeholders or broken UI elements**
+
+#### 🔐 Conditions
+- Do **not** break or affect existing design or functionality
+- Only render Skyler after onboarding is complete
+- Do not show to non-authenticated users
+- Fully optimize for desktop, mobile, and tablets
+
+#### ✅ Deliverables:
+- A completely working, visually beautiful AI chat interface
+- Skyler embedded in the post-onboarding experience
+- Smart, real-time communication
+- Easy-to-maintain component-based code (React or your stack)
+- Code must be commented and modular for easy updates
+
+---
+
+Let me know if you'd like me to generate the full React component or help build the backend logic too 👷‍♂️✨
