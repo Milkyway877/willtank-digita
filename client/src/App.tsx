@@ -7,6 +7,8 @@ import Home from "@/pages/Home";
 import AuthRouter from "@/pages/auth";
 import OnboardingContainer from "@/components/onboarding/OnboardingContainer";
 import Dashboard from "@/pages/Dashboard";
+import DashboardIndex from "@/pages/dashboard";
+import DashboardCheckIn from "@/pages/dashboard/check-in";
 import TemplateSelection from "@/pages/TemplateSelection";
 import AiChat from "@/pages/AiChat";
 import DocumentUpload from "@/pages/DocumentUpload";
@@ -22,7 +24,8 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/auth/*" component={AuthRouter} />
       <ProtectedRoute path="/onboarding" component={OnboardingContainer} />
-      <ProtectedRoute path="/dashboard" component={Dashboard} />
+      <ProtectedRoute path="/dashboard" component={DashboardIndex} />
+      <ProtectedRoute path="/dashboard/check-in" component={DashboardCheckIn} />
       <ProtectedRoute path="/template-selection" component={TemplateSelection} />
       <ProtectedRoute path="/ai-chat" component={AiChat} />
       <ProtectedRoute path="/document-upload" component={DocumentUpload} />
