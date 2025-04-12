@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useLocation } from 'wouter';
-import { Mail, Lock, AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Mail, Lock, AlertCircle, CheckCircle2, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { FcGoogle } from 'react-icons/fc';
 
 import AuthLayout from '@/components/auth/AuthLayout';
@@ -14,14 +14,22 @@ import {
   WillCreationStep 
 } from '@/lib/will-progress-tracker';
 
+enum LoginStep {
+  INITIAL = 'initial',
+  VERIFICATION = 'verification'
+}
+
 const SignIn: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [loginStep, setLoginStep] = useState<LoginStep>(LoginStep.INITIAL);
   
   const [errors, setErrors] = useState<{
     email?: string; 
     password?: string;
+    verificationCode?: string;
   }>({});
   
   const [authStatus, setAuthStatus] = useState<{
@@ -33,6 +41,7 @@ const SignIn: React.FC = () => {
   const { 
     user, 
     loginMutation, 
+    requestLoginCodeMutation,
     resendVerificationMutation,
     refetchUser
   } = useAuth();
@@ -62,7 +71,7 @@ const SignIn: React.FC = () => {
     }
   }, [user, navigate]);
   
-  const validateLoginForm = () => {
+  const validateInitialForm = () => {
     const newErrors: typeof errors = {};
     let isValid = true;
     
@@ -88,20 +97,86 @@ const SignIn: React.FC = () => {
     return isValid;
   };
   
-  const handleLogin = async (e: React.FormEvent) => {
+  const validateVerificationForm = () => {
+    const newErrors: typeof errors = {};
+    let isValid = true;
+    
+    // Email and password should be already validated at this point
+    
+    // Verification code validation
+    if (!verificationCode) {
+      newErrors.verificationCode = 'Verification code is required';
+      isValid = false;
+    } else if (verificationCode.length !== 6 || !/^\d+$/.test(verificationCode)) {
+      newErrors.verificationCode = 'Please enter a valid 6-digit code';
+      isValid = false;
+    }
+    
+    setErrors(newErrors);
+    return isValid;
+  };
+  
+  // Request a login verification code
+  const handleRequestVerificationCode = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateLoginForm()) return;
+    if (!validateInitialForm()) return;
     
     setAuthStatus({});
     
     try {
-      const response = await loginMutation.mutateAsync({ 
-        username: email.toLowerCase(), 
-        password 
+      // Request login verification code
+      const response = await requestLoginCodeMutation.mutateAsync({ 
+        username: email.toLowerCase() 
       });
       
-      // Check if email needs verification
+      // Move to verification step
+      setLoginStep(LoginStep.VERIFICATION);
+      
+      setAuthStatus({
+        type: 'success',
+        message: 'A verification code has been sent to your email'
+      });
+      
+    } catch (error: any) {
+      // Check for specific error indicating user needs to verify email first
+      if (error.message && error.message.includes('verify your email')) {
+        setAuthStatus({
+          type: 'warning',
+          message: 'Please verify your email address before logging in'
+        });
+        
+        // Redirect to email verification page
+        navigate(`/auth/verify/${encodeURIComponent(email.toLowerCase())}`);
+        
+        // Trigger resend verification
+        await resendVerificationMutation.mutateAsync({ email: email.toLowerCase() });
+      } else {
+        setAuthStatus({
+          type: 'error',
+          message: error instanceof Error ? error.message : 'Failed to request verification code'
+        });
+      }
+    }
+  };
+  
+  // Complete login with verification code
+  const handleCompleteLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateVerificationForm()) return;
+    
+    setAuthStatus({});
+    
+    try {
+      // Login with credentials and verification code
+      const response = await loginMutation.mutateAsync({ 
+        username: email.toLowerCase(), 
+        password,
+        verificationCode
+      });
+      
+      // Check if email needs verification (should not happen at this point)
       if (response && !response.isEmailVerified) {
         // Redirect to dedicated verification page
         navigate(`/auth/verify/${encodeURIComponent(email.toLowerCase())}`);
@@ -113,14 +188,42 @@ const SignIn: React.FC = () => {
         await refetchUser(); // Explicitly fetch user data
         
         // Will check and redirect to dashboard will be handled by useEffect after user is set
-        // We'll add hasWill check to determine if we go to dashboard or template selection
       }
       
-    } catch (error) {
-      setAuthStatus({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Invalid email or password'
-      });
+    } catch (error: any) {
+      // Check for specific errors
+      if (error.message && error.message.includes('verification code')) {
+        setAuthStatus({
+          type: 'error',
+          message: error.message
+        });
+      } else if (error.message && error.message.includes('verify your email')) {
+        setAuthStatus({
+          type: 'warning',
+          message: 'Please verify your email address before logging in'
+        });
+        
+        // Redirect to email verification page
+        navigate(`/auth/verify/${encodeURIComponent(email.toLowerCase())}`);
+        
+        // Trigger resend verification
+        await resendVerificationMutation.mutateAsync({ email: email.toLowerCase() });
+      } else {
+        setAuthStatus({
+          type: 'error',
+          message: error instanceof Error ? error.message : 'Login failed'
+        });
+      }
+    }
+  };
+  
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (loginStep === LoginStep.INITIAL) {
+      await handleRequestVerificationCode(e);
+    } else {
+      await handleCompleteLogin(e);
     }
   };
 
@@ -136,9 +239,13 @@ const SignIn: React.FC = () => {
           transition={{ duration: 0.5 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">Sign in to WillTank</h1>
+          <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+            {loginStep === LoginStep.INITIAL ? "Sign in to WillTank" : "Verification Required"}
+          </h1>
           <p className="text-neutral-600 dark:text-neutral-400">
-            Enter your credentials to access your account
+            {loginStep === LoginStep.INITIAL 
+              ? "Enter your credentials to access your account" 
+              : "We've sent a verification code to your email"}
           </p>
         </motion.div>
         
@@ -179,6 +286,7 @@ const SignIn: React.FC = () => {
             autoComplete="email"
             placeholder="Enter your email address"
             required
+            disabled={loginStep === LoginStep.VERIFICATION}
           />
           
           <AuthInput
@@ -192,7 +300,45 @@ const SignIn: React.FC = () => {
             autoComplete="current-password"
             placeholder="Enter your password"
             required
+            disabled={loginStep === LoginStep.VERIFICATION}
           />
+          
+          {loginStep === LoginStep.VERIFICATION && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              transition={{ duration: 0.3 }}
+            >
+              <AuthInput
+                label="Verification Code"
+                type="text"
+                name="verificationCode"
+                value={verificationCode}
+                onChange={(e) => setVerificationCode(e.target.value)}
+                error={errors.verificationCode}
+                icon={<ShieldCheck className="h-5 w-5" />}
+                placeholder="Enter the 6-digit code sent to your email"
+                required
+              />
+              <div className="flex justify-between text-sm mb-4">
+                <button
+                  type="button"
+                  className="text-neutral-600 hover:text-neutral-800 dark:text-neutral-400 dark:hover:text-neutral-300 transition-colors"
+                  onClick={() => setLoginStep(LoginStep.INITIAL)}
+                >
+                  ← Change email/password
+                </button>
+                <button
+                  type="button"
+                  className="text-primary hover:text-primary-dark transition-colors"
+                  onClick={() => handleRequestVerificationCode({ preventDefault: () => {} } as React.FormEvent)}
+                  disabled={requestLoginCodeMutation.isPending}
+                >
+                  Resend code
+                </button>
+              </div>
+            </motion.div>
+          )}
           
           <div className="flex justify-between items-center mb-6">
             <label className="flex items-center text-sm text-neutral-600 dark:text-neutral-400">
@@ -211,8 +357,14 @@ const SignIn: React.FC = () => {
           </div>
           
           <div className="space-y-4">
-            <AuthButton type="submit" isLoading={loginMutation.isPending}>
-              Sign In
+            <AuthButton 
+              type="submit" 
+              isLoading={loginStep === LoginStep.INITIAL 
+                ? requestLoginCodeMutation.isPending 
+                : loginMutation.isPending
+              }
+            >
+              {loginStep === LoginStep.INITIAL ? "Continue" : "Sign In"}
             </AuthButton>
             
             <div className="flex items-center justify-center my-4">
