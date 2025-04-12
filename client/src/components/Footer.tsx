@@ -13,6 +13,7 @@ import {
   ShieldCheck, 
   FileTerminal 
 } from 'lucide-react'
+import Logo from '@/components/ui/Logo'
 
 interface FooterModalProps {
   isOpen: boolean;

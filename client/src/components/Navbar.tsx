@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Link, useLocation } from 'wouter'
 import { ExpandableTabs } from '@/components/ui/expandable-tabs'
+import Logo from '@/components/ui/Logo'
 
 const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -102,8 +103,8 @@ const Navbar: React.FC = () => {
     <header id="header" className={`fixed w-full z-50 transition-all duration-300 bg-white bg-opacity-90 backdrop-blur-sm ${isScrolled ? 'shadow-md' : ''}`}>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
-          <a href="#" className="flex items-center space-x-2" onClick={(e) => { e.preventDefault(); scrollToSection('home'); }}>
-            <span className="text-primary font-bold text-2xl">WillTank</span>
+          <a href="#" className="flex items-center" onClick={(e) => { e.preventDefault(); scrollToSection('home'); }}>
+            <Logo size="md" withText={true} />
           </a>
           
           <div className="hidden md:block">
