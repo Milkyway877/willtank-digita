@@ -45,7 +45,11 @@ export async function sendEmail(
       if (process.env.NODE_ENV === 'test' || process.env.EMAIL_TEST_MODE === 'true') {
         // Check if info has a messageId and the getTestMessageUrl function is available
         if (info.messageId && typeof (info as any).getTestMessageUrl === 'function') {
-          console.log(`Preview URL: ${(info as any).getTestMessageUrl()}`);
+          const previewUrl = (info as any).getTestMessageUrl();
+          console.log(`Preview URL: ${previewUrl}`);
+          
+          // Save the preview URL to a global variable so it can be accessed in routes
+          (global as any).testEmailPreviewUrl = previewUrl;
         }
       }
       
