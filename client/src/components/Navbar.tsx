@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react'
 import { Menu, X } from 'lucide-react'
+import { Link, useLocation } from 'wouter'
 
 const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
+  const [location] = useLocation()
+
+  // Don't show the navbar on auth pages
+  if (location.startsWith('/auth')) {
+    return null
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -50,8 +57,12 @@ const Navbar: React.FC = () => {
           </nav>
           
           <div className="flex items-center space-x-4">
-            <a href="#" className="hidden md:inline-block px-4 py-2 text-primary hover:text-primary-dark font-medium transition">Login</a>
-            <a href="#" className="hidden md:inline-block px-5 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition shadow-md hover:shadow-lg">Get Started</a>
+            <Link href="/auth/sign-in">
+              <a className="hidden md:inline-block px-4 py-2 text-primary hover:text-primary-dark font-medium transition">Login</a>
+            </Link>
+            <Link href="/auth/sign-up">
+              <a className="hidden md:inline-block px-5 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition shadow-md hover:shadow-lg">Get Started</a>
+            </Link>
             <button 
               className="md:hidden text-neutral-600"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -71,8 +82,12 @@ const Navbar: React.FC = () => {
             <a href="#faq" className="text-neutral-600 hover:text-primary font-medium transition py-2" onClick={(e) => { e.preventDefault(); scrollToSection('faq') }}>FAQ</a>
             <a href="#contact" className="text-neutral-600 hover:text-primary font-medium transition py-2" onClick={(e) => { e.preventDefault(); scrollToSection('contact') }}>Contact</a>
             <div className="pt-2 flex flex-col space-y-3">
-              <a href="#" className="px-4 py-2 text-primary border border-primary text-center font-medium rounded-lg transition">Login</a>
-              <a href="#" className="px-4 py-2 bg-primary text-white text-center font-medium rounded-lg transition shadow-md">Get Started</a>
+              <Link href="/auth/sign-in">
+                <a className="px-4 py-2 text-primary border border-primary text-center font-medium rounded-lg transition">Login</a>
+              </Link>
+              <Link href="/auth/sign-up">
+                <a className="px-4 py-2 bg-primary text-white text-center font-medium rounded-lg transition shadow-md">Get Started</a>
+              </Link>
             </div>
           </div>
         </div>

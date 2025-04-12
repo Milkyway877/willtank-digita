@@ -1,5 +1,5 @@
 import React, { ButtonHTMLAttributes } from 'react';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 
 interface AuthButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -33,7 +33,10 @@ const AuthButton: React.FC<AuthButtonProps> = ({
     }
   };
 
-  const magneticEffect = {
+  const magneticEffect: Variants = {
+    initial: {
+      scale: 1
+    },
     hover: {
       scale: 1.03,
       transition: {
@@ -52,6 +55,7 @@ const AuthButton: React.FC<AuthButtonProps> = ({
       className={getButtonClasses()}
       disabled={isLoading || props.disabled}
       variants={magneticEffect}
+      initial="initial"
       whileHover="hover"
       whileTap="tap"
       {...props}
