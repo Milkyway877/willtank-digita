@@ -240,10 +240,10 @@ const OtpVerification: React.FC = () => {
         
         <div className="mt-8">
           <Link href="/auth/sign-in">
-            <a className="inline-flex items-center text-primary hover:text-primary-dark transition-colors">
+            <span className="inline-flex items-center text-primary hover:text-primary-dark transition-colors cursor-pointer">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to sign in
-            </a>
+            </span>
           </Link>
         </div>
       </div>

@@ -234,9 +234,9 @@ const ResetPassword: React.FC = () => {
         
         <div className="mt-8 text-center">
           <Link href="/auth/sign-in">
-            <a className="text-primary hover:text-primary-dark transition-colors">
+            <span className="text-primary hover:text-primary-dark transition-colors cursor-pointer">
               Remember your password? Sign in
-            </a>
+            </span>
           </Link>
         </div>
       </div>
