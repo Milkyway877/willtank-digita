@@ -13,6 +13,11 @@ import DashboardWill from "@/pages/dashboard/will";
 import DashboardDocuments from "@/pages/dashboard/documents";
 import DashboardVideo from "@/pages/dashboard/video";
 import DashboardBeneficiaries from "@/pages/dashboard/beneficiaries";
+import DashboardDelivery from "@/pages/dashboard/delivery";
+import DashboardReminders from "@/pages/dashboard/reminders";
+import DashboardBilling from "@/pages/dashboard/billing";
+import DashboardTrust from "@/pages/dashboard/trust";
+import DashboardSettings from "@/pages/dashboard/settings";
 import SubscriptionPage from "@/pages/subscription";
 import TemplateSelection from "@/pages/TemplateSelection";
 import AiChat from "@/pages/AiChat";
@@ -36,11 +41,11 @@ function Router() {
       <ProtectedRoute path="/dashboard/documents" component={DashboardDocuments} />
       <ProtectedRoute path="/dashboard/video" component={DashboardVideo} />
       <ProtectedRoute path="/dashboard/beneficiaries" component={DashboardBeneficiaries} />
-      <ProtectedRoute path="/dashboard/delivery" component={DashboardIndex} />
-      <ProtectedRoute path="/dashboard/reminders" component={DashboardIndex} />
-      <ProtectedRoute path="/dashboard/billing" component={DashboardIndex} />
-      <ProtectedRoute path="/dashboard/trust" component={DashboardIndex} />
-      <ProtectedRoute path="/dashboard/settings" component={DashboardIndex} />
+      <ProtectedRoute path="/dashboard/delivery" component={DashboardDelivery} />
+      <ProtectedRoute path="/dashboard/reminders" component={DashboardReminders} />
+      <ProtectedRoute path="/dashboard/billing" component={DashboardBilling} />
+      <ProtectedRoute path="/dashboard/trust" component={DashboardTrust} />
+      <ProtectedRoute path="/dashboard/settings" component={DashboardSettings} />
       <ProtectedRoute path="/template-selection" component={TemplateSelection} />
       <ProtectedRoute path="/ai-chat" component={AiChat} />
       <ProtectedRoute path="/document-upload" component={DocumentUpload} />
