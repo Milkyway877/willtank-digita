@@ -11,7 +11,6 @@ import BlogPreview from '@/components/BlogPreview'
 import Footer from '@/components/Footer'
 import ParticlesBackground from '@/components/ParticlesBackground'
 import AnimatedAurora from '@/components/ui/AnimatedAurora'
-import ComponentDemo from '@/components/ComponentDemo'
 
 const Home: React.FC = () => {
   return (
@@ -23,7 +22,6 @@ const Home: React.FC = () => {
       <HowItWorks />
       <Features />
       <Templates />
-      <ComponentDemo />
       <Testimonials />
       <FAQ />
       <Contact />

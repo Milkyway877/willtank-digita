@@ -1,14 +1,28 @@
 import React, { useState, useEffect } from 'react'
-import { Menu, X } from 'lucide-react'
+import { 
+  Menu, 
+  X, 
+  Home, 
+  Lightbulb, 
+  LayoutGrid, 
+  FileText, 
+  Star, 
+  HelpCircle, 
+  Phone,
+  LogIn,
+  UserPlus 
+} from 'lucide-react'
 import { Link, useLocation } from 'wouter'
+import { ExpandableTabs } from '@/components/ui/expandable-tabs'
 
 const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
-  const [location] = useLocation()
+  const [selectedTab, setSelectedTab] = useState<number | null>(null)
+  const [currentLocation, setLocation] = useLocation()
 
   // Don't show the navbar on auth pages
-  if (location.startsWith('/auth')) {
+  if (currentLocation.startsWith('/auth')) {
     return null
   }
 
@@ -22,6 +36,22 @@ const Navbar: React.FC = () => {
       window.removeEventListener('scroll', handleScroll)
     }
   }, [])
+
+  const navItems = [
+    { title: "Home", icon: Home },
+    { title: "How It Works", icon: Lightbulb },
+    { title: "Features", icon: LayoutGrid },
+    { title: "Templates", icon: FileText },
+    { type: "separator" as const },
+    { title: "Testimonials", icon: Star },
+    { title: "FAQ", icon: HelpCircle },
+    { title: "Contact", icon: Phone },
+  ]
+
+  const authItems = [
+    { title: "Login", icon: LogIn },
+    { title: "Sign Up", icon: UserPlus },
+  ]
 
   const scrollToSection = (id: string) => {
     setMobileMenuOpen(false)
@@ -38,31 +68,62 @@ const Navbar: React.FC = () => {
     }
   }
 
+  const handleNavItemClick = (index: number | null) => {
+    if (index !== null) {
+      const item = navItems[index]
+      if (item.title) {
+        // Map section titles to their actual IDs in the HTML
+        const sectionIdMap: Record<string, string> = {
+          "Home": "home",
+          "How It Works": "how-it-works",
+          "Features": "features",
+          "Templates": "templates",
+          "Testimonials": "testimonials",
+          "FAQ": "faq",
+          "Contact": "contact"
+        }
+        
+        const sectionId = sectionIdMap[item.title] || item.title.toLowerCase().replace(/\s+/g, '-')
+        scrollToSection(sectionId)
+      }
+    }
+    setSelectedTab(index)
+  }
+
+  const handleAuthItemClick = (index: number | null) => {
+    if (index === 0) {
+      setLocation('/auth/sign-in')
+    } else if (index === 1) {
+      setLocation('/auth/sign-up')
+    }
+  }
+
   return (
     <header id="header" className={`fixed w-full z-50 transition-all duration-300 bg-white bg-opacity-90 backdrop-blur-sm ${isScrolled ? 'shadow-md' : ''}`}>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
-          <a href="#" className="flex items-center space-x-2" onClick={() => scrollToSection('home')}>
+          <a href="#" className="flex items-center space-x-2" onClick={(e) => { e.preventDefault(); scrollToSection('home'); }}>
             <span className="text-primary font-bold text-2xl">WillTank</span>
           </a>
           
-          <nav className="hidden md:flex space-x-8">
-            <a href="#home" className="text-neutral-600 hover:text-primary font-medium transition" onClick={(e) => { e.preventDefault(); scrollToSection('home') }}>Home</a>
-            <a href="#how-it-works" className="text-neutral-600 hover:text-primary font-medium transition" onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works') }}>How It Works</a>
-            <a href="#features" className="text-neutral-600 hover:text-primary font-medium transition" onClick={(e) => { e.preventDefault(); scrollToSection('features') }}>Features</a>
-            <a href="#templates" className="text-neutral-600 hover:text-primary font-medium transition" onClick={(e) => { e.preventDefault(); scrollToSection('templates') }}>Templates</a>
-            <a href="#testimonials" className="text-neutral-600 hover:text-primary font-medium transition" onClick={(e) => { e.preventDefault(); scrollToSection('testimonials') }}>Testimonials</a>
-            <a href="#faq" className="text-neutral-600 hover:text-primary font-medium transition" onClick={(e) => { e.preventDefault(); scrollToSection('faq') }}>FAQ</a>
-            <a href="#contact" className="text-neutral-600 hover:text-primary font-medium transition" onClick={(e) => { e.preventDefault(); scrollToSection('contact') }}>Contact</a>
-          </nav>
+          <div className="hidden md:block">
+            <ExpandableTabs 
+              tabs={navItems} 
+              activeColor="text-primary"
+              onChange={handleNavItemClick}
+              className="border-gray-100"
+            />
+          </div>
           
           <div className="flex items-center space-x-4">
-            <Link href="/auth/sign-in" className="hidden md:inline-block px-4 py-2 text-primary hover:text-primary-dark font-medium transition">
-              Login
-            </Link>
-            <Link href="/auth/sign-up" className="hidden md:inline-block px-5 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition shadow-md hover:shadow-lg">
-              Get Started
-            </Link>
+            <div className="hidden md:block">
+              <ExpandableTabs 
+                tabs={authItems} 
+                activeColor="text-primary"
+                onChange={handleAuthItemClick}
+                className="border-gray-100"
+              />
+            </div>
             <button 
               className="md:hidden text-neutral-600"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -73,21 +134,21 @@ const Navbar: React.FC = () => {
         </div>
         
         <div className={`md:hidden pb-4 ${mobileMenuOpen ? 'block' : 'hidden'}`}>
-          <div className="flex flex-col space-y-3">
-            <a href="#home" className="text-neutral-600 hover:text-primary font-medium transition py-2" onClick={(e) => { e.preventDefault(); scrollToSection('home') }}>Home</a>
-            <a href="#how-it-works" className="text-neutral-600 hover:text-primary font-medium transition py-2" onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works') }}>How It Works</a>
-            <a href="#features" className="text-neutral-600 hover:text-primary font-medium transition py-2" onClick={(e) => { e.preventDefault(); scrollToSection('features') }}>Features</a>
-            <a href="#templates" className="text-neutral-600 hover:text-primary font-medium transition py-2" onClick={(e) => { e.preventDefault(); scrollToSection('templates') }}>Templates</a>
-            <a href="#testimonials" className="text-neutral-600 hover:text-primary font-medium transition py-2" onClick={(e) => { e.preventDefault(); scrollToSection('testimonials') }}>Testimonials</a>
-            <a href="#faq" className="text-neutral-600 hover:text-primary font-medium transition py-2" onClick={(e) => { e.preventDefault(); scrollToSection('faq') }}>FAQ</a>
-            <a href="#contact" className="text-neutral-600 hover:text-primary font-medium transition py-2" onClick={(e) => { e.preventDefault(); scrollToSection('contact') }}>Contact</a>
-            <div className="pt-2 flex flex-col space-y-3">
-              <Link href="/auth/sign-in" className="px-4 py-2 text-primary border border-primary text-center font-medium rounded-lg transition">
-                Login
-              </Link>
-              <Link href="/auth/sign-up" className="px-4 py-2 bg-primary text-white text-center font-medium rounded-lg transition shadow-md">
-                Get Started
-              </Link>
+          <div className="flex flex-col space-y-4 mt-2">
+            <ExpandableTabs 
+              tabs={navItems} 
+              activeColor="text-primary"
+              onChange={handleNavItemClick}
+              className="border-gray-100"
+            />
+            
+            <div className="mt-4">
+              <ExpandableTabs 
+                tabs={authItems} 
+                activeColor="text-primary"
+                onChange={handleAuthItemClick}
+                className="border-gray-100"
+              />
             </div>
           </div>
         </div>
