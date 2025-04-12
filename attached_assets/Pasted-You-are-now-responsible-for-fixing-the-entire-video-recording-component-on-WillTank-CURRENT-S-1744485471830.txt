@@ -1,0 +1,76 @@
+You are now responsible for fixing the entire video recording component on WillTank.
+
+🚨 CURRENT STATUS:
+- The "Enable Camera" button is frozen and does nothing.
+- The "Skip Recording" button is dead.
+- The Blob or recording implementation is either broken or missing.
+- This is a CRITICAL BLOCKER.
+
+🎯 MISSION:
+Fully implement and fix the **video recording section** with these clear rules:
+
+---
+
+🎥 VIDEO RECORDING FLOW:
+
+✅ 1. **Enable Camera Button**  
+- When clicked, prompt the user for webcam permissions using `navigator.mediaDevices.getUserMedia({ video: true })`.
+- If permission granted:
+  - Stream live video into a `<video>` tag.
+  - Show the buttons: “Start Recording” and “Skip Recording”.
+
+🛑 If denied:
+- Display a friendly error message: “Camera access denied. Please allow permissions or choose to skip.”
+
+---
+
+✅ 2. **Start Recording Button**
+- Start capturing the video using `MediaRecorder`.
+- Store the video chunks in an array.
+- Change the button to: “Stop Recording”.
+
+---
+
+✅ 3. **Stop Recording Button**
+- Stop the recorder and compile the chunks into a single `Blob`.
+- Create a URL using `URL.createObjectURL(blob)` and display it in a `<video controls>` tag for preview.
+- Upload the video blob if needed using `FormData`.
+
+---
+
+✅ 4. **Skip Recording Button**
+- Should work immediately.
+- If clicked, bypass the video section and take the user to the next section of the flow.
+- Make sure this button is always functional even if the camera is unavailable.
+
+---
+
+✅ 5. **DO NOTS:**
+- ❌ Do not leave any of these buttons frozen or unresponsive.
+- ❌ Do not use placeholder videos or broken blob logic.
+- ❌ Do not break design, styling, layout, or responsiveness.
+- ❌ Do not loop the user back to onboarding or reset their flow.
+- ❌ Do not create a new interface unless necessary.
+
+---
+
+🧠 DEV NOTES:
+- Use `useEffect` in React to handle cleanup of video streams.
+- Add a fallback message in case browser does not support `getUserMedia`.
+- Check browser support using `!!navigator.mediaDevices`.
+
+---
+
+🔥 YOUR GOAL:
+Make this video recording experience **bulletproof**, responsive, secure, and seamless for all devices and browsers that support webcam access.
+
+THE USER **MUST** be able to:
+- Open camera
+- Record
+- Stop
+- Preview
+- Upload
+- OR Skip smoothly.
+
+Fix this once and for all. No excuses.
+
