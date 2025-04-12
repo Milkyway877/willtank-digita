@@ -64,7 +64,7 @@ const HeroSection: React.FC = () => {
               WillTank is a modern platform that makes creating, storing, and delivering your will simple and secure with AI assistant Skyler guiding you every step of the way.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
-              <Link href="/auth/sign-up" className="px-6 py-3 bg-gradient-to-r from-primary to-blue-500 hover:from-primary-dark hover:to-blue-600 text-white font-medium rounded-lg transition shadow-md hover:shadow-xl transform hover:-translate-y-0.5">
+              <Link href="/onboarding" className="px-6 py-3 bg-gradient-to-r from-primary to-blue-500 hover:from-primary-dark hover:to-blue-600 text-white font-medium rounded-lg transition shadow-md hover:shadow-xl transform hover:-translate-y-0.5">
                 Start Your Will
               </Link>
               <a 

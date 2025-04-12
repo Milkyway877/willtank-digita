@@ -27,7 +27,7 @@ const options = [
     id: 'plan',
     icon: <Users className="w-6 h-6" />,
     title: 'Plan for someone else',
-    description: 'I'm helping someone else with their will'
+    description: "I'm helping someone else with their will"
   },
   {
     id: 'explore',
