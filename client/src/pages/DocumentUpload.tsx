@@ -34,6 +34,9 @@ const DocumentUpload: React.FC = () => {
   const [documents, setDocuments] = useState<DocumentRequirement[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [allRequired, setAllRequired] = useState(false);
+  const [uploadedCount, setUploadedCount] = useState<number>(0);
+  const [requiredCount, setRequiredCount] = useState<number>(0);
+  const [fileInputKey, setFileInputKey] = useState<string>("fileInput-0"); // Used to reset file input
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -121,6 +124,10 @@ const DocumentUpload: React.FC = () => {
     });
 
     setDocuments(requiredDocs);
+    
+    // Count required documents
+    const requiredCount = requiredDocs.filter(doc => doc.required).length;
+    setRequiredCount(requiredCount);
   };
 
   // Check if all required documents are uploaded
@@ -132,7 +139,8 @@ const DocumentUpload: React.FC = () => {
       requiredDocIds.includes(file.id) && file.status === 'success'
     );
     
-    setAllRequired(uploadedRequiredDocs.length === requiredDocIds.length);
+    setUploadedCount(uploadedRequiredDocs.length);
+    setAllRequired(uploadedRequiredDocs.length >= requiredDocIds.length);
   }, [documents, uploadedFiles]);
 
   // Handle drag events
@@ -170,6 +178,9 @@ const DocumentUpload: React.FC = () => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       handleFileUpload(file, documentId);
+      
+      // Reset the file input to allow selecting the same file again
+      setFileInputKey(`fileInput-${Date.now()}`);
     }
   };
 
@@ -392,6 +403,7 @@ const DocumentUpload: React.FC = () => {
                       }`}
                     >
                       <input
+                        key={fileInputKey}
                         type="file"
                         ref={fileInputRef}
                         className="hidden"
@@ -425,12 +437,27 @@ const DocumentUpload: React.FC = () => {
               </button>
             </div>
             
-            {!allRequired && (
-              <p className="text-center text-sm text-amber-500 dark:text-amber-400 mt-3">
-                <AlertCircle className="inline h-4 w-4 mr-1 mb-0.5" />
-                Please upload all required documents to continue
-              </p>
-            )}
+            <div className="mt-3 text-center">
+              {!allRequired ? (
+                <p className="text-sm text-amber-500 dark:text-amber-400">
+                  <AlertCircle className="inline h-4 w-4 mr-1 mb-0.5" />
+                  Please upload all required documents to continue
+                </p>
+              ) : (
+                <p className="text-sm text-green-500 dark:text-green-400">
+                  <Check className="inline h-4 w-4 mr-1 mb-0.5" />
+                  All required documents uploaded successfully
+                </p>
+              )}
+              
+              {/* Document count indicator */}
+              <div className="mt-2 flex items-center justify-center">
+                <span className="text-sm font-medium">
+                  {uploadedCount} of {requiredCount} required documents uploaded
+                  {allRequired && ' ✅'}
+                </span>
+              </div>
+            </div>
           </div>
         </motion.div>
       </div>

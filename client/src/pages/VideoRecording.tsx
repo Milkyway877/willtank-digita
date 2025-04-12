@@ -73,6 +73,15 @@ const VideoRecording: React.FC = () => {
   // Initialize camera with better error handling and fallback options
   const initializeCamera = async () => {
     setStatus('requesting');
+    
+    // First, check if mediaDevices is supported
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error("getUserMedia not supported in this browser");
+      setStatus('error');
+      setErrorMessage('Your browser does not support camera access. Please try a modern browser like Chrome, Firefox, or Safari.');
+      return;
+    }
+    
     try {
       // First try with ideal settings
       try {
@@ -88,6 +97,12 @@ const VideoRecording: React.FC = () => {
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play().catch(e => {
+              console.warn('Auto-play was prevented:', e);
+              // We don't set error here as the user can still click play manually
+            });
+          };
         }
         
         setStatus('idle');
@@ -96,13 +111,18 @@ const VideoRecording: React.FC = () => {
         
         // Fallback to minimal settings
         const fallbackStream = await navigator.mediaDevices.getUserMedia({ 
-          video: true, 
+          video: { facingMode: "user" }, 
           audio: true 
         });
         
         streamRef.current = fallbackStream;
         if (videoRef.current) {
           videoRef.current.srcObject = fallbackStream;
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current?.play().catch(e => {
+              console.warn('Auto-play was prevented:', e);
+            });
+          };
         }
         
         setStatus('idle');
@@ -138,6 +158,14 @@ const VideoRecording: React.FC = () => {
   const startRecording = () => {
     if (!streamRef.current) return;
     
+    // Check if MediaRecorder is supported
+    if (typeof MediaRecorder === 'undefined') {
+      console.error("MediaRecorder not supported in this browser");
+      setStatus('error');
+      setErrorMessage('Your browser does not support video recording. Please try a modern browser like Chrome or Firefox.');
+      return;
+    }
+    
     setRecordedChunks([]);
     setRecordingTime(0);
     
@@ -152,12 +180,28 @@ const VideoRecording: React.FC = () => {
       console.log('Using supported MIME type:', mimeType);
       
       // Create MediaRecorder with appropriate settings
-      const recorderOptions = {
-        mimeType,
-        videoBitsPerSecond: 2500000 // 2.5 Mbps
-      };
+      let recorderOptions;
+      try {
+        recorderOptions = {
+          mimeType,
+          videoBitsPerSecond: 2500000 // 2.5 Mbps
+        };
+      } catch (e) {
+        // If setting options fails, try minimal options
+        console.warn('Advanced recorder options not supported, using defaults');
+        recorderOptions = { mimeType };
+      }
       
-      const mediaRecorder = new MediaRecorder(streamRef.current, recorderOptions);
+      let mediaRecorder;
+      try {
+        // Try with options first
+        mediaRecorder = new MediaRecorder(streamRef.current, recorderOptions);
+      } catch (e) {
+        // Fallback to no options
+        console.warn('MediaRecorder with options failed, trying without options:', e);
+        mediaRecorder = new MediaRecorder(streamRef.current);
+      }
+      
       mediaRecorderRef.current = mediaRecorder;
       
       mediaRecorder.ondataavailable = (event) => {
@@ -178,7 +222,23 @@ const VideoRecording: React.FC = () => {
         }
       };
       
-      mediaRecorder.start(1000); // Collect data every second
+      // Make sure to handle stop event as well for cross-browser compatibility
+      mediaRecorder.onstop = () => {
+        console.log('MediaRecorder stopped');
+        
+        // Ensure we set status to recorded if it's not already set
+        if (status !== 'error') {
+          setStatus('recorded');
+        }
+        
+        // Make sure timer is cleared
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+        }
+      };
+      
+      // Use a smaller interval for better chunk collection in all browsers
+      mediaRecorder.start(500); // Collect data every 500ms
       setStatus('recording');
     } catch (error) {
       console.error('Error starting recording:', error);
