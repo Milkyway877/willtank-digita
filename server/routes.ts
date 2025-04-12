@@ -6,6 +6,7 @@ import { storage } from "./storage";
 import { db } from "./db";
 import { checkInResponses, users, wills } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { sendEmail, createVerificationEmailTemplate } from "./email";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Set up auth routes (/api/register, /api/login, /api/logout, /api/user)
@@ -113,6 +114,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } catch (error) {
         console.error('Error triggering check-in emails:', error);
         return res.status(500).json({ message: "Server error" });
+      }
+    });
+    
+    // Test email route
+    app.post("/api/test-email", async (req: Request, res: Response) => {
+      try {
+        const { email } = req.body;
+        
+        if (!email) {
+          return res.status(400).json({ message: "Email address is required" });
+        }
+        
+        // Generate a test verification code
+        const testCode = "123456";
+        
+        // Send a test email using the verification email template
+        const result = await sendEmail(
+          email,
+          "WillTank Email Test",
+          createVerificationEmailTemplate(testCode)
+        );
+        
+        if (result) {
+          return res.status(200).json({ 
+            message: "Test email sent successfully",
+            details: "Check your inbox for a verification code email" 
+          });
+        } else {
+          return res.status(500).json({ 
+            message: "Failed to send test email",
+            details: "Check server logs for more details" 
+          });
+        }
+      } catch (error) {
+        console.error('Error sending test email:', error);
+        return res.status(500).json({ 
+          message: "Server error", 
+          details: error instanceof Error ? error.message : "Unknown error" 
+        });
       }
     });
   }

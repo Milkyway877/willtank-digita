@@ -28,6 +28,7 @@ import DocumentUpload from "@/pages/DocumentUpload";
 import VideoRecording from "@/pages/VideoRecording";
 import FinalReview from "@/pages/FinalReview";
 import Completion from "@/pages/Completion";
+import EmailTest from "@/pages/EmailTest";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
 
@@ -57,6 +58,8 @@ function Router() {
       <ProtectedRoute path="/video-recording" component={VideoRecording} />
       <ProtectedRoute path="/final-review" component={FinalReview} />
       <ProtectedRoute path="/completion" component={Completion} />
+      {/* Email Test Route - For development testing only */}
+      <Route path="/email-test" component={EmailTest} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
