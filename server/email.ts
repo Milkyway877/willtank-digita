@@ -1,6 +1,18 @@
 import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 
-// Email configuration using environment variables
+// Initialize SendGrid if API key is available
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  console.log('SendGrid initialized');
+}
+
+// Check if SendGrid is configured
+const isSendGridConfigured = (): boolean => {
+  return !!process.env.SENDGRID_API_KEY;
+};
+
+// Email configuration using SMTP (Namecheap) as fallback
 const createTransporter = () => {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.privateemail.com',
@@ -13,23 +25,38 @@ const createTransporter = () => {
   });
 };
 
-// Helper function to send emails
+// Helper function to send emails with fallback between SendGrid and SMTP
 export async function sendEmail(
   to: string,
   subject: string,
   html: string
 ): Promise<boolean> {
   try {
-    const transporter = createTransporter();
+    // Get the from address
+    const from = process.env.SMTP_FROM || '"WillTank Support" <support@willtank.com>';
     
+    // Try to send via SendGrid if configured
+    if (isSendGridConfigured()) {
+      await sgMail.send({
+        to,
+        from,
+        subject,
+        html,
+      });
+      console.log(`Email sent via SendGrid to ${to}`);
+      return true;
+    }
+    
+    // Fall back to SMTP if SendGrid not configured
+    const transporter = createTransporter();
     const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"WillTank Support" <support@willtank.com>',
+      from,
       to,
       subject,
       html,
     });
 
-    console.log(`Email sent: ${info.messageId}`);
+    console.log(`Email sent via SMTP: ${info.messageId}`);
     return true;
   } catch (error) {
     console.error('Error sending email:', error);
