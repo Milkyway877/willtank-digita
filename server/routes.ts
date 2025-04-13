@@ -932,6 +932,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Handle subscription cancellation logic
           break;
           
+        case 'invoice.payment_succeeded':
+          const successfulInvoice = event.data.object;
+          try {
+            // Get user ID by Stripe customer ID
+            const [user] = await db
+              .select()
+              .from(users)
+              .where(eq(users.stripeCustomerId, successfulInvoice.customer as string));
+              
+            if (user) {
+              try {
+                await NotificationEvents.PAYMENT_RECEIVED(user.id, user.planType || 'subscription');
+              } catch (notificationError) {
+                console.error("Failed to create notification for payment success:", notificationError);
+              }
+            }
+          } catch (error) {
+            console.error("Error handling payment success:", error);
+          }
+          break;
+          
         case 'invoice.payment_failed':
           const failedInvoice = event.data.object;
           try {
@@ -943,7 +964,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
             if (user) {
               try {
-                await NotificationEvents.PAYMENT_FAILED(user.id, user.planType);
+                await NotificationEvents.PAYMENT_FAILED(user.id, user.planType || 'subscription');
               } catch (notificationError) {
                 console.error("Failed to create notification for payment failure:", notificationError);
               }
