@@ -22,8 +22,8 @@ const Navbar: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState<number | null>(null)
   const [currentLocation, setLocation] = useLocation()
 
-  // Don't show the navbar on auth pages
-  if (currentLocation.startsWith('/auth')) {
+  // Don't show the navbar on auth or dashboard pages
+  if (currentLocation.startsWith('/auth') || currentLocation.startsWith('/dashboard')) {
     return null
   }
 

@@ -140,11 +140,18 @@ export async function get2FAStatus(userId: number): Promise<{
     throw new Error('User not found');
   }
 
-  // Safely parse the backup codes JSON, handling potential format issues
+  // Safely parse the backup codes, handling potential format issues
   let parsedBackupCodes;
   if (user.backupCodes) {
     try {
-      parsedBackupCodes = JSON.parse(user.backupCodes as string);
+      // Check if the backup codes are already in JSON format or comma-separated string
+      if (user.backupCodes.startsWith('[') && user.backupCodes.endsWith(']')) {
+        // Attempt to parse as JSON
+        parsedBackupCodes = JSON.parse(user.backupCodes as string);
+      } else {
+        // Handle comma-separated format
+        parsedBackupCodes = (user.backupCodes as string).split(',').map(code => code.trim());
+      }
     } catch (e) {
       console.error('Error parsing backup codes:', e);
       parsedBackupCodes = undefined;
