@@ -151,8 +151,12 @@ export async function get2FAStatus(userId: number): Promise<{
     }
   }
 
+  // Make sure we're correctly determining if 2FA is enabled
+  // Only return true if the flag is explicitly true
+  const enabled = user.twoFactorEnabled === true;
+  
   return {
-    enabled: user.twoFactorEnabled || false,
+    enabled,
     secret: user.twoFactorSecret || undefined,
     backupCodes: parsedBackupCodes
   };

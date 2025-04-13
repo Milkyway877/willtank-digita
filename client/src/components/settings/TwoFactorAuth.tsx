@@ -72,6 +72,12 @@ const TwoFactorAuth: React.FC = () => {
   // Disable 2FA
   const handleDisable2FA = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if button should be disabled
+    if (disableMutation.isPending || !password) {
+      return;
+    }
+    
     disableMutation.mutate({ password, token: disableToken || undefined });
   };
   
