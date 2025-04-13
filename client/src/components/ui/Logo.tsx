@@ -14,20 +14,20 @@ export const Logo: React.FC<LogoProps> = ({
   withText = true,
   className = ''
 }) => {
-  // Increased size values for more prominence
+  // Further increased size values for more prominence
   const sizeMap = {
-    sm: 32,   // Was 24
-    md: 42,   // Was 32
-    lg: 64,   // Was 48
-    xl: 84    // Was 64
+    sm: 36,   // Was 32
+    md: 48,   // Was 42
+    lg: 72,   // Was 64
+    xl: 96    // Was 84
   };
 
   const logoSize = sizeMap[size];
   const textSizeMap = {
-    sm: 'text-lg',      // Was text-sm
-    md: 'text-2xl',     // Was text-xl
-    lg: 'text-3xl',     // Was text-2xl
-    xl: 'text-4xl'      // Was text-3xl
+    sm: 'text-xl',      // Was text-lg
+    md: 'text-2xl',     // Was text-2xl
+    lg: 'text-4xl',     // Was text-3xl
+    xl: 'text-5xl'      // Was text-4xl
   };
 
   return (

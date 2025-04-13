@@ -104,7 +104,7 @@ const Navbar: React.FC = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
           <a href="#" className="flex items-center" onClick={(e) => { e.preventDefault(); scrollToSection('home'); }}>
-            <Logo size="md" withText={true} />
+            <Logo size="lg" withText={true} className="py-1" />
           </a>
           
           <div className="hidden md:block">

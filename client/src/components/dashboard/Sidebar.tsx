@@ -135,7 +135,7 @@ const Sidebar: React.FC = () => {
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2 }}
               >
-                <Logo size="md" withText={true} />
+                <Logo size="lg" withText={true} />
               </motion.div>
             ) : (
               <motion.div
@@ -145,7 +145,7 @@ const Sidebar: React.FC = () => {
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.2 }}
               >
-                <Logo size="sm" withText={false} />
+                <Logo size="md" withText={false} />
               </motion.div>
             )}
           </AnimatePresence>
