@@ -1,6 +1,11 @@
 import OpenAI from "openai";
 
 // Create OpenAI client with API key from environment variables
+if (!process.env.OPENAI_API_KEY) {
+  console.error("OPENAI_API_KEY is not set in environment variables!");
+}
+
+console.log("Initializing OpenAI client with API key present:", !!process.env.OPENAI_API_KEY);
 const openai = new OpenAI({ 
   apiKey: process.env.OPENAI_API_KEY 
 });

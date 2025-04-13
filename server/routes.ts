@@ -11,11 +11,18 @@ import { sendEmail, createVerificationEmailTemplate } from "./email";
 import { getChatCompletion, getStreamingChatCompletion } from './openai';
 
 // Helper function to check if a user is authenticated via session
+// Uses passport's req.isAuthenticated() method which is more reliable
 function isUserAuthenticated(req: Request): boolean {
-  return !!(req.session && (req.session as any).passport?.user);
+  return !!(req.user);
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Set up auth routes first to establish authentication
+  setupAuth(app);
+  
+  // Initialize the scheduler for weekly check-ins
+  initializeScheduler();
+  
   // Skyler AI Chat Endpoint
   app.post("/api/skyler/chat", async (req: Request, res: Response) => {
     // Check if user is authenticated
@@ -89,11 +96,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: error.message || "Internal server error" });
     }
   });
-  // Set up auth routes (/api/register, /api/login, /api/logout, /api/user)
-  setupAuth(app);
-
-  // Initialize the scheduler for weekly check-ins
-  initializeScheduler();
+  // Auth routes and scheduler have already been initialized above
 
   // Check-in Routes
 
