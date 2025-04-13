@@ -191,15 +191,10 @@ const BillingPage: React.FC = () => {
                   
                   <div className="mt-6 flex space-x-3">
                     <button 
-                      onClick={() => {
-                        const otherPlans = plans.filter(p => !p.isCurrent);
-                        if (otherPlans.length > 0) {
-                          setIsPlanChanging(true);
-                        }
-                      }}
+                      onClick={() => navigate('/pricing')}
                       className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
                     >
-                      Change Plan
+                      View Pricing Plans
                     </button>
                     
                     {currentPlan.price > 0 && (

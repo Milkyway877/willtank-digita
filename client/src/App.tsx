@@ -24,6 +24,8 @@ import DashboardSettings from "@/pages/dashboard/settings";
 import VideoTestimonyPage from "@/pages/dashboard/video-testimony";
 import ViewWillDetails from "@/pages/ViewWillDetails";
 import SubscriptionPage from "@/pages/subscription";
+import PricingPage from "@/pages/PricingPage";
+import SubscriptionSuccessPage from "@/pages/SubscriptionSuccessPage";
 import TemplateSelection from "@/pages/TemplateSelection";
 import AiChat from "@/pages/AiChat";
 import DocumentUpload from "@/pages/DocumentUpload";
@@ -48,7 +50,9 @@ function Router() {
         <SignIn />
       </Route>
       <ProtectedRoute path="/onboarding" component={OnboardingContainer} />
+      <ProtectedRoute path="/pricing" component={PricingPage} />
       <ProtectedRoute path="/subscription" component={SubscriptionPage} />
+      <ProtectedRoute path="/subscription/success" component={SubscriptionSuccessPage} />
       <ProtectedRoute path="/dashboard" component={DashboardIndex} />
       <ProtectedRoute path="/dashboard/check-in" component={DashboardCheckIn} />
       <ProtectedRoute path="/dashboard/will" component={DashboardWill} />
