@@ -403,7 +403,7 @@ export function setupAuth(app: Express) {
         
         // Create login notification with device info
         try {
-          const { NotificationEvents } = require('./notification-util');
+          const { NotificationEvents } = await import('./notification-util');
           const userAgent = req.headers['user-agent'] || 'Unknown device';
           await NotificationEvents.ACCOUNT_LOGIN(user.id, userAgent);
         } catch (notificationError) {

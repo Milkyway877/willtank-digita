@@ -144,13 +144,24 @@ export async function get2FAStatus(userId: number): Promise<{
   let parsedBackupCodes;
   if (user.backupCodes) {
     try {
-      // Check if the backup codes are already in JSON format or comma-separated string
-      if (user.backupCodes.startsWith('[') && user.backupCodes.endsWith(']')) {
-        // Attempt to parse as JSON
-        parsedBackupCodes = JSON.parse(user.backupCodes as string);
+      // First check if the backupCodes is already a string or object
+      const backupCodesValue = user.backupCodes;
+      
+      if (typeof backupCodesValue === 'string') {
+        // Check if the string appears to be JSON
+        if (backupCodesValue.trim().startsWith('[') && backupCodesValue.trim().endsWith(']')) {
+          // Attempt to parse as JSON
+          parsedBackupCodes = JSON.parse(backupCodesValue);
+        } else {
+          // Handle comma-separated format
+          parsedBackupCodes = backupCodesValue.split(',').map(code => code.trim());
+        }
+      } else if (Array.isArray(backupCodesValue)) {
+        // It's already an array, use as is
+        parsedBackupCodes = backupCodesValue;
       } else {
-        // Handle comma-separated format
-        parsedBackupCodes = (user.backupCodes as string).split(',').map(code => code.trim());
+        // It's some other type of value, convert to string
+        parsedBackupCodes = String(backupCodesValue).split(',').map(code => code.trim());
       }
     } catch (e) {
       console.error('Error parsing backup codes:', e);
