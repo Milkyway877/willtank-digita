@@ -13,7 +13,8 @@ import {
   notifications, 
   insertNotificationSchema,
   deliverySettings,
-  beneficiaries
+  beneficiaries,
+  reminders
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
@@ -1767,6 +1768,136 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error completing onboarding:", error);
       return res.status(500).json({ error: "Failed to complete onboarding" });
+    }
+  });
+
+  // Reminders endpoints
+  app.get("/api/reminders", async (req: Request, res: Response) => {
+    try {
+      if (!isUserAuthenticated(req)) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const userId = req.user!.id;
+      
+      const userReminders = await db.select()
+        .from(reminders)
+        .where(eq(reminders.userId, userId))
+        .orderBy(reminders.date, reminders.time);
+      
+      return res.status(200).json(userReminders);
+    } catch (error) {
+      console.error("Error fetching reminders:", error);
+      return res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.post("/api/reminders", async (req: Request, res: Response) => {
+    try {
+      if (!isUserAuthenticated(req)) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const userId = req.user!.id;
+      const reminderData = req.body;
+      
+      // Validate required fields
+      if (!reminderData.title || !reminderData.date) {
+        return res.status(400).json({ error: "Title and date are required" });
+      }
+      
+      // Create new reminder
+      const [newReminder] = await db.insert(reminders)
+        .values({
+          userId,
+          title: reminderData.title,
+          description: reminderData.description,
+          date: new Date(reminderData.date),
+          time: reminderData.time,
+          repeat: reminderData.repeat || "never",
+          completed: reminderData.completed || false
+        })
+        .returning();
+      
+      return res.status(201).json(newReminder);
+    } catch (error) {
+      console.error("Error creating reminder:", error);
+      return res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.put("/api/reminders/:id", async (req: Request, res: Response) => {
+    try {
+      if (!isUserAuthenticated(req)) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const userId = req.user!.id;
+      const reminderId = parseInt(req.params.id);
+      const reminderData = req.body;
+      
+      // Validate reminder exists and belongs to user
+      const existingReminder = await db.select()
+        .from(reminders)
+        .where(and(
+          eq(reminders.id, reminderId),
+          eq(reminders.userId, userId)
+        ));
+      
+      if (existingReminder.length === 0) {
+        return res.status(404).json({ error: "Reminder not found" });
+      }
+      
+      // Update reminder
+      const [updatedReminder] = await db.update(reminders)
+        .set({
+          title: reminderData.title,
+          description: reminderData.description,
+          date: reminderData.date ? new Date(reminderData.date) : undefined,
+          time: reminderData.time,
+          repeat: reminderData.repeat,
+          completed: reminderData.completed !== undefined ? reminderData.completed : undefined,
+          updatedAt: new Date()
+        })
+        .where(eq(reminders.id, reminderId))
+        .returning();
+      
+      return res.status(200).json(updatedReminder);
+    } catch (error) {
+      console.error("Error updating reminder:", error);
+      return res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  app.delete("/api/reminders/:id", async (req: Request, res: Response) => {
+    try {
+      if (!isUserAuthenticated(req)) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      const userId = req.user!.id;
+      const reminderId = parseInt(req.params.id);
+      
+      // Validate reminder exists and belongs to user
+      const existingReminder = await db.select()
+        .from(reminders)
+        .where(and(
+          eq(reminders.id, reminderId),
+          eq(reminders.userId, userId)
+        ));
+      
+      if (existingReminder.length === 0) {
+        return res.status(404).json({ error: "Reminder not found" });
+      }
+      
+      // Delete reminder
+      await db.delete(reminders)
+        .where(eq(reminders.id, reminderId));
+      
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Error deleting reminder:", error);
+      return res.status(500).json({ error: "Server error" });
     }
   });
 

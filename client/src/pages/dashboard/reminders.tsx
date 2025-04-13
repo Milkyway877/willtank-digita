@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { Calendar, Clock, Plus, Edit, Trash, BellRing, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Calendar, Clock, Plus, Edit, Trash, BellRing, CheckCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface Reminder {
   id: string;
@@ -16,17 +19,24 @@ interface Reminder {
 
 const RemindersPage: React.FC = () => {
   const [, navigate] = useLocation();
-  const [reminders, setReminders] = useState<Reminder[]>([
-    {
-      id: '1',
-      title: 'Annual will review',
-      description: 'Review your will and make any necessary updates',
-      date: '2025-05-15',
-      time: '10:00',
-      repeat: 'yearly',
-      completed: false
+  const { toast } = useToast();
+  
+  // Fetch reminders from API
+  const { 
+    data: apiReminders = [], 
+    isLoading, 
+    isError,
+    refetch 
+  } = useQuery<Reminder[]>({
+    queryKey: ['/api/reminders'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/reminders');
+      if (!res.ok) {
+        throw new Error('Failed to fetch reminders');
+      }
+      return res.json();
     }
-  ]);
+  });
   
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
