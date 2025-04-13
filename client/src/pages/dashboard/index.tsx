@@ -76,8 +76,8 @@ const DashboardPage: React.FC = () => {
   });
   
   // Get the most recent will
-  const mostRecentWill = wills?.length > 0 
-    ? wills.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
+  const mostRecentWill = wills && wills.length > 0 
+    ? [...wills].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
     : null;
   
   // Fetch documents for most recent will
