@@ -81,7 +81,7 @@ const VideoRecording: React.FC = () => {
       // Show error notification
       const errorNotification = document.createElement('div');
       errorNotification.className = 'fixed top-4 right-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-lg z-50 animate-fade-in';
-      errorNotification.innerHTML = `<div class="flex items-center"><span class="mr-2">⚠️</span>Error uploading video: ${error.message}</div>`;
+      errorNotification.innerHTML = `<div class="flex items-center"><span class="mr-2">⚠️</span>Error uploading video: ${error instanceof Error ? error.message : 'Unknown error'}</div>`;
       document.body.appendChild(errorNotification);
       
       // Remove error notification after 5 seconds

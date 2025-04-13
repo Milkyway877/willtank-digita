@@ -411,7 +411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create notification for video upload
       try {
-        await NotificationEvents.VIDEO_RECORDED(userId, willId, will.title);
+        await NotificationEvents.VIDEO_TESTIMONY_RECORDED(userId, willId);
       } catch (notificationError) {
         console.error("Failed to create notification for video recording:", notificationError);
         // Continue with response even if notification creation fails

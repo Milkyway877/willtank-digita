@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { Video, Play, Download, RefreshCcw, ArrowLeft } from 'lucide-react';
+import { Video, Play, Download, RefreshCcw, ArrowLeft, Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
+
+interface WillData {
+  id: number;
+  title: string;
+  videoRecordingUrl?: string;
+  lastUpdated?: Date;
+}
 
 const VideoPage: React.FC = () => {
   const [, navigate] = useLocation();
@@ -10,20 +18,37 @@ const VideoPage: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [recordingDate, setRecordingDate] = useState<string>('');
+  const [selectedWill, setSelectedWill] = useState<WillData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Check if a video recording exists
-  useEffect(() => {
-    const videoRecorded = localStorage.getItem('willVideoRecorded');
-    const videoBlob = localStorage.getItem('willVideoBlob');
-    
-    if (videoRecorded === 'true' && videoBlob) {
-      setHasRecording(true);
-      
-      // Get recording date from localStorage or set to current date
-      const savedDate = localStorage.getItem('willVideoDate');
-      setRecordingDate(savedDate || new Date().toLocaleDateString());
+  // Fetch user's wills from API
+  const { data: wills, isLoading: isLoadingWills } = useQuery<WillData[]>({
+    queryKey: ['/api/wills'],
+    onSuccess: (data) => {
+      if (data.length > 0) {
+        // Find the first will with a video recording
+        const willWithVideo = data.find(will => will.videoRecordingUrl);
+        
+        if (willWithVideo) {
+          setSelectedWill(willWithVideo);
+          setHasRecording(true);
+          
+          if (willWithVideo.lastUpdated) {
+            setRecordingDate(new Date(willWithVideo.lastUpdated).toLocaleDateString());
+          } else {
+            setRecordingDate(new Date().toLocaleDateString());
+          }
+        } else {
+          // If no will has a video, just select the first one
+          setSelectedWill(data[0]);
+        }
+      }
+      setLoading(false);
+    },
+    onError: () => {
+      setLoading(false);
     }
-  }, []);
+  });
 
   const handlePlayVideo = () => {
     if (videoRef.current) {
@@ -37,7 +62,11 @@ const VideoPage: React.FC = () => {
   };
 
   const handleRecordNew = () => {
-    navigate('/video-recording');
+    if (selectedWill) {
+      navigate(`/video-recording?willId=${selectedWill.id}`);
+    } else {
+      navigate('/video-recording');
+    }
   };
 
   return (
@@ -80,7 +109,14 @@ const VideoPage: React.FC = () => {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
-          {hasRecording ? (
+          {loading || isLoadingWills ? (
+            <div className="p-6 text-center">
+              <div className="max-w-md mx-auto flex flex-col items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+                <p className="text-gray-600 dark:text-gray-400">Loading video testimony...</p>
+              </div>
+            </div>
+          ) : hasRecording && selectedWill?.videoRecordingUrl ? (
             <div className="p-6">
               {/* Video Player */}
               <div className="aspect-video bg-gray-900 rounded-lg overflow-hidden relative mb-4">
@@ -88,7 +124,8 @@ const VideoPage: React.FC = () => {
                   ref={videoRef}
                   className="w-full h-full object-contain"
                   onEnded={() => setIsPlaying(false)}
-                  src="https://example.com/placeholder-video.mp4" // Placeholder URL
+                  src={selectedWill.videoRecordingUrl}
+                  preload="metadata"
                 ></video>
                 
                 {!isPlaying && (
@@ -104,8 +141,11 @@ const VideoPage: React.FC = () => {
               </div>
               
               <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-400">
+                <div>
+                  <span>Will: </span>
+                  <span className="font-medium text-primary">{selectedWill.title}</span>
+                </div>
                 <div>Recorded: {recordingDate}</div>
-                <div>Duration: 2:34</div>
               </div>
             </div>
           ) : (
@@ -125,10 +165,17 @@ const VideoPage: React.FC = () => {
                 <button 
                   onClick={handleRecordNew}
                   className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors flex items-center mx-auto"
+                  disabled={!selectedWill}
                 >
                   <Video className="h-4 w-4 mr-2" />
                   Record Video Testimony
                 </button>
+                
+                {!selectedWill && (
+                  <p className="mt-4 text-sm text-amber-500">
+                    You need to create a will first before recording a video testimony.
+                  </p>
+                )}
               </div>
             </div>
           )}
