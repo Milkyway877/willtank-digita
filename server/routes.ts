@@ -371,6 +371,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Video recording upload endpoint
+  app.post("/api/wills/:willId/video", upload.single('video'), async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No video file uploaded" });
+      }
+      
+      const willId = parseInt(req.params.willId);
+      const userId = req.user!.id;
+      
+      // Check if will exists and belongs to user
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        // Remove uploaded file if will doesn't exist
+        fs.unlinkSync(req.file.path);
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      if (will.userId !== userId) {
+        // Remove uploaded file if user doesn't own the will
+        fs.unlinkSync(req.file.path);
+        return res.status(403).json({ error: "Unauthorized access to will" });
+      }
+      
+      // Calculate relative file URL path
+      const videoUrl = `/uploads/${path.basename(req.file.path)}`;
+      
+      // Update will with video recording URL
+      const updatedWill = await dbStorage.updateWill(willId, {
+        videoRecordingUrl: videoUrl,
+        lastUpdated: new Date()
+      });
+      
+      // Create notification for video upload
+      try {
+        await NotificationEvents.VIDEO_RECORDED(userId, willId, will.title);
+      } catch (notificationError) {
+        console.error("Failed to create notification for video recording:", notificationError);
+        // Continue with response even if notification creation fails
+      }
+      
+      return res.status(200).json({
+        success: true,
+        message: "Video uploaded successfully",
+        videoUrl: videoUrl
+      });
+    } catch (error) {
+      console.error("Error uploading video:", error);
+      // Clean up file if it was uploaded
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(500).json({ error: "Failed to upload video" });
+    }
+  });
+  
   app.delete("/api/documents/:id", async (req: Request, res: Response) => {
     if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });

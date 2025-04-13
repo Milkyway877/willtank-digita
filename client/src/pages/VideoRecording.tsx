@@ -24,33 +24,78 @@ const VideoRecording: React.FC = () => {
   }, [user, authLoading, navigate]);
 
   // Handle video recording completion
-  const handleComplete = (videoBlob: Blob) => {
+  const handleComplete = async (videoBlob: Blob) => {
     console.log("Video recorded successfully:", videoBlob);
     
-    // Mark as completed in localStorage
-    localStorage.setItem('willVideoRecorded', 'true');
-    localStorage.setItem('willVideoDate', new Date().toISOString());
-    
-    // Update progress tracker
-    saveWillProgress(WillCreationStep.VIDEO_RECORDING);
-    
-    // Show success notification for 2 seconds before continuing
-    const notification = document.createElement('div');
-    notification.className = 'fixed top-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-lg z-50 animate-fade-in';
-    notification.innerHTML = '<div class="flex items-center"><span class="mr-2">✓</span>Video recorded successfully</div>';
-    document.body.appendChild(notification);
-    
-    // Remove notification and continue after 2 seconds
-    setTimeout(() => {
-      notification.classList.add('animate-fade-out');
+    try {
+      // Create form data for file upload
+      const formData = new FormData();
+      formData.append('video', videoBlob, 'will-video-testimony.webm');
+      
+      // Get the current will ID from localStorage or use a default
+      const willId = localStorage.getItem('currentWillId') || '1';
+      
+      // Upload the video recording
+      const response = await fetch(`/api/wills/${willId}/video`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log("Video uploaded successfully:", result);
+      
+      // Mark as completed in localStorage
+      localStorage.setItem('willVideoRecorded', 'true');
+      localStorage.setItem('willVideoDate', new Date().toISOString());
+      
+      // Update progress tracker
+      saveWillProgress(WillCreationStep.VIDEO_RECORDING);
+      
+      // Show success notification for 2 seconds before continuing
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-lg z-50 animate-fade-in';
+      notification.innerHTML = '<div class="flex items-center"><span class="mr-2">✓</span>Video recorded and uploaded successfully</div>';
+      document.body.appendChild(notification);
+      
+      // Remove notification and navigate after 2 seconds
       setTimeout(() => {
-        try {
-          document.body.removeChild(notification);
-        } catch (e) {
-          // Element might have been removed already
-        }
-      }, 500);
-    }, 2000);
+        notification.classList.add('animate-fade-out');
+        setTimeout(() => {
+          try {
+            document.body.removeChild(notification);
+            // Navigate to next step
+            navigate('/final-review');
+          } catch (e) {
+            // Element might have been removed already
+          }
+        }, 500);
+      }, 2000);
+    } catch (error) {
+      console.error("Error uploading video:", error);
+      
+      // Show error notification
+      const errorNotification = document.createElement('div');
+      errorNotification.className = 'fixed top-4 right-4 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-lg z-50 animate-fade-in';
+      errorNotification.innerHTML = `<div class="flex items-center"><span class="mr-2">⚠️</span>Error uploading video: ${error.message}</div>`;
+      document.body.appendChild(errorNotification);
+      
+      // Remove error notification after 5 seconds
+      setTimeout(() => {
+        errorNotification.classList.add('animate-fade-out');
+        setTimeout(() => {
+          try {
+            document.body.removeChild(errorNotification);
+          } catch (e) {
+            // Element might have been removed already
+          }
+        }, 500);
+      }, 5000);
+    }
   };
 
   // Skip recording and continue
