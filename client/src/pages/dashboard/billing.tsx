@@ -27,8 +27,8 @@ const BillingPage: React.FC = () => {
   const [, navigate] = useLocation();
   const [plans, setPlans] = useState<Plan[]>([
     {
-      id: 'basic',
-      name: 'Basic',
+      id: 'free',
+      name: 'Free',
       price: 0,
       billingCycle: 'monthly',
       features: [
@@ -40,32 +40,43 @@ const BillingPage: React.FC = () => {
       isCurrent: false
     },
     {
-      id: 'premium',
-      name: 'Premium',
-      price: 9.99,
+      id: 'starter',
+      name: 'Starter',
+      price: 14.99,
       billingCycle: 'monthly',
       features: [
-        'Create and store multiple wills',
-        'Unlimited reminders & check-ins',
-        'Unlimited document storage',
-        'Priority support',
-        'Multiple beneficiaries',
-        'Advanced delivery options'
+        'Basic will creation',
+        'Document storage up to 100MB',
+        'Email support'
+      ],
+      isCurrent: false
+    },
+    {
+      id: 'gold',
+      name: 'Gold',
+      price: 29,
+      billingCycle: 'monthly',
+      features: [
+        'Everything in Starter',
+        'Multiple wills',
+        'Advanced templates',
+        'Document storage up to 1GB',
+        'Priority email support'
       ],
       isCurrent: true
     },
     {
-      id: 'family',
-      name: 'Family Plan',
-      price: 19.99,
+      id: 'platinum',
+      name: 'Platinum',
+      price: 55,
       billingCycle: 'monthly',
       features: [
-        'Up to 5 family members',
-        'All Premium features',
-        'Shared document storage',
-        'Family dashboard',
-        'Estate planning consultation',
-        '24/7 priority support'
+        'Everything in Gold',
+        'Unlimited wills',
+        'Custom templates',
+        'Document storage up to 10GB',
+        'Phone support',
+        'Legacy planning consultation'
       ],
       isCurrent: false
     }
@@ -352,8 +363,8 @@ const BillingPage: React.FC = () => {
                   <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                     <tr>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">May 1, 2024</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">Premium Plan (Monthly)</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">$9.99</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">Gold Plan (Monthly)</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">$29.00</td>
                       <td className="px-4 py-3 text-sm">
                         <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs">
                           Paid
@@ -362,8 +373,8 @@ const BillingPage: React.FC = () => {
                     </tr>
                     <tr>
                       <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">Apr 1, 2024</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">Premium Plan (Monthly)</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">$9.99</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">Gold Plan (Monthly)</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">$29.00</td>
                       <td className="px-4 py-3 text-sm">
                         <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs">
                           Paid

@@ -371,17 +371,7 @@ export default function PricingPage() {
         </DialogContent>
       </Dialog>
       
-      {/* Stripe Test Component - only shown in development mode */}
-      {import.meta.env.DEV && (
-        <div className="mt-16 max-w-5xl mx-auto">
-          <details>
-            <summary className="cursor-pointer font-semibold text-gray-700 mb-3">
-              Stripe Integration Testing (Development Only)
-            </summary>
-            <StripeTest />
-          </details>
-        </div>
-      )}
+
     </div>
   );
 }
