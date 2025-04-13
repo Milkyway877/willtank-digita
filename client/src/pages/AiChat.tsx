@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
-import { Send, ChevronUp, ChevronDown, User, PenSquare, Paperclip, FileText } from 'lucide-react';
+import { useSkyler, SkylerMessage } from '@/hooks/use-skyler';
+import { Send, ChevronUp, ChevronDown, User, PenSquare, Paperclip, FileText, Loader2 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import AnimatedAurora from '@/components/ui/AnimatedAurora';
+import { useToast } from '@/hooks/use-toast';
 
 // Message types
 type MessageRole = 'assistant' | 'user';

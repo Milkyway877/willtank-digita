@@ -103,19 +103,21 @@ const PaywallStep: React.FC<PaywallStepProps> = ({ onNext }) => {
     }
   });
 
-  const handleSubscribe = (e: React.MouseEvent) => {
+  const handleSubscribe = (e: React.MouseEvent, planName: string) => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Save user profile with preferences and billing period choice
+    // Save user profile with preferences, billing period choice and selected plan
     const profile = {
       billingPreference: period,
+      planType: planName.toLowerCase(),
       preferences: {
-        billingPeriod: period
+        billingPeriod: period,
+        planName: planName
       }
     };
     
-    // Complete onboarding via API then navigate to subscription
+    // Complete onboarding via API then navigate to correct subscription page
     completeOnboardingMutation.mutate(profile);
   }
 
@@ -220,7 +222,7 @@ const PaywallStep: React.FC<PaywallStepProps> = ({ onNext }) => {
                     : 'bg-neutral-100 text-neutral-800 hover:bg-neutral-200'
                   }
                 `}
-                onClick={handleSubscribe}
+                onClick={(e) => handleSubscribe(e, plan.name)}
               >
                 {plan.monthlyPrice === 0 ? 'Get Started' : 'Subscribe & Start'}
               </button>
