@@ -32,8 +32,9 @@ const VideoRecording: React.FC = () => {
       const formData = new FormData();
       formData.append('video', videoBlob, 'will-video-testimony.webm');
       
-      // Get the current will ID from localStorage or use a default
-      const willId = localStorage.getItem('currentWillId') || '1';
+      // Get will ID from URL search params or fallback to localStorage
+      const searchParams = new URLSearchParams(window.location.search);
+      const willId = searchParams.get('willId') || localStorage.getItem('currentWillId') || '1';
       
       // Upload the video recording
       const response = await fetch(`/api/wills/${willId}/video`, {

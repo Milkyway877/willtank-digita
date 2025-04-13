@@ -23,11 +23,15 @@ const VideoPage: React.FC = () => {
 
   // Fetch user's wills from API
   const { data: wills, isLoading: isLoadingWills } = useQuery<WillData[]>({
-    queryKey: ['/api/wills'],
-    onSuccess: (data) => {
-      if (data.length > 0) {
+    queryKey: ['/api/wills']
+  });
+  
+  // Handle the data after it's loaded
+  useEffect(() => {
+    if (wills) {
+      if (wills.length > 0) {
         // Find the first will with a video recording
-        const willWithVideo = data.find(will => will.videoRecordingUrl);
+        const willWithVideo = wills.find((will: WillData) => will.videoRecordingUrl);
         
         if (willWithVideo) {
           setSelectedWill(willWithVideo);
@@ -40,15 +44,14 @@ const VideoPage: React.FC = () => {
           }
         } else {
           // If no will has a video, just select the first one
-          setSelectedWill(data[0]);
+          setSelectedWill(wills[0]);
         }
       }
       setLoading(false);
-    },
-    onError: () => {
+    } else if (!isLoadingWills) {
       setLoading(false);
     }
-  });
+  }, [wills, isLoadingWills]);
 
   const handlePlayVideo = () => {
     if (videoRef.current) {
@@ -88,11 +91,16 @@ const VideoPage: React.FC = () => {
             <h3 className="font-semibold text-gray-800 dark:text-white">Video Will Testimony</h3>
           </div>
           
-          {hasRecording && (
+          {hasRecording && selectedWill?.videoRecordingUrl && (
             <div className="flex space-x-2">
-              <button className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors">
+              <a 
+                href={selectedWill.videoRecordingUrl} 
+                download={`${selectedWill.title.replace(/\s+/g, '_')}_testimony.webm`}
+                className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
+                title="Download video testimony"
+              >
                 <Download className="h-5 w-5" />
-              </button>
+              </a>
               <button 
                 onClick={handleRecordNew}
                 className="px-3 py-1.5 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors flex items-center"
