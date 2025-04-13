@@ -395,6 +395,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Delete from database
       await dbStorage.deleteWillDocument(documentId);
       
+      // Create notification for document deletion
+      try {
+        await NotificationEvents.DOCUMENT_DELETED(userId, will.id, document.fileName);
+      } catch (notificationError) {
+        console.error("Failed to create notification for document deletion:", notificationError);
+        // Continue with response even if notification creation fails
+      }
+      
       return res.status(200).json({ message: "Document deleted successfully" });
     } catch (error) {
       console.error("Error deleting document:", error);
@@ -866,6 +874,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   updatedAt: new Date()
                 })
                 .where(eq(users.id, userId));
+                
+              // Create notification for subscription activation
+              try {
+                await NotificationEvents.SUBSCRIPTION_ACTIVATED(userId, planType);
+              } catch (notificationError) {
+                console.error("Failed to create notification for subscription activation:", notificationError);
+              }
             } else if (session.subscription) {
               // For recurring plans, update with subscription ID
               await updateUserSubscription(
@@ -875,13 +890,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 interval,
                 'active'
               );
+              
+              // Create notification for subscription activation
+              try {
+                await NotificationEvents.SUBSCRIPTION_ACTIVATED(userId, planType);
+              } catch (notificationError) {
+                console.error("Failed to create notification for subscription activation:", notificationError);
+              }
             }
           }
           break;
           
         case 'customer.subscription.updated':
           const subscription = event.data.object;
-          // Handle subscription update logic
+          
+          // Handle subscription updates like renewal
+          try {
+            // Get user ID by Stripe customer ID
+            const [user] = await db
+              .select()
+              .from(users)
+              .where(eq(users.stripeCustomerId, subscription.customer as string));
+              
+            if (user) {
+              // Check for renewal (this could be expanded based on Stripe event data)
+              if (subscription.status === 'active') {
+                try {
+                  await NotificationEvents.SUBSCRIPTION_RENEWED(user.id, user.planType || 'subscription');
+                } catch (notificationError) {
+                  console.error("Failed to create notification for subscription renewal:", notificationError);
+                }
+              }
+            }
+          } catch (error) {
+            console.error("Error handling subscription update:", error);
+          }
+          
           break;
           
         case 'customer.subscription.deleted':
