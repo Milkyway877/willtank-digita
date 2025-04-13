@@ -531,20 +531,27 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Full name is required" });
       }
       
-      // Update user profile
-      await db
-        .update(users)
-        .set({
-          fullName,
-          preferences: preferences ? JSON.stringify(preferences) : null,
-          hasCompletedOnboarding: true,
-          updatedAt: new Date()
-        })
-        .where(eq(users.id, userId));
+      // Update user profile using direct SQL for better compatibility
+      await db.execute({
+        text: `
+          UPDATE users 
+          SET 
+            full_name = $1, 
+            preferences = $2, 
+            has_completed_onboarding = true, 
+            updated_at = NOW() 
+          WHERE id = $3
+        `,
+        values: [
+          fullName, 
+          preferences ? JSON.stringify(preferences) : null, 
+          userId
+        ]
+      });
       
       // Create notification for onboarding completion
       try {
-        const { NotificationEvents } = require('./notification-util');
+        const { NotificationEvents } = await import('./notification-util');
         await NotificationEvents.WELCOME_ONBOARDING_COMPLETE(userId);
       } catch (notificationError) {
         console.error("Failed to create notification for onboarding completion:", notificationError);
@@ -595,7 +602,7 @@ export function setupAuth(app: Express) {
 
       // Create notification for password change
       try {
-        const { NotificationEvents } = require('./notification-util');
+        const { NotificationEvents } = await import('./notification-util');
         await NotificationEvents.PASSWORD_CHANGED(user.id);
       } catch (notificationError) {
         console.error("Failed to create notification for password change:", notificationError);
