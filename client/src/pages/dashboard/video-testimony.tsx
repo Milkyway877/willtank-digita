@@ -1,35 +1,59 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { motion } from 'framer-motion';
-import { saveAs } from 'file-saver';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import { useToast } from '@/hooks/use-toast';
+import { useQuery } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 import {
-  ArrowLeft, Download, Share, Video, Film, Play, Pause, Volume2, VolumeX, RefreshCw
+  ArrowLeft, Download, Share, Video, Film, Play, Pause, Volume2, VolumeX, RefreshCw, Loader2
 } from 'lucide-react';
+
+interface Will {
+  id: number;
+  userId: number;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  isComplete: boolean;
+  videoUrl?: string;
+  videoRecordedAt?: string;
+}
 
 const VideoTestimonyPage: React.FC = () => {
   const [, navigate] = useLocation();
-  const [hasVideo, setHasVideo] = useState(false);
+  const { toast } = useToast();
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [volume, setVolume] = useState(0.8);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const videoBlob = useRef<Blob | null>(null);
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  // Get the most recent will with video
+  const { data: wills, isLoading: isLoadingWills } = useQuery<Will[]>({
+    queryKey: ['/api/wills'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/wills');
+      return res.json();
+    }
+  });
+  
+  // Get the most recent will with video recording
+  const willWithVideo = wills?.find(will => will.videoUrl) || null;
   
   useEffect(() => {
-    // In a real app, this would fetch the video from an API or cloud storage
-    // For this demo, we'll check localStorage to see if a video has been recorded
-    const videoRecorded = localStorage.getItem('willVideoRecorded');
-    
-    if (videoRecorded === 'true') {
-      setHasVideo(true);
+    if (!isLoadingWills) {
+      setIsLoading(false);
       
-      // In a real app, we would load the video here
-      // For this demo, we'll just simulate having a video
+      if (willWithVideo?.videoUrl) {
+        setVideoSrc(willWithVideo.videoUrl);
+      }
     }
-  }, []);
+  }, [willWithVideo, isLoadingWills]);
   
   const formatTime = (timeInSeconds: number) => {
     const minutes = Math.floor(timeInSeconds / 60);
@@ -83,47 +107,50 @@ const VideoTestimonyPage: React.FC = () => {
     }
   };
   
-  const handleDownload = async () => {
-    // In a real app, we would download the actual video file
-    try {
-      if (videoBlob.current) {
-        saveAs(videoBlob.current, "video_testimony.mp4");
-      } else {
-        // Create a placeholder video for demo purposes
-        const response = await fetch("/sample-video.mp4");
-        const blob = await response.blob();
-        saveAs(blob, "video_testimony.mp4");
-      }
-      
-      // Show success notification
-      const notification = document.createElement('div');
-      notification.className = 'fixed top-4 right-4 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-lg z-50 animate-fade-in';
-      notification.innerHTML = '<div class="flex items-center"><span class="mr-2">✓</span>Video downloaded successfully</div>';
-      document.body.appendChild(notification);
-      
-      // Remove notification after 3 seconds
-      setTimeout(() => {
-        notification.classList.add('animate-fade-out');
-        setTimeout(() => {
-          try {
-            document.body.removeChild(notification);
-          } catch (e) {
-            // Element might have been removed already
-          }
-        }, 500);
-      }, 3000);
-    } catch (error) {
-      console.error("Error downloading video:", error);
+  const handleDownload = () => {
+    if (!videoSrc) {
+      toast({
+        title: "No video available",
+        description: "You haven't recorded a video testimony yet.",
+        variant: "destructive"
+      });
+      return;
     }
+    
+    // Create a link to download the video
+    const link = document.createElement('a');
+    link.href = videoSrc;
+    link.download = "video_testimony.mp4";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Download started",
+      description: "Your video testimony is downloading.",
+      variant: "default"
+    });
   };
   
   const handleShare = () => {
-    // In a real app, this would open a sharing dialog
-    alert('Sharing functionality would be implemented here');
+    toast({
+      title: "Sharing not available",
+      description: "Sharing functionality will be available in a future update.",
+      variant: "default"
+    });
   };
   
   const handleRecordNew = () => {
-    navigate('/video-recording');
+    if (willWithVideo) {
+      navigate(`/video-recording?willId=${willWithVideo.id}`);
+    } else {
+      toast({
+        title: "No will found",
+        description: "Please create a will before recording a video testimony.",
+        variant: "destructive"
+      });
+      navigate('/dashboard');
+    }
   };
   
   return (
@@ -149,16 +176,16 @@ const VideoTestimonyPage: React.FC = () => {
             <button 
               onClick={handleDownload}
               className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
-              disabled={!hasVideo}
+              disabled={!videoSrc}
             >
-              <Download className={`h-5 w-5 ${!hasVideo ? 'opacity-50' : ''}`} />
+              <Download className={`h-5 w-5 ${!videoSrc ? 'opacity-50' : ''}`} />
             </button>
             <button 
               onClick={handleShare}
               className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
-              disabled={!hasVideo}
+              disabled={!videoSrc}
             >
-              <Share className={`h-5 w-5 ${!hasVideo ? 'opacity-50' : ''}`} />
+              <Share className={`h-5 w-5 ${!videoSrc ? 'opacity-50' : ''}`} />
             </button>
             <button 
               onClick={handleRecordNew}
@@ -171,7 +198,12 @@ const VideoTestimonyPage: React.FC = () => {
         
         {/* Video Player */}
         <div className="p-6">
-          {hasVideo ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">Loading your video testimony...</p>
+            </div>
+          ) : videoSrc ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -185,10 +217,8 @@ const VideoTestimonyPage: React.FC = () => {
                   onTimeUpdate={handleTimeUpdate}
                   onLoadedMetadata={handleLoadedMetadata}
                   onEnded={() => setIsPlaying(false)}
-                  poster="/video-thumbnail.jpg" // Replace with actual thumbnail
                 >
-                  {/* In a real app, we would load the actual video source */}
-                  <source src="/sample-video.mp4" type="video/mp4" />
+                  <source src={videoSrc} type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
                 
@@ -270,7 +300,9 @@ const VideoTestimonyPage: React.FC = () => {
               <div className="mt-4">
                 <h4 className="font-medium text-gray-800 dark:text-white mb-2">About this video</h4>
                 <p className="text-gray-600 dark:text-gray-400 text-sm">
-                  Recorded on {new Date().toLocaleDateString()} • 2 minutes
+                  Recorded on {willWithVideo?.videoRecordedAt 
+                    ? new Date(willWithVideo.videoRecordedAt).toLocaleDateString() 
+                    : new Date().toLocaleDateString()}
                 </p>
                 <p className="text-gray-600 dark:text-gray-400 text-sm mt-2">
                   This video testimony is a spoken confirmation of your will and testament. It helps verify your intentions and can be used to clarify any ambiguities in your written will.

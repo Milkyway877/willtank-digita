@@ -134,8 +134,9 @@ const Sidebar: React.FC = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2 }}
+                className="overflow-visible z-10"
               >
-                <Logo size="lg" withText={true} />
+                <Logo size="md" withText={true} />
               </motion.div>
             ) : (
               <motion.div
@@ -144,8 +145,9 @@ const Sidebar: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.2 }}
+                className="overflow-visible z-10"
               >
-                <Logo size="md" withText={false} />
+                <Logo size="sm" withText={false} />
               </motion.div>
             )}
           </AnimatePresence>
