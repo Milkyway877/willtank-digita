@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
 
 interface TrustProgressBarProps {
   progress?: number;

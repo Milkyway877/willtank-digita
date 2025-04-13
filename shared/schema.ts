@@ -288,3 +288,46 @@ export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertDeliverySettings = z.infer<typeof insertDeliverySettingsSchema>;
 export type DeliverySettings = typeof deliverySettings.$inferSelect;
+
+// Reminder repeat type enum
+export const reminderRepeatEnum = pgEnum("reminder_repeat", ["never", "daily", "weekly", "monthly", "yearly"]);
+
+// Reminders table
+export const reminders = pgTable("reminders", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  description: text("description"),
+  date: date("date").notNull(),
+  time: text("time"),
+  repeat: reminderRepeatEnum("repeat").default("never").notNull(),
+  completed: boolean("completed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Define reminder relations
+export const remindersRelations = relations(reminders, ({ one }) => ({
+  user: one(users, {
+    fields: [reminders.userId],
+    references: [users.id],
+  }),
+}));
+
+// Add reminders to user relations
+export const usersToReminders = relations(users, ({ many }) => ({
+  reminders: many(reminders),
+}));
+
+export const insertReminderSchema = createInsertSchema(reminders).pick({
+  userId: true,
+  title: true,
+  description: true,
+  date: true,
+  time: true,
+  repeat: true,
+  completed: true,
+});
+
+export type InsertReminder = z.infer<typeof insertReminderSchema>;
+export type Reminder = typeof reminders.$inferSelect;
