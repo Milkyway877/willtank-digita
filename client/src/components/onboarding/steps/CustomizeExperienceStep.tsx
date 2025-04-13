@@ -43,11 +43,8 @@ const CustomizeExperienceStep: React.FC<CustomizeExperienceStepProps> = ({
   onSelectReason 
 }) => {
   const handleSelection = (id: string) => {
+    // Only select, don't auto-advance
     onSelectReason(id)
-    // Auto-advance after brief delay
-    setTimeout(() => {
-      onNext()
-    }, 500)
   }
 
   return (

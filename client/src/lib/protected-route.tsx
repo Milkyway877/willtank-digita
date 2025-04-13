@@ -40,13 +40,16 @@ export function ProtectedRoute({
     );
   }
   
-  // If user exists, email is verified, but onboarding is not completed
-  // and they're not already on the onboarding path, redirect to onboarding
+  // Only redirect NEW USERS to onboarding, not returning users
+  // Use createdAt timestamp to determine if this is a first-time login
   const isOnboardingPath = path === '/onboarding';
+  const isNewUser = user?.createdAt && (new Date().getTime() - new Date(user.createdAt).getTime() < 86400000); // Within 24 hours
+  
   if (
     user && 
     user.isEmailVerified && 
     !user.hasCompletedOnboarding && 
+    isNewUser && // Only redirect if it's a new user
     !isOnboardingPath && 
     // Don't redirect in specific paths that are okay to visit before onboarding
     !/^\/auth/.test(path) && 

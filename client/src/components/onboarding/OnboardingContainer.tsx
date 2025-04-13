@@ -37,6 +37,7 @@ const OnboardingContainer: React.FC = () => {
   const [selectedReason, setSelectedReason] = useState<string | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [animateOnExit, setAnimateOnExit] = useState(true)
+  const [formSubmitted, setFormSubmitted] = useState(false) // Prevent automatic form submission
   
   // Check if onboarding is already completed from the user object
   useEffect(() => {
