@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./auth";
+import { setupAuth, comparePasswords } from "./auth";
 import { initializeScheduler, triggerCheckInEmails } from "./scheduler";
 import { storage as dbStorage } from "./storage";
 import { db } from "./db";
@@ -1209,8 +1209,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify password
-      const bcrypt = require('bcrypt');
-      const isPasswordValid = await bcrypt.compare(password, user.password);
+      // Use imported bcrypt instead of require
+      const isPasswordValid = await comparePasswords(password, user.password);
       
       if (!isPasswordValid) {
         return res.status(400).json({ error: "Invalid password" });
