@@ -1154,6 +1154,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Enable 2FA for the user
       await enable2FA(userId, status.secret);
       
+      // Get updated status with backup codes
+      let updatedStatus;
+      try {
+        updatedStatus = await get2FAStatus(userId);
+      } catch (statusError) {
+        console.error("Error getting updated 2FA status:", statusError);
+        // Continue even if we can't get backup codes
+      }
+      
       // Create notification for 2FA enablement
       try {
         await NotificationEvents.SECURITY_2FA_ENABLED(userId);
@@ -1165,7 +1174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json({
         success: true,
         message: "Two-factor authentication enabled successfully",
-        backupCodes: await get2FAStatus(userId).then(status => status.backupCodes)
+        backupCodes: updatedStatus?.backupCodes || []
       });
     } catch (error) {
       console.error("Error verifying 2FA token:", error);

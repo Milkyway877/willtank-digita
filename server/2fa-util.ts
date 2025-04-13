@@ -30,11 +30,15 @@ export function generateSecret(username: string): {
  */
 export function verifyToken(token: string, secret: string): boolean {
   try {
+    // Normalize token by removing spaces and non-numeric characters
+    const normalizedToken = token.replace(/\D/g, '');
+    
+    // Verify with speakeasy
     return speakeasy.totp.verify({
       secret,
       encoding: 'base32',
-      token,
-      window: 1 // Allow 1 time step before/after for clock drift
+      token: normalizedToken,
+      window: 2 // Allow 2 time steps before/after for clock drift (more forgiving)
     });
   } catch (error) {
     console.error('Error verifying token:', error);
