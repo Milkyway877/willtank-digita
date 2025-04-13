@@ -1,0 +1,134 @@
+Absolutely, partner — let’s clean house and lock WillTank into **real production mode**. Here's your **laser-focused prompt** to hand over to the AI assistant or dev assistant. It ensures **onboarding works**, **Skyler is fully functional**, and **everything is connected to real data with no more dummy junk**. It also addresses the **video recording issue**, **document saving**, and improves how Skyler handles will creation questions.
+
+---
+
+### 🧠 FINAL CLEANUP & PRODUCTION MODE PROMPT FOR AI
+
+**OBJECTIVE:**  
+Finalize and fully activate WillTank's production logic — **no more dummy AI**, **no fake data**, and **no skipped steps**. Ensure everything is **live**, **verified**, **Skyler-powered**, and **ready for real users**.
+
+---
+
+### ✅ 1. 🔁 FIX ONBOARDING FLOW
+
+- Ensure that **all new users** go through the **onboarding flow FIRST** after signing up.
+- Only **after onboarding**, show the **template selection** screen.
+- Save onboarding progress to Supabase or the live DB under a `user_onboarding_complete` flag.
+- If `user_onboarding_complete = false`, redirect the user to the onboarding flow (not template).
+
+---
+
+### ✅ 2. 🧠 SKYLER MUST BE THE REAL AI IN THE WILL CREATION FLOW
+
+- Fully **remove any placeholder, dummy, or local logic** pretending to be AI.
+- Replace with **Skyler powered by GPT-4o Mini**, using this provided key:
+  ```
+  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
+  ```
+
+#### ✅ SKYLER FEATURES TO ACTIVATE:
+- Skyler appears **during all will creation** steps.
+- Every question must have an **(i) icon** beside it:
+  - On click, Skyler appears with a **tooltip explanation, examples, and best practices**.
+- Skyler should **evaluate the response**:
+  - If it seems incorrect, confusing, or misspelled, Skyler should **suggest a fix** with:
+    - ✅ Fix
+    - ❌ Continue as is
+- Responses should be passed through Skyler’s context before moving to the next step.
+- Skyler uses full project knowledge of WillTank to assist **accurately**.
+
+---
+
+### ✅ 3. 📇 WILL CREATION FIELD REQUIREMENTS
+
+Each will template and flow must include:
+
+- **Full name**
+- **Email**
+- **Phone number**
+- **Country/City/Location**
+- **Relation (for each beneficiary)**
+- Fields must validate correctly:
+  - Email format check
+  - Phone number must match international formats
+  - Location should offer suggestions (if possible)
+
+These are saved directly to the **Supabase database** in the correct table — no dummy handlers.
+
+---
+
+### ✅ 4. 📹 VIDEO RECORDING ISSUE — MUST BE FIXED
+
+**Current Problem:**
+- The video gets recorded and then **automatically downloaded** to the user’s device.
+- The dashboard cannot preview it and shows an error because **no copy is saved to the server**.
+
+**Fix Required:**
+- On recording completion:
+  - Upload the video to Supabase Storage or a media bucket (e.g., `/user_videos/{userId}/{willId}/video.mp4`)
+  - Save video metadata to `videos` table linked with the `willId`
+- Update the dashboard:
+  - Video player fetches and streams from Supabase or media storage.
+  - Remove all auto-download logic from frontend.
+
+---
+
+### ✅ 5. 🖼️ DOCUMENT IMAGE ISSUE
+
+**Current Problem:**
+- Upon will creation, images are shown as if saved, but they’re not found later.
+
+**Fix Required:**
+- Store all uploaded or AI-generated images (signatures, assets, etc.) to Supabase storage at:
+  ```
+  /user_docs/{userId}/{willId}/docname.jpg
+  ```
+- Update your `documents` table with:
+  - `document_url`
+  - `will_id`
+  - `user_id`
+  - `created_at`
+- Ensure dashboard previews the **actual image URL**, not dummy paths.
+
+---
+
+### ✅ 6. 📂 NO MORE DUMMY DATA
+
+- Replace **all mock or placeholder data** on:
+  - Dashboard widgets
+  - Will listings
+  - Document previews
+  - Skyler chat
+- Ensure that **only real Supabase queries** populate everything on all pages.
+
+---
+
+### ✅ 7. ➕ ADD “Create New Will” BUTTON ON “My Wills” PAGE
+
+- Prominently add a **“Create New Will”** button.
+- On click:
+  - User is taken back through the **template selection + will creation flow**
+  - A new `willId` is generated, and everything starts fresh.
+
+---
+
+### ✅ 8. 🔁 CRITICAL BEHAVIOR FIXES
+
+- Skyler should not allow users to blindly enter garbage and proceed.
+- Templates must be linked to saved will instances with correct status (draft, completed).
+- Users should be able to preview, edit, or download wills **after creation**.
+- Add loading states where necessary and keep UX smooth.
+
+---
+
+### 🧠 OPTIONAL POLISH (If Time Permits)
+
+- Save will creation as **autosave drafts** every few steps.
+- Add Skyler smart suggestions like: “Do you want to add another beneficiary?” or “You missed a phone number for John Doe.”
+- Add ability for Skyler to summarize the completed will in natural language before submission.
+
+---
+
+Once this prompt is passed, the AI or dev assistant should rebuild the WillTank flow to feel **real, professional, and seamless**, with Skyler at the heart of it all.
+
+Let me know when you're ready to roll with the prompt and I’ll be right beside you, partner. 💼✨

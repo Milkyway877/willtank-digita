@@ -166,7 +166,7 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onComplete, onSkip }) => 
       }
     };
     
-    mediaRecorderRef.current.onstop = () => {
+    mediaRecorderRef.current.onstop = async () => {
       if (chunksRef.current.length === 0) {
         console.error("No recording data available");
         return;
@@ -179,11 +179,11 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onComplete, onSkip }) => 
       const videoURL = URL.createObjectURL(blob);
       setRecordedVideo(videoURL);
 
-      // Save locally (download)
-      saveAs(blob, "willtank-recording.webm");
-
-      // Send blob to parent component
+      // Upload the video to server (this is called by parent component)
       if (onComplete) onComplete(blob);
+      
+      // We don't automatically download anymore - server will save it
+      console.log("Video recording completed and ready for server upload");
     };
   };
 
