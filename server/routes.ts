@@ -254,7 +254,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create notification based on the update type
       try {
-        if (status === "completed") {
+        if (status === "published") {
+          await NotificationEvents.WILL_PUBLISHED(userId, willId, title || existingWill.title);
+        } else if (status === "completed") {
           await NotificationEvents.WILL_COMPLETED(userId, willId, title || existingWill.title);
         } else {
           await NotificationEvents.WILL_UPDATED(userId, willId, title || existingWill.title);
@@ -950,6 +952,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           } catch (error) {
             console.error("Error handling payment success:", error);
+          }
+          break;
+          
+        case 'customer.source.updated':
+        case 'payment_method.attached':
+          // Handler for payment method update events
+          const paymentObject = event.data.object;
+          try {
+            // Get user ID by Stripe customer ID
+            const [user] = await db
+              .select()
+              .from(users)
+              .where(eq(users.stripeCustomerId, paymentObject.customer as string));
+              
+            if (user) {
+              try {
+                await NotificationEvents.PAYMENT_METHOD_UPDATED(user.id);
+              } catch (notificationError) {
+                console.error("Failed to create notification for payment method update:", notificationError);
+              }
+            }
+          } catch (error) {
+            console.error("Error handling payment method update:", error);
           }
           break;
           
