@@ -166,7 +166,7 @@ const AiChat: React.FC = () => {
     
     try {
       // Extract will data by asking Skyler to summarize
-      await sendStreamingMessage('Please summarize all the information I've provided for my will in a structured JSON format.');
+      await sendStreamingMessage('Please summarize all the information I have provided for my will in a structured JSON format.');
       
       // Create will in database
       const response = await apiRequest('POST', '/api/wills', {
