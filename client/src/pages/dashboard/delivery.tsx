@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { MessageSquare, Users, Mail, Phone, Shield, Save, ArrowLeft, Info, AlertCircle } from 'lucide-react';
+import { MessageSquare, Users, Mail, Phone, Shield, CheckCircle, ArrowLeft, Info, AlertCircle, Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface Contact {
   id: string;
@@ -19,6 +22,60 @@ const DeliveryPage: React.FC = () => {
   const [attorneyContact, setAttorneyContact] = useState<Contact | null>(null);
   const [message, setMessage] = useState('');
   const [savedInstructions, setSavedInstructions] = useState(false);
+  const { toast } = useToast();
+  
+  // Fetch delivery settings from API
+  const { data: deliverySettings, isLoading, error } = useQuery({
+    queryKey: ['/api/delivery-settings'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/delivery-settings');
+      if (!res.ok) throw new Error('Failed to fetch delivery settings');
+      return res.json();
+    },
+  });
+  
+  // Setup mutation for saving delivery settings
+  const saveDeliverySettingsMutation = useMutation({
+    mutationFn: async (settings: { 
+      method: string; 
+      contacts: Contact[]; 
+      message: string;
+      attorneyContact?: Contact | null;
+    }) => {
+      const res = await apiRequest('POST', '/api/delivery-settings', settings);
+      if (!res.ok) throw new Error('Failed to save delivery settings');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Delivery settings saved successfully',
+        variant: 'default',
+      });
+      setSavedInstructions(true);
+      setTimeout(() => {
+        setSavedInstructions(false);
+      }, 3000);
+      queryClient.invalidateQueries({ queryKey: ['/api/delivery-settings'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: `Failed to save settings: ${error.message}`,
+        variant: 'destructive',
+      });
+    }
+  });
+  
+  // Load data when available
+  useEffect(() => {
+    if (deliverySettings) {
+      setDeliveryMethod(deliverySettings.method || '');
+      setEmailContacts(deliverySettings.contacts || []);
+      setMessage(deliverySettings.message || '');
+      setAttorneyContact(deliverySettings.attorneyContact || null);
+    }
+  }, [deliverySettings]);
   
   // Form states
   const [showAddContact, setShowAddContact] = useState(false);
@@ -57,16 +114,13 @@ const DeliveryPage: React.FC = () => {
   };
   
   const handleSaveInstructions = () => {
-    // Save delivery instructions
-    localStorage.setItem('willDeliveryMethod', deliveryMethod);
-    localStorage.setItem('willDeliveryContacts', JSON.stringify(emailContacts));
-    localStorage.setItem('willDeliveryMessage', message);
-    
-    setSavedInstructions(true);
-    
-    setTimeout(() => {
-      setSavedInstructions(false);
-    }, 3000);
+    // Save delivery instructions to API
+    saveDeliverySettingsMutation.mutate({
+      method: deliveryMethod,
+      contacts: emailContacts,
+      message: message,
+      attorneyContact: deliveryMethod === 'attorney' ? attorneyContact : null
+    });
   };
   
   return (
@@ -91,282 +145,307 @@ const DeliveryPage: React.FC = () => {
           </div>
           
           <div className="p-6">
-            <div className="mb-6">
-              <h4 className="text-lg font-medium text-gray-800 dark:text-white mb-4">How should your will be delivered?</h4>
-              
-              <div className="space-y-3">
-                {/* Email Option */}
-                <div 
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                    deliveryMethod === 'email' 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-primary/5'
-                  }`}
-                  onClick={() => setDeliveryMethod('email')}
-                >
-                  <div className="flex items-start">
-                    <div className={`w-5 h-5 rounded-full border flex-shrink-0 mr-3 mt-0.5 flex items-center justify-center ${
-                      deliveryMethod === 'email' 
-                        ? 'border-primary' 
-                        : 'border-gray-300 dark:border-gray-600'
-                    }`}>
-                      {deliveryMethod === 'email' && (
-                        <div className="w-3 h-3 rounded-full bg-primary"></div>
-                      )}
-                    </div>
-                    <div>
-                      <h5 className="font-medium text-gray-800 dark:text-white">Send via Email</h5>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Your will and instructions will be emailed to your designated recipients after a specified period of inactivity.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Attorney Option */}
-                <div 
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                    deliveryMethod === 'attorney' 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-primary/5'
-                  }`}
-                  onClick={() => setDeliveryMethod('attorney')}
-                >
-                  <div className="flex items-start">
-                    <div className={`w-5 h-5 rounded-full border flex-shrink-0 mr-3 mt-0.5 flex items-center justify-center ${
-                      deliveryMethod === 'attorney' 
-                        ? 'border-primary' 
-                        : 'border-gray-300 dark:border-gray-600'
-                    }`}>
-                      {deliveryMethod === 'attorney' && (
-                        <div className="w-3 h-3 rounded-full bg-primary"></div>
-                      )}
-                    </div>
-                    <div>
-                      <h5 className="font-medium text-gray-800 dark:text-white">Notify My Attorney</h5>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Your attorney will be notified and given access to your will and related documents.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Executor Option */}
-                <div 
-                  className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                    deliveryMethod === 'executor' 
-                      ? 'border-primary bg-primary/5' 
-                      : 'border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-primary/5'
-                  }`}
-                  onClick={() => setDeliveryMethod('executor')}
-                >
-                  <div className="flex items-start">
-                    <div className={`w-5 h-5 rounded-full border flex-shrink-0 mr-3 mt-0.5 flex items-center justify-center ${
-                      deliveryMethod === 'executor' 
-                        ? 'border-primary' 
-                        : 'border-gray-300 dark:border-gray-600'
-                    }`}>
-                      {deliveryMethod === 'executor' && (
-                        <div className="w-3 h-3 rounded-full bg-primary"></div>
-                      )}
-                    </div>
-                    <div>
-                      <h5 className="font-medium text-gray-800 dark:text-white">Executor Only</h5>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                        Only your designated executor will receive your will and instructions.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+            {isLoading ? (
+              <div className="py-20 flex flex-col items-center justify-center">
+                <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+                <p className="text-gray-600 dark:text-gray-400">Loading your delivery settings...</p>
               </div>
-            </div>
-            
-            {deliveryMethod === 'email' && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-5 mb-6">
-                  <h4 className="font-medium text-gray-800 dark:text-white mb-4">Who should receive your will?</h4>
+            ) : error ? (
+              <div className="py-16 flex flex-col items-center justify-center">
+                <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+                <h4 className="text-lg font-medium text-gray-800 dark:text-white mb-2">Error loading settings</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-400 text-center max-w-md">
+                  There was a problem loading your delivery settings. Please try refreshing the page.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="mb-6">
+                  <h4 className="text-lg font-medium text-gray-800 dark:text-white mb-4">How should your will be delivered?</h4>
                   
-                  {emailContacts.length > 0 ? (
-                    <div className="space-y-3 mb-4">
-                      {emailContacts.map(contact => (
-                        <div key={contact.id} className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                          <div className="flex items-center">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mr-3">
-                              <Users className="h-5 w-5 text-primary" />
-                            </div>
-                            <div>
-                              <h5 className="font-medium text-gray-800 dark:text-white text-sm">{contact.name}</h5>
-                              <div className="flex flex-wrap items-center mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                <span className="flex items-center mr-3">
-                                  <Mail className="h-3 w-3 mr-1" />
-                                  {contact.email}
-                                </span>
-                                {contact.phone && (
-                                  <span className="flex items-center mr-3">
-                                    <Phone className="h-3 w-3 mr-1" />
-                                    {contact.phone}
-                                  </span>
-                                )}
-                                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded">
-                                  {contact.relationship}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <button 
-                            onClick={() => handleRemoveContact(contact.id)}
-                            className="text-red-500 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg mb-4">
-                      <p className="text-gray-500 dark:text-gray-400">
-                        You haven't added any contacts yet.
-                      </p>
-                    </div>
-                  )}
-                  
-                  {!showAddContact ? (
-                    <button 
-                      onClick={() => setShowAddContact(true)}
-                      className="w-full py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-primary hover:bg-primary/5 transition-colors"
+                  <div className="space-y-3">
+                    {/* Email Option */}
+                    <div 
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        deliveryMethod === 'email' 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-primary/5'
+                      }`}
+                      onClick={() => setDeliveryMethod('email')}
                     >
-                      + Add Contact
-                    </button>
-                  ) : (
-                    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
-                      <h5 className="font-medium text-gray-800 dark:text-white mb-3">Add Contact</h5>
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Name*
-                          </label>
-                          <input
-                            type="text"
-                            name="name"
-                            value={contactForm.name}
-                            onChange={handleContactInputChange}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-900 dark:text-white"
-                            placeholder="Full name"
-                            required
-                          />
+                      <div className="flex items-start">
+                        <div className={`w-5 h-5 rounded-full border flex-shrink-0 mr-3 mt-0.5 flex items-center justify-center ${
+                          deliveryMethod === 'email' 
+                            ? 'border-primary' 
+                            : 'border-gray-300 dark:border-gray-600'
+                        }`}>
+                          {deliveryMethod === 'email' && (
+                            <div className="w-3 h-3 rounded-full bg-primary"></div>
+                          )}
                         </div>
-                        
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Email*
-                          </label>
-                          <input
-                            type="email"
-                            name="email"
-                            value={contactForm.email}
-                            onChange={handleContactInputChange}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-900 dark:text-white"
-                            placeholder="email@example.com"
-                            required
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Phone
-                          </label>
-                          <input
-                            type="tel"
-                            name="phone"
-                            value={contactForm.phone}
-                            onChange={handleContactInputChange}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-900 dark:text-white"
-                            placeholder="+1 (555) 123-4567"
-                          />
-                        </div>
-                        
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Relationship*
-                          </label>
-                          <input
-                            type="text"
-                            name="relationship"
-                            value={contactForm.relationship}
-                            onChange={handleContactInputChange}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-900 dark:text-white"
-                            placeholder="e.g. Executor, Spouse, Child"
-                            required
-                          />
-                        </div>
-                        
-                        <div className="flex pt-2 space-x-2">
-                          <button 
-                            onClick={handleAddContact}
-                            disabled={!contactForm.name || !contactForm.email || !contactForm.relationship}
-                            className={`px-4 py-2 rounded-md ${
-                              !contactForm.name || !contactForm.email || !contactForm.relationship
-                                ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                                : 'bg-primary text-white hover:bg-primary-dark'
-                            }`}
-                          >
-                            Add
-                          </button>
-                          <button 
-                            onClick={() => setShowAddContact(false)}
-                            className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md"
-                          >
-                            Cancel
-                          </button>
+                          <h5 className="font-medium text-gray-800 dark:text-white">Send via Email</h5>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            Your will and instructions will be emailed to your designated recipients after a specified period of inactivity.
+                          </p>
                         </div>
                       </div>
                     </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-            
-            {deliveryMethod && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <div className="mb-6">
-                  <h4 className="font-medium text-gray-800 dark:text-white mb-2">Personal Message (Optional)</h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                    Write a personal message to accompany your will.
-                  </p>
-                  <textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-900 dark:text-white resize-none"
-                    placeholder="Write a personal message to your beneficiaries here..."
-                  ></textarea>
-                </div>
-                
-                <button
-                  onClick={handleSaveInstructions}
-                  className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Instructions
-                </button>
-                
-                {savedInstructions && (
-                  <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-800 dark:text-green-300 text-sm flex items-start">
-                    <div className="mt-0.5 mr-2">✓</div>
-                    <div>Your delivery instructions have been saved successfully.</div>
+                    
+                    {/* Attorney Option */}
+                    <div 
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        deliveryMethod === 'attorney' 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-primary/5'
+                      }`}
+                      onClick={() => setDeliveryMethod('attorney')}
+                    >
+                      <div className="flex items-start">
+                        <div className={`w-5 h-5 rounded-full border flex-shrink-0 mr-3 mt-0.5 flex items-center justify-center ${
+                          deliveryMethod === 'attorney' 
+                            ? 'border-primary' 
+                            : 'border-gray-300 dark:border-gray-600'
+                        }`}>
+                          {deliveryMethod === 'attorney' && (
+                            <div className="w-3 h-3 rounded-full bg-primary"></div>
+                          )}
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-800 dark:text-white">Notify My Attorney</h5>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            Your attorney will be notified and given access to your will and related documents.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Executor Option */}
+                    <div 
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        deliveryMethod === 'executor' 
+                          ? 'border-primary bg-primary/5' 
+                          : 'border-gray-200 dark:border-gray-700 hover:border-primary hover:bg-primary/5'
+                      }`}
+                      onClick={() => setDeliveryMethod('executor')}
+                    >
+                      <div className="flex items-start">
+                        <div className={`w-5 h-5 rounded-full border flex-shrink-0 mr-3 mt-0.5 flex items-center justify-center ${
+                          deliveryMethod === 'executor' 
+                            ? 'border-primary' 
+                            : 'border-gray-300 dark:border-gray-600'
+                        }`}>
+                          {deliveryMethod === 'executor' && (
+                            <div className="w-3 h-3 rounded-full bg-primary"></div>
+                          )}
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-gray-800 dark:text-white">Executor Only</h5>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            Only your designated executor will receive your will and instructions.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
+                </div>
+                
+                {deliveryMethod === 'email' && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-5 mb-6">
+                      <h4 className="font-medium text-gray-800 dark:text-white mb-4">Who should receive your will?</h4>
+                      
+                      {emailContacts.length > 0 ? (
+                        <div className="space-y-3 mb-4">
+                          {emailContacts.map(contact => (
+                            <div key={contact.id} className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                              <div className="flex items-center">
+                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mr-3">
+                                  <Users className="h-5 w-5 text-primary" />
+                                </div>
+                                <div>
+                                  <h5 className="font-medium text-gray-800 dark:text-white text-sm">{contact.name}</h5>
+                                  <div className="flex flex-wrap items-center mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    <span className="flex items-center mr-3">
+                                      <Mail className="h-3 w-3 mr-1" />
+                                      {contact.email}
+                                    </span>
+                                    {contact.phone && (
+                                      <span className="flex items-center mr-3">
+                                        <Phone className="h-3 w-3 mr-1" />
+                                        {contact.phone}
+                                      </span>
+                                    )}
+                                    <span className="bg-primary/10 text-primary px-2 py-0.5 rounded">
+                                      {contact.relationship}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => handleRemoveContact(contact.id)}
+                                className="text-red-500 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg mb-4">
+                          <p className="text-gray-500 dark:text-gray-400">
+                            You haven't added any contacts yet.
+                          </p>
+                        </div>
+                      )}
+                      
+                      {!showAddContact ? (
+                        <button 
+                          onClick={() => setShowAddContact(true)}
+                          className="w-full py-2 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-primary hover:bg-primary/5 transition-colors"
+                        >
+                          + Add Contact
+                        </button>
+                      ) : (
+                        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                          <h5 className="font-medium text-gray-800 dark:text-white mb-3">Add Contact</h5>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Name*
+                              </label>
+                              <input
+                                type="text"
+                                name="name"
+                                value={contactForm.name}
+                                onChange={handleContactInputChange}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-900 dark:text-white"
+                                placeholder="Full name"
+                                required
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Email*
+                              </label>
+                              <input
+                                type="email"
+                                name="email"
+                                value={contactForm.email}
+                                onChange={handleContactInputChange}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-900 dark:text-white"
+                                placeholder="email@example.com"
+                                required
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Phone
+                              </label>
+                              <input
+                                type="tel"
+                                name="phone"
+                                value={contactForm.phone}
+                                onChange={handleContactInputChange}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-900 dark:text-white"
+                                placeholder="+1 (555) 123-4567"
+                              />
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Relationship*
+                              </label>
+                              <input
+                                type="text"
+                                name="relationship"
+                                value={contactForm.relationship}
+                                onChange={handleContactInputChange}
+                                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-900 dark:text-white"
+                                placeholder="e.g. Executor, Spouse, Child"
+                                required
+                              />
+                            </div>
+                            
+                            <div className="flex pt-2 space-x-2">
+                              <button 
+                                onClick={handleAddContact}
+                                disabled={!contactForm.name || !contactForm.email || !contactForm.relationship}
+                                className={`px-4 py-2 rounded-md ${
+                                  !contactForm.name || !contactForm.email || !contactForm.relationship
+                                    ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                                    : 'bg-primary text-white hover:bg-primary-dark'
+                                }`}
+                              >
+                                Add
+                              </button>
+                              <button 
+                                onClick={() => setShowAddContact(false)}
+                                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
                 )}
-              </motion.div>
+                
+                {deliveryMethod && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <div className="mb-6">
+                      <h4 className="font-medium text-gray-800 dark:text-white mb-2">Personal Message (Optional)</h4>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                        Write a personal message to accompany your will.
+                      </p>
+                      <textarea
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        rows={4}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-900 dark:text-white resize-none"
+                        placeholder="Write a personal message to your beneficiaries here..."
+                      ></textarea>
+                    </div>
+                    
+                    <button
+                      onClick={handleSaveInstructions}
+                      disabled={saveDeliverySettingsMutation.isPending}
+                      className={`px-6 py-2 rounded-lg flex items-center ${
+                        saveDeliverySettingsMutation.isPending 
+                          ? 'bg-gray-300 dark:bg-gray-700 cursor-not-allowed text-gray-500 dark:text-gray-400'
+                          : 'bg-primary text-white hover:bg-primary-dark transition-colors'
+                      }`}
+                    >
+                      {saveDeliverySettingsMutation.isPending ? 
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" /> :
+                        <CheckCircle className="h-4 w-4 mr-2" />
+                      }
+                      {saveDeliverySettingsMutation.isPending ? 'Saving...' : 'Save Instructions'}
+                    </button>
+                    
+                    {savedInstructions && (
+                      <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg text-green-800 dark:text-green-300 text-sm flex items-start">
+                        <div className="mt-0.5 mr-2">✓</div>
+                        <div>Your delivery instructions have been saved successfully.</div>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </>
             )}
           </div>
         </div>
