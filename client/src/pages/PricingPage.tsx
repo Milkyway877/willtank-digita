@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest, queryClient } from '@/lib/queryClient';
+import StripeTest from '@/components/stripe/StripeTest';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -369,6 +370,18 @@ export default function PricingPage() {
           </form>
         </DialogContent>
       </Dialog>
+      
+      {/* Stripe Test Component - only shown in development mode */}
+      {import.meta.env.DEV && (
+        <div className="mt-16 max-w-5xl mx-auto">
+          <details>
+            <summary className="cursor-pointer font-semibold text-gray-700 mb-3">
+              Stripe Integration Testing (Development Only)
+            </summary>
+            <StripeTest />
+          </details>
+        </div>
+      )}
     </div>
   );
 }
