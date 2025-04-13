@@ -14,6 +14,15 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { 
+  generateSecret, 
+  verifyToken, 
+  generateBackupCodes, 
+  verifyBackupCode,
+  enable2FA,
+  disable2FA,
+  get2FAStatus
+} from "./2fa-util";
+import { 
   stripe,
   createCheckoutSession,
   createBillingPortalSession,
@@ -1052,6 +1061,213 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Two-Factor Authentication (2FA) API endpoints
+  app.get("/api/2fa/status", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const status = await get2FAStatus(userId);
+      
+      return res.status(200).json({
+        enabled: status.enabled,
+        // Don't send secret if already enabled for security
+        hasTwoFactorSecret: !!status.secret
+      });
+    } catch (error) {
+      console.error("Error getting 2FA status:", error);
+      return res.status(500).json({ error: "Failed to get 2FA status" });
+    }
+  });
+  
+  app.post("/api/2fa/generate", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const username = req.user!.username;
+      
+      // Check if 2FA is already enabled
+      const status = await get2FAStatus(userId);
+      if (status.enabled) {
+        return res.status(400).json({ error: "2FA is already enabled" });
+      }
+      
+      // Generate a new secret for the user
+      const { secret, qrCodeUrl } = generateSecret(username);
+      
+      // Temporarily store secret in database but don't enable 2FA yet
+      // Will be verified before enabling
+      await db.update(users)
+        .set({ twoFactorSecret: secret.base32 })
+        .where(eq(users.id, userId));
+      
+      // Return the secret and QR code URL to be verified
+      const response = await qrCodeUrl;
+      return res.status(200).json({
+        secret: secret.base32,
+        qrCode: response,
+        otpAuthUrl: secret.otpauth_url
+      });
+    } catch (error) {
+      console.error("Error generating 2FA secret:", error);
+      return res.status(500).json({ error: "Failed to generate 2FA secret" });
+    }
+  });
+  
+  app.post("/api/2fa/verify", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const { token } = req.body;
+      
+      if (!token) {
+        return res.status(400).json({ error: "Token is required" });
+      }
+      
+      // Get user's current 2FA status
+      const status = await get2FAStatus(userId);
+      
+      // If already enabled, return error
+      if (status.enabled) {
+        return res.status(400).json({ error: "2FA is already enabled" });
+      }
+      
+      // Verify the token against the stored secret
+      if (!status.secret) {
+        return res.status(400).json({ error: "No 2FA secret found. Generate a new secret first." });
+      }
+      
+      const isValid = verifyToken(token, status.secret);
+      
+      if (!isValid) {
+        return res.status(400).json({ error: "Invalid token" });
+      }
+      
+      // Enable 2FA for the user
+      await enable2FA(userId, status.secret);
+      
+      // Create notification for 2FA enablement
+      try {
+        await NotificationEvents.SECURITY_2FA_ENABLED(userId);
+      } catch (notificationError) {
+        console.error("Failed to create notification for 2FA enablement:", notificationError);
+        // Continue with response even if notification creation fails
+      }
+      
+      return res.status(200).json({
+        success: true,
+        message: "Two-factor authentication enabled successfully",
+        backupCodes: await get2FAStatus(userId).then(status => status.backupCodes)
+      });
+    } catch (error) {
+      console.error("Error verifying 2FA token:", error);
+      return res.status(500).json({ error: "Failed to verify 2FA token" });
+    }
+  });
+  
+  app.post("/api/2fa/disable", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const { password, token } = req.body;
+      
+      // Get current user record to verify password
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId));
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Get 2FA status
+      const status = await get2FAStatus(userId);
+      
+      if (!status.enabled) {
+        return res.status(400).json({ error: "2FA is not enabled" });
+      }
+      
+      // Verify password
+      const bcrypt = require('bcrypt');
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      
+      if (!isPasswordValid) {
+        return res.status(400).json({ error: "Invalid password" });
+      }
+      
+      // Verify token if secret exists
+      if (status.secret && token) {
+        const isTokenValid = verifyToken(token, status.secret);
+        if (!isTokenValid) {
+          return res.status(400).json({ error: "Invalid 2FA token" });
+        }
+      }
+      
+      // Disable 2FA
+      await disable2FA(userId);
+      
+      // Create notification for 2FA disablement
+      try {
+        await NotificationEvents.SECURITY_2FA_DISABLED(userId);
+      } catch (notificationError) {
+        console.error("Failed to create notification for 2FA disablement:", notificationError);
+        // Continue with response even if notification creation fails
+      }
+      
+      return res.status(200).json({
+        success: true,
+        message: "Two-factor authentication disabled successfully"
+      });
+    } catch (error) {
+      console.error("Error disabling 2FA:", error);
+      return res.status(500).json({ error: "Failed to disable 2FA" });
+    }
+  });
+  
+  app.post("/api/2fa/verify-token", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const { token } = req.body;
+      
+      if (!token) {
+        return res.status(400).json({ error: "Token is required" });
+      }
+      
+      // Get user's current 2FA status
+      const status = await get2FAStatus(userId);
+      
+      if (!status.enabled || !status.secret) {
+        return res.status(400).json({ error: "2FA is not enabled" });
+      }
+      
+      // Verify the token
+      const isValid = verifyToken(token, status.secret);
+      
+      return res.status(200).json({
+        valid: isValid
+      });
+    } catch (error) {
+      console.error("Error verifying 2FA token:", error);
+      return res.status(500).json({ error: "Failed to verify 2FA token" });
+    }
+  });
+  
   // Notification API endpoints
   app.get("/api/notifications", async (req: Request, res: Response) => {
     if (!isUserAuthenticated(req)) {

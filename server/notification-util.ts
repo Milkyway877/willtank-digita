@@ -171,6 +171,16 @@ export const NotificationEvents = {
     });
   },
   
+  SECURITY_2FA_DISABLED: async (userId: number) => {
+    return createNotification({
+      userId,
+      title: "Two-Factor Authentication Disabled",
+      message: "Two-Factor Authentication has been disabled on your account.",
+      type: "warning",
+      relatedEntityType: "security",
+    });
+  },
+  
   BENEFICIARY_INVITED: async (userId: number, beneficiaryName: string) => {
     return createNotification({
       userId,
