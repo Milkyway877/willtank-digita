@@ -8,6 +8,7 @@ import { db } from "./db";
 import { checkInResponses, users, wills, willDocuments, notifications, insertNotificationSchema } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
+import { NotificationEvents } from "./notification-util";
 import { sendEmail, createVerificationEmailTemplate } from "./email";
 import multer from "multer";
 import path from "path";
@@ -208,6 +209,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "draft"
       });
       
+      // Create notification for the user about will creation
+      try {
+        await NotificationEvents.WILL_CREATED(userId, newWill.id, newWill.title);
+      } catch (notificationError) {
+        console.error("Failed to create notification for will creation:", notificationError);
+        // Continue with response even if notification creation fails
+      }
+      
       return res.status(201).json(newWill);
     } catch (error) {
       console.error("Error creating will:", error);
@@ -242,6 +251,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status,
         lastUpdated: new Date()
       });
+      
+      // Create notification based on the update type
+      try {
+        if (status === "completed") {
+          await NotificationEvents.WILL_COMPLETED(userId, willId, title || existingWill.title);
+        } else {
+          await NotificationEvents.WILL_UPDATED(userId, willId, title || existingWill.title);
+        }
+      } catch (notificationError) {
+        console.error("Failed to create notification for will update:", notificationError);
+        // Continue with response even if notification creation fails
+      }
       
       return res.status(200).json(updatedWill);
     } catch (error) {
@@ -319,6 +340,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileSize: req.file.size,
         fileUrl
       });
+      
+      // Create notification for document upload
+      try {
+        await NotificationEvents.DOCUMENT_UPLOADED(userId, willId, req.file.originalname);
+      } catch (notificationError) {
+        console.error("Failed to create notification for document upload:", notificationError);
+        // Continue with response even if notification creation fails
+      }
       
       return res.status(201).json(newDocument);
     } catch (error) {
