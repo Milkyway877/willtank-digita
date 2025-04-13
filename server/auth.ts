@@ -5,9 +5,11 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { User as SelectUser, extendedInsertUserSchema } from "@shared/schema";
+import { User as SelectUser, extendedInsertUserSchema, users } from "@shared/schema";
 import { z } from "zod";
 import { sendEmail, createVerificationEmailTemplate, createPasswordResetEmailTemplate } from "./email";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 declare global {
   namespace Express {
@@ -506,8 +508,56 @@ export function setupAuth(app: Express) {
     res.json({
       id: user.id,
       username: user.username,
-      isEmailVerified: user.isEmailVerified
+      isEmailVerified: user.isEmailVerified,
+      hasCompletedOnboarding: user.hasCompletedOnboarding || false,
+      fullName: user.fullName || '',
+      planType: user.planType || 'free',
+      planInterval: user.planInterval || null,
+      subscriptionStatus: user.subscriptionStatus || null
     });
+  });
+  
+  // ===== Complete Onboarding =====
+  app.post("/api/complete-onboarding", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      const userId = req.user!.id;
+      const { fullName, preferences } = req.body;
+      
+      if (!fullName) {
+        return res.status(400).json({ message: "Full name is required" });
+      }
+      
+      // Update user profile
+      await db
+        .update(users)
+        .set({
+          fullName,
+          preferences: preferences ? JSON.stringify(preferences) : null,
+          hasCompletedOnboarding: true,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId));
+      
+      // Create notification for onboarding completion
+      try {
+        const { NotificationEvents } = require('./notification-util');
+        await NotificationEvents.WELCOME_ONBOARDING_COMPLETE(userId);
+      } catch (notificationError) {
+        console.error("Failed to create notification for onboarding completion:", notificationError);
+        // Continue with response even if notification creation fails
+      }
+      
+      return res.status(200).json({ 
+        message: "Onboarding completed successfully",
+        success: true
+      });
+    } catch (err) {
+      next(err);
+    }
   });
 
   // ===== Change Password (authenticated users) =====
