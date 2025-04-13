@@ -298,12 +298,20 @@ const SignIn: React.FC = () => {
           className="mb-8"
         >
           <h1 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
-            {loginStep === LoginStep.INITIAL ? "Sign in to WillTank" : "Verification Required"}
+            {loginStep === LoginStep.INITIAL 
+              ? "Sign in to WillTank" 
+              : loginStep === LoginStep.TWO_FACTOR
+                ? "Two-Factor Authentication"
+                : "Verification Required"
+            }
           </h1>
           <p className="text-neutral-600 dark:text-neutral-400">
             {loginStep === LoginStep.INITIAL 
               ? "Enter your credentials to access your account" 
-              : "We've sent a verification code to your email"}
+              : loginStep === LoginStep.TWO_FACTOR
+                ? "Enter the authentication code from your authenticator app"
+                : "We've sent a verification code to your email"
+            }
           </p>
         </motion.div>
         
@@ -348,7 +356,7 @@ const SignIn: React.FC = () => {
             autoComplete="email"
             placeholder="Enter your email address"
             required
-            disabled={loginStep === LoginStep.VERIFICATION}
+            disabled={loginStep === LoginStep.VERIFICATION || loginStep === LoginStep.TWO_FACTOR}
           />
           
           <AuthInput
@@ -362,7 +370,7 @@ const SignIn: React.FC = () => {
             autoComplete="current-password"
             placeholder="Enter your password"
             required
-            disabled={loginStep === LoginStep.VERIFICATION}
+            disabled={loginStep === LoginStep.VERIFICATION || loginStep === LoginStep.TWO_FACTOR}
           />
           
           {loginStep === LoginStep.VERIFICATION && (
@@ -402,6 +410,32 @@ const SignIn: React.FC = () => {
             </motion.div>
           )}
           
+          {loginStep === LoginStep.TWO_FACTOR && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              transition={{ duration: 0.3 }}
+            >
+              <AuthInput
+                label="Authentication Code"
+                type="text"
+                name="twoFactorCode"
+                value={twoFactorCode}
+                onChange={(e) => setTwoFactorCode(e.target.value)}
+                error={errors.twoFactorCode}
+                icon={<ShieldCheck className="h-5 w-5" />}
+                placeholder="Enter the 6-digit code from your authenticator app"
+                required
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                maxLength={6}
+              />
+              <div className="mt-2 mb-4 text-sm text-neutral-600 dark:text-neutral-400">
+                <p>Open your authenticator app to view your verification code.</p>
+              </div>
+            </motion.div>
+          )}
+          
           <div className="flex justify-between items-center mb-6">
             <label className="flex items-center text-sm text-neutral-600 dark:text-neutral-400">
               <input
@@ -423,10 +457,17 @@ const SignIn: React.FC = () => {
               type="submit" 
               isLoading={loginStep === LoginStep.INITIAL 
                 ? requestLoginCodeMutation.isPending 
-                : loginMutation.isPending
+                : loginStep === LoginStep.TWO_FACTOR
+                  ? verifyTokenMutation.isPending
+                  : loginMutation.isPending
               }
             >
-              {loginStep === LoginStep.INITIAL ? "Continue" : "Sign In"}
+              {loginStep === LoginStep.INITIAL 
+                ? "Continue" 
+                : loginStep === LoginStep.TWO_FACTOR
+                  ? "Verify"
+                  : "Sign In"
+              }
             </AuthButton>
             
             <div className="flex items-center justify-center my-4">

@@ -18,6 +18,8 @@ interface ExtendedUser {
   resetPasswordToken: string | null;
   resetPasswordExpiry: Date | null;
   createdAt: Date | null;
+  twoFactorEnabled?: boolean;
+  requiresTwoFactor?: boolean;
 }
 
 type AuthContextType = {

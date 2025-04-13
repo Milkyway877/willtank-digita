@@ -76,6 +76,10 @@ export function TwoFactorProvider({ children }: { children: ReactNode }) {
   const verifyAndEnableMutation = useMutation({
     mutationFn: async (token: string) => {
       const res = await apiRequest('POST', '/api/2fa/verify', { token });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to verify 2FA token');
+      }
       return res.json();
     },
     onSuccess: (data) => {
@@ -98,7 +102,7 @@ export function TwoFactorProvider({ children }: { children: ReactNode }) {
     onError: (error: Error) => {
       toast({
         title: 'Verification Failed',
-        description: error.message,
+        description: error.message || 'Failed to verify token. Please try again.',
         variant: 'destructive',
       });
     },

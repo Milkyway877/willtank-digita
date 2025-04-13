@@ -89,12 +89,15 @@ export async function enable2FA(userId: number, secret: string): Promise<void> {
   // Generate backup codes
   const backupCodes = generateBackupCodes();
   
+  // Properly format and sanitize backup codes for JSON storage
+  const backupCodesJson = JSON.stringify(backupCodes);
+  
   // Update user record
   await db.update(users)
     .set({
       twoFactorEnabled: true,
       twoFactorSecret: secret,
-      backupCodes: JSON.stringify(backupCodes)
+      backupCodes: backupCodesJson
     })
     .where(eq(users.id, userId));
 }
@@ -133,9 +136,20 @@ export async function get2FAStatus(userId: number): Promise<{
     throw new Error('User not found');
   }
 
+  // Safely parse the backup codes JSON, handling potential format issues
+  let parsedBackupCodes;
+  if (user.backupCodes) {
+    try {
+      parsedBackupCodes = JSON.parse(user.backupCodes as string);
+    } catch (e) {
+      console.error('Error parsing backup codes:', e);
+      parsedBackupCodes = undefined;
+    }
+  }
+
   return {
     enabled: user.twoFactorEnabled || false,
     secret: user.twoFactorSecret || undefined,
-    backupCodes: user.backupCodes ? JSON.parse(user.backupCodes as string) : undefined
+    backupCodes: parsedBackupCodes
   };
 }
