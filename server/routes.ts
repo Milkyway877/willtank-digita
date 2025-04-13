@@ -10,11 +10,16 @@ import { sendEmail, createVerificationEmailTemplate } from "./email";
 
 import { getChatCompletion, getStreamingChatCompletion } from './openai';
 
+// Helper function to check if a user is authenticated via session
+function isUserAuthenticated(req: Request): boolean {
+  return !!(req.session && (req.session as any).passport?.user);
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Skyler AI Chat Endpoint
   app.post("/api/skyler/chat", async (req: Request, res: Response) => {
     // Check if user is authenticated
-    if (!req.session || !(req.session as any).passport?.user) {
+    if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
@@ -40,8 +45,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Skyler AI Chat Streaming Endpoint
   app.post("/api/skyler/chat-stream", async (req: Request, res: Response) => {
-    // Check auth from session
-    if (!req.session?.passport?.user) {
+    // Check if user is authenticated
+    if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
