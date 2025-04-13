@@ -20,6 +20,8 @@ interface ExtendedUser {
   createdAt: Date | null;
   twoFactorEnabled?: boolean;
   requiresTwoFactor?: boolean;
+  hasCompletedOnboarding?: boolean;
+  fullName?: string;
 }
 
 type AuthContextType = {
