@@ -223,6 +223,15 @@ export function setupAuth(app: Express) {
 
       // Mark email as verified
       const updatedUser = await storage.verifyEmail(user.id);
+      
+      // Create notification for email verification
+      try {
+        const { NotificationEvents } = await import('./notification-util');
+        await NotificationEvents.EMAIL_VERIFIED(user.id);
+      } catch (notificationError) {
+        console.error("Failed to create notification for email verification:", notificationError);
+        // Continue with login even if notification fails
+      }
 
       // Auto-login the user
       req.login(updatedUser, (err) => {

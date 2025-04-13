@@ -151,6 +151,46 @@ export const NotificationEvents = {
     });
   },
   
+  WELCOME_ONBOARDING_COMPLETE: async (userId: number) => {
+    return createNotification({
+      userId,
+      title: "Welcome to WillTank!",
+      message: "Your account is ready. Let's begin creating your first will.",
+      type: "success",
+      relatedEntityType: "system",
+    });
+  },
+  
+  SECURITY_2FA_ENABLED: async (userId: number) => {
+    return createNotification({
+      userId,
+      title: "Two-Factor Authentication Enabled",
+      message: "Two-Factor Authentication is now active on your account.",
+      type: "success",
+      relatedEntityType: "security",
+    });
+  },
+  
+  BENEFICIARY_INVITED: async (userId: number, beneficiaryName: string) => {
+    return createNotification({
+      userId,
+      title: "Beneficiary Invited",
+      message: `An invitation has been sent to ${beneficiaryName}.`,
+      type: "info",
+      relatedEntityType: "beneficiary",
+    });
+  },
+  
+  SKYLER_SUGGESTION: async (userId: number, suggestion: string) => {
+    return createNotification({
+      userId,
+      title: "Skyler Suggested a Fix",
+      message: suggestion,
+      type: "info",
+      relatedEntityType: "skyler",
+    });
+  },
+  
   CHECK_IN_REMINDER: async (userId: number) => {
     return createNotification({
       userId,
@@ -164,7 +204,7 @@ export const NotificationEvents = {
   VIDEO_TESTIMONY_RECORDED: async (userId: number, willId: number) => {
     return createNotification({
       userId,
-      title: "Video Testimony Recorded",
+      title: "Video Recorded",
       message: "Your video testimony has been recorded and attached to your will.",
       type: "success",
       relatedEntityType: "video",

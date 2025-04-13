@@ -1,0 +1,105 @@
+Absolutely partner — here's a **clean, precise, production-level prompt** that you can give to the AI or dev team to make sure:
+
+- ✅ **Dashboard notifications are triggered correctly**
+- ✅ **Emails are sent on time in real-time without delays**
+- ✅ **Nothing breaks in the process**
+- ✅ **No duplicate messages or spammy behavior occurs**
+
+---
+
+## 📣 PROMPT: ENABLE DASHBOARD NOTIFICATIONS + REAL-TIME EMAIL TRIGGERS
+
+---
+
+### ✅ GOAL
+
+Ensure **WillTank** sends **real-time email notifications** and **clean in-app dashboard alerts** for the most important user actions. No dummy placeholders. No skips. No duplicates. All notifications must be **clear, helpful, and personalized**.
+
+---
+
+## 🔔 DASHBOARD NOTIFICATIONS
+
+### ➤ LOCATION:  
+- Notifications should appear in the **top bar bell icon**, with an unread badge.  
+- Should persist even after page reload (store in `notifications` table).
+
+### ➤ REQUIRED STRUCTURE:
+Each notification should include:
+- `title`: Short notification (e.g., "Will Saved Successfully")
+- `body`: Extra detail (e.g., "Your will for John Doe has been saved and is now viewable.")
+- `timestamp`: Date/time of action
+- `read`: true/false (user can mark as read)
+- `link`: Optional redirect (e.g., link to open that will or page)
+
+---
+
+### 🔁 TRIGGERED DASHBOARD NOTIFICATIONS (AND COPY):
+
+| Action | Notification |
+|-------|--------------|
+| ✅ User completes onboarding | `Welcome to WillTank! Let's begin creating your first will.` |
+| 📄 User saves a draft will | `Draft Saved – Your progress has been saved successfully.` |
+| 🧠 Will submitted & completed | `Will Submitted – Your will has been finalized and stored.` |
+| 🧾 New document uploaded | `Document Uploaded – Your new document is now saved.` |
+| 🎥 Video recording saved | `Video Recorded – Your video message has been saved.` |
+| 👤 Beneficiary added | `Beneficiary Added – [Name] has been added to your will.` |
+| 💬 Skyler provides fix suggestion | `Skyler Suggested a Fix – Tap to review.` |
+| 🛡️ 2FA enabled | `Two-Factor Authentication is now active on your account.` |
+| 💳 Plan purchased via Stripe | `Thank You – Your [Plan] subscription is active.` |
+
+---
+
+## 📧 EMAIL TRIGGERS
+
+### ➤ Email Settings:
+- Use transactional email service (e.g., **Resend**, **SendGrid**, etc.)
+- All email logic should go through verified Supabase **Edge Functions** to avoid abuse.
+- Use dynamic templates (optional) and always include a fallback plain-text version.
+- Do **not** send duplicates — each action should trigger only once per user.
+
+---
+
+### 📬 EMAIL TRIGGER LIST
+
+| Trigger | Subject | Description |
+|--------|---------|-------------|
+| ✅ Signup Verification | `Welcome to WillTank – Verify Your Email` | Triggered immediately upon signup, includes magic link or code. |
+| ✅ OTP/2FA Verification | `Your WillTank Login Code` | Triggered when user enables 2FA or logs in with OTP. |
+| ✅ New Will Created | `Your Will Has Been Created` | Sent once a will is successfully completed and stored. |
+| ✅ Beneficiary Invited | `You've Been Named in a Will` | Sent to the beneficiary email. Should include user name, role, and a secure link to review or accept. |
+| ✅ Document Upload | `A New Document Has Been Uploaded` | Sent when a user uploads documents to their will. |
+| ✅ Video Message Recorded | `Your Video Message Has Been Saved` | Confirmation of successful recording. |
+| ✅ Plan Purchased | `Thank You for Subscribing to [Plan]` | After Stripe checkout success webhook. |
+| ✅ Periodic Check-In (if enabled) | `WillTank Check-In – Are You Okay?` | A scheduled check-in email if user is inactive (future feature). |
+| ✅ 5-Way Death Confirmation Chain (if triggered) | `A Confirmation is Required` | Sent to 5 users for death confirmation. Must be secure and uniquely tokenized. |
+| ✅ Support Contact Reply | `We've Received Your Message` | Confirmation when the user sends a support request. |
+| ❌ Payment Failed (Stripe webhook) | `Action Required – Your Payment Failed` | Retry or update billing. |
+
+---
+
+### 🛑 PREVENTION & VALIDATION
+
+- Emails should NOT be sent multiple times for same action (use flags in DB or logs).
+- Dashboard notifications should NOT pile up for repeated actions.
+- Test all webhooks and Edge Functions **individually** before deploying to production.
+- Ensure **unsubscribe footer** on non-critical (optional) emails where applicable.
+
+---
+
+### 🧠 AI Assistant Instructions
+
+- Do NOT use hardcoded logic or dummy delays.
+- Use **Supabase Edge Functions or Webhooks** for triggering emails.
+- Save all dashboard notifications to `notifications` table:
+  ```sql
+  id | user_id | title | body | timestamp | read | link
+  ```
+- Respect **user’s timezone** where needed for emails.
+- Avoid sending emails for "draft saves" unless user manually opts in.
+- Emails must be **instantly triggered**, not delayed or queued.
+
+---
+
+Once this is implemented, you'll have a **bulletproof alert + notification system** that’s fully reliable and matches a real-world SaaS standard. When you're ready to test emails or set up additional templates, I can help generate perfect examples too.
+
+Ready for the next upgrade, partner?
