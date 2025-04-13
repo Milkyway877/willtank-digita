@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
+import TwoFactorAuth from '@/components/settings/TwoFactorAuth';
 
 const SettingsPage: React.FC = () => {
   const [, navigate] = useLocation();
@@ -396,18 +397,7 @@ const SettingsPage: React.FC = () => {
               </div>
               
               <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <h4 className="font-medium text-gray-800 dark:text-white mb-4">Two-Factor Authentication</h4>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Enhance your account security with two-factor authentication.
-                    </p>
-                  </div>
-                  <button className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm">
-                    Enable 2FA
-                  </button>
-                </div>
+                <TwoFactorAuth />
               </div>
             </div>
           </motion.div>

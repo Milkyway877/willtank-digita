@@ -87,7 +87,7 @@ export function TwoFactorProvider({ children }: { children: ReactNode }) {
       toast({
         title: '2FA Enabled',
         description: 'Two-factor authentication has been successfully enabled.',
-        variant: 'success',
+        variant: 'default',
       });
       
       // If backup codes are returned, store them
@@ -139,7 +139,7 @@ export function TwoFactorProvider({ children }: { children: ReactNode }) {
         toast({
           title: 'Verification Successful',
           description: 'Token is valid.',
-          variant: 'success',
+          variant: 'default',
         });
       } else {
         toast({

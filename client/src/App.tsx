@@ -35,6 +35,7 @@ import Completion from "@/pages/Completion";
 import EmailTest from "@/pages/EmailTest";
 import { AuthProvider } from "@/hooks/use-auth";
 import { NotificationsProvider } from "@/hooks/use-notifications";
+import { TwoFactorProvider } from "@/hooks/use-2fa";
 import { ProtectedRoute } from "./lib/protected-route";
 
 function Router() {
@@ -86,9 +87,11 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <NotificationsProvider>
-          <Router />
-          <UnfinishedWillNotification />
-          <Toaster />
+          <TwoFactorProvider>
+            <Router />
+            <UnfinishedWillNotification />
+            <Toaster />
+          </TwoFactorProvider>
         </NotificationsProvider>
       </AuthProvider>
     </QueryClientProvider>

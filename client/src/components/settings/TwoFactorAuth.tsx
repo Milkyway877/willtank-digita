@@ -28,7 +28,11 @@ const TwoFactorAuth: React.FC = () => {
   const [showBackupCodes, setShowBackupCodes] = useState(false);
   
   // Get the generated secret if available
-  const { data: secretData } = useQuery({
+  const { data: secretData } = useQuery<{
+    secret: string;
+    qrCode: string;
+    otpAuthUrl: string;
+  }>({
     queryKey: ['/api/2fa/secret'],
     enabled: false,
   });
@@ -162,7 +166,7 @@ const TwoFactorAuth: React.FC = () => {
   }
   
   // Setup in progress (QR code shown)
-  if (secretData) {
+  if (secretData && secretData.qrCode && secretData.secret) {
     return (
       <motion.div 
         initial={{ opacity: 0, height: 0 }}
