@@ -2,11 +2,14 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { initializeScheduler, triggerCheckInEmails } from "./scheduler";
-import { storage } from "./storage";
+import { storage as dbStorage } from "./storage";
 import { db } from "./db";
-import { checkInResponses, users, wills } from "@shared/schema";
+import { checkInResponses, users, wills, willDocuments } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { sendEmail, createVerificationEmailTemplate } from "./email";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 
 import { getChatCompletion, getStreamingChatCompletion } from './openai';
 
@@ -98,6 +101,328 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   // Auth routes and scheduler have already been initialized above
 
+  // Configure file uploads for documents and videos
+  const uploadDir = path.join(process.cwd(), 'uploads');
+  // Create uploads directory if it doesn't exist
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+  
+  // Configure multer for file uploads
+  const fileStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, uniqueSuffix + path.extname(file.originalname));
+    }
+  });
+  
+  const upload = multer({ 
+    storage: fileStorage, 
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB file size limit
+  });
+  
+  // Will API endpoints
+  app.get("/api/wills", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const userWills = await dbStorage.getWillsByUserId(userId);
+      
+      return res.status(200).json(userWills);
+    } catch (error) {
+      console.error("Error fetching wills:", error);
+      return res.status(500).json({ error: "Failed to fetch wills" });
+    }
+  });
+  
+  app.get("/api/wills/:id", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const willId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      // Security check: ensure will belongs to current user
+      if (will.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized access to will" });
+      }
+      
+      return res.status(200).json(will);
+    } catch (error) {
+      console.error("Error fetching will:", error);
+      return res.status(500).json({ error: "Failed to fetch will details" });
+    }
+  });
+  
+  app.post("/api/wills", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const { templateId, title, content } = req.body;
+      
+      if (!title || !content) {
+        return res.status(400).json({ error: "Title and content are required" });
+      }
+      
+      const newWill = await dbStorage.createWill({
+        userId,
+        templateId,
+        title,
+        content,
+        status: "draft"
+      });
+      
+      return res.status(201).json(newWill);
+    } catch (error) {
+      console.error("Error creating will:", error);
+      return res.status(500).json({ error: "Failed to create will" });
+    }
+  });
+  
+  app.put("/api/wills/:id", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const willId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      const { title, content, status } = req.body;
+      
+      // Check if will exists and belongs to user
+      const existingWill = await dbStorage.getWillById(willId);
+      
+      if (!existingWill) {
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      if (existingWill.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized access to will" });
+      }
+      
+      const updatedWill = await dbStorage.updateWill(willId, {
+        title,
+        content,
+        status,
+        lastUpdated: new Date()
+      });
+      
+      return res.status(200).json(updatedWill);
+    } catch (error) {
+      console.error("Error updating will:", error);
+      return res.status(500).json({ error: "Failed to update will" });
+    }
+  });
+  
+  // Document API endpoints
+  app.get("/api/wills/:willId/documents", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const willId = parseInt(req.params.willId);
+      const userId = req.user!.id;
+      
+      // Check if will belongs to user
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      if (will.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized access to will documents" });
+      }
+      
+      const documents = await dbStorage.getWillDocuments(willId);
+      
+      return res.status(200).json(documents);
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      return res.status(500).json({ error: "Failed to fetch documents" });
+    }
+  });
+  
+  app.post("/api/wills/:willId/documents", upload.single('file'), async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      const willId = parseInt(req.params.willId);
+      const userId = req.user!.id;
+      
+      // Check if will belongs to user
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        // Remove uploaded file if will doesn't exist
+        fs.unlinkSync(req.file.path);
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      if (will.userId !== userId) {
+        // Remove uploaded file if user doesn't own the will
+        fs.unlinkSync(req.file.path);
+        return res.status(403).json({ error: "Unauthorized access to will" });
+      }
+      
+      // Calculate relative file URL path
+      const fileUrl = `/uploads/${path.basename(req.file.path)}`;
+      
+      // Add document to database
+      const newDocument = await dbStorage.addWillDocument({
+        willId,
+        fileName: req.file.originalname,
+        fileType: req.file.mimetype,
+        fileSize: req.file.size,
+        fileUrl
+      });
+      
+      return res.status(201).json(newDocument);
+    } catch (error) {
+      console.error("Error uploading document:", error);
+      // Clean up file if it was uploaded
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(500).json({ error: "Failed to upload document" });
+    }
+  });
+  
+  app.delete("/api/documents/:id", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const documentId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
+      // Get document
+      const [document] = await db
+        .select()
+        .from(willDocuments)
+        .where(eq(willDocuments.id, documentId));
+      
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      // Get will to check ownership
+      const will = await dbStorage.getWillById(document.willId);
+      
+      if (!will || will.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized access to document" });
+      }
+      
+      // Delete file from filesystem
+      const filePath = path.join(process.cwd(), document.fileUrl);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      
+      // Delete from database
+      await dbStorage.deleteWillDocument(documentId);
+      
+      return res.status(200).json({ message: "Document deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting document:", error);
+      return res.status(500).json({ error: "Failed to delete document" });
+    }
+  });
+  
+  // Will template endpoints
+  app.get("/api/will-templates", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const templates = await dbStorage.getWillTemplates();
+      return res.status(200).json(templates);
+    } catch (error) {
+      console.error("Error fetching will templates:", error);
+      return res.status(500).json({ error: "Failed to fetch will templates" });
+    }
+  });
+  
+  app.get("/api/will-templates/:id", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const templateId = parseInt(req.params.id);
+      const template = await dbStorage.getWillTemplateById(templateId);
+      
+      if (!template) {
+        return res.status(404).json({ error: "Template not found" });
+      }
+      
+      return res.status(200).json(template);
+    } catch (error) {
+      console.error("Error fetching will template:", error);
+      return res.status(500).json({ error: "Failed to fetch will template" });
+    }
+  });
+  
+  // Skyler context-aware endpoints
+  app.get("/api/skyler/user-context", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      
+      // Get user's wills to provide context for Skyler
+      const userWills = await dbStorage.getWillsByUserId(userId);
+      
+      // Get only relevant information for context
+      const context = {
+        user: {
+          username: req.user!.username,
+          fullName: req.user!.fullName,
+        },
+        wills: userWills.map(will => ({
+          id: will.id,
+          title: will.title,
+          status: will.status,
+          lastUpdated: will.lastUpdated,
+          createdAt: will.createdAt
+        }))
+      };
+      
+      return res.status(200).json(context);
+    } catch (error) {
+      console.error("Error fetching Skyler context:", error);
+      return res.status(500).json({ error: "Failed to fetch context for Skyler" });
+    }
+  });
+
   // Check-in Routes
 
   // Confirm check-in (user is alive)
@@ -115,7 +440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid token" });
       }
 
-      const user = await storage.getUser(Number(userId));
+      const user = await dbStorage.getUser(Number(userId));
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
