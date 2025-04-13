@@ -143,6 +143,10 @@ export function useSkyler() {
       });
       
       if (!response.ok) {
+        if (response.status === 401) {
+          console.error('Authentication error: User not authenticated');
+          throw new Error('You need to be authenticated to use Skyler. Please log in again.');
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
@@ -195,7 +199,20 @@ export function useSkyler() {
       setMessages(prevMessages => [...prevMessages, assistantMessage]);
     } catch (err) {
       console.error('Error in streaming message:', err);
-      setError('Failed to communicate with Skyler. Please try again.');
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : 'Failed to communicate with Skyler. Please try again.';
+      setError(errorMessage);
+      
+      // Add error message to chat for better user experience
+      const errorResponseMessage: SkylerMessage = {
+        id: `assistant-error-${Date.now()}`,
+        role: 'assistant',
+        content: `Sorry, I encountered an error: ${errorMessage}. Please try again or contact support if this persists.`,
+        timestamp: new Date()
+      };
+      
+      setMessages(prevMessages => [...prevMessages, errorResponseMessage]);
     } finally {
       setIsStreaming(false);
       setStreamingContent('');
