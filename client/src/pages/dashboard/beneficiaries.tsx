@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { Users, UserPlus, User, Mail, Phone, MapPin, Edit, Trash, Plus, X, Save, ArrowLeft } from 'lucide-react';
+import { Users, UserPlus, User, Mail, Phone, MapPin, Edit, Trash, X, ArrowLeft, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface Beneficiary {
   id: string;
@@ -12,39 +15,23 @@ interface Beneficiary {
   phone?: string;
   location?: string;
   share?: string;
+  willId?: number;
+  userId?: number;
 }
 
 const BeneficiariesPage: React.FC = () => {
   const [, navigate] = useLocation();
-  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([
-    {
-      id: '1',
-      name: 'Jane Smith',
-      relationship: 'Spouse',
-      email: 'jane.smith@example.com',
-      phone: '+1 (555) 123-4567',
-      location: 'New York, NY',
-      share: '50%'
-    },
-    {
-      id: '2',
-      name: 'Michael Johnson',
-      relationship: 'Son',
-      email: 'michael.j@example.com',
-      phone: '+1 (555) 987-6543',
-      location: 'Boston, MA',
-      share: '25%'
-    },
-    {
-      id: '3',
-      name: 'Sarah Williams',
-      relationship: 'Daughter',
-      email: 'sarah.w@example.com',
-      phone: '+1 (555) 456-7890',
-      location: 'Chicago, IL',
-      share: '25%'
+  const { toast } = useToast();
+  
+  // Fetch beneficiaries from API
+  const { data: beneficiaries, isLoading, error } = useQuery<Beneficiary[]>({
+    queryKey: ['/api/beneficiaries'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/beneficiaries');
+      if (!res.ok) throw new Error('Failed to fetch beneficiaries');
+      return res.json();
     }
-  ]);
+  });
   
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editingBeneficiary, setEditingBeneficiary] = useState<Beneficiary | null>(null);
@@ -89,32 +76,95 @@ const BeneficiariesPage: React.FC = () => {
     });
   };
   
+  // Create mutation for adding beneficiaries
+  const createBeneficiaryMutation = useMutation({
+    mutationFn: async (beneficiary: Omit<Beneficiary, 'id'>) => {
+      const res = await apiRequest('POST', '/api/beneficiaries', beneficiary);
+      if (!res.ok) throw new Error('Failed to create beneficiary');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Beneficiary added successfully',
+        variant: 'default',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/beneficiaries'] });
+      setIsAddingNew(false);
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: `Failed to add beneficiary: ${error.message}`,
+        variant: 'destructive',
+      });
+    }
+  });
+
+  // Update mutation for editing beneficiaries
+  const updateBeneficiaryMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string, data: Omit<Beneficiary, 'id'> }) => {
+      const res = await apiRequest('PUT', `/api/beneficiaries/${id}`, data);
+      if (!res.ok) throw new Error('Failed to update beneficiary');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Beneficiary updated successfully',
+        variant: 'default',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/beneficiaries'] });
+      setEditingBeneficiary(null);
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: `Failed to update beneficiary: ${error.message}`,
+        variant: 'destructive',
+      });
+    }
+  });
+
+  // Delete mutation for removing beneficiaries
+  const deleteBeneficiaryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest('DELETE', `/api/beneficiaries/${id}`);
+      if (!res.ok) throw new Error('Failed to delete beneficiary');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Success',
+        description: 'Beneficiary removed successfully',
+        variant: 'default',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/beneficiaries'] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: `Failed to delete beneficiary: ${error.message}`,
+        variant: 'destructive',
+      });
+    }
+  });
+
   const handleDeleteClick = (id: string) => {
-    setBeneficiaries(prev => prev.filter(b => b.id !== id));
+    if (confirm('Are you sure you want to remove this beneficiary?')) {
+      deleteBeneficiaryMutation.mutate(id);
+    }
   };
   
   const handleSaveClick = () => {
     if (editingBeneficiary) {
-      // Update existing beneficiary
-      setBeneficiaries(prev => 
-        prev.map(b => 
-          b.id === editingBeneficiary.id 
-            ? { ...formData, id: editingBeneficiary.id } 
-            : b
-        )
-      );
+      updateBeneficiaryMutation.mutate({ 
+        id: editingBeneficiary.id,
+        data: formData
+      });
     } else if (isAddingNew) {
-      // Add new beneficiary
-      const newBeneficiary: Beneficiary = {
-        ...formData,
-        id: Date.now().toString()
-      };
-      setBeneficiaries(prev => [...prev, newBeneficiary]);
+      createBeneficiaryMutation.mutate(formData);
     }
-    
-    // Reset the form
-    setIsAddingNew(false);
-    setEditingBeneficiary(null);
   };
   
   const handleCancelClick = () => {
@@ -123,10 +173,10 @@ const BeneficiariesPage: React.FC = () => {
   };
   
   // Calculate total share allocation
-  const totalShare = beneficiaries.reduce((sum, b) => {
+  const totalShare = beneficiaries ? beneficiaries.reduce((sum, b) => {
     const shareValue = parseInt(b.share?.replace('%', '') || '0');
     return sum + shareValue;
-  }, 0);
+  }, 0) : 0;
   
   return (
     <DashboardLayout title="Beneficiaries">
@@ -158,13 +208,25 @@ const BeneficiariesPage: React.FC = () => {
                 <Users className="h-5 w-5 text-primary mr-2" />
                 <h3 className="font-semibold text-gray-800 dark:text-white">My Beneficiaries</h3>
                 <span className="ml-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full">
-                  {beneficiaries.length}
+                  {beneficiaries ? beneficiaries.length : 0}
                 </span>
               </div>
             </div>
             
             <div className="p-4">
-              {beneficiaries.length === 0 ? (
+              {isLoading ? (
+                <div className="flex justify-center items-center py-12">
+                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                </div>
+              ) : error ? (
+                <div className="text-center py-10">
+                  <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                  <h4 className="text-lg font-medium text-gray-800 dark:text-white mb-2">Error loading beneficiaries</h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    There was a problem loading your beneficiaries. Please try again.
+                  </p>
+                </div>
+              ) : beneficiaries && beneficiaries.length === 0 ? (
                 <div className="text-center py-10">
                   <div className="mx-auto w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-4">
                     <Users className="h-8 w-8 text-gray-400 dark:text-gray-500" />
@@ -376,7 +438,7 @@ const BeneficiariesPage: React.FC = () => {
                         : 'bg-primary text-white hover:bg-primary-dark'
                     } transition-colors`}
                   >
-                    <Save className="h-4 w-4 mr-1.5" />
+                    <CheckCircle className="h-4 w-4 mr-1.5" />
                     {editingBeneficiary ? 'Update Beneficiary' : 'Save Beneficiary'}
                   </button>
                 </div>
@@ -435,7 +497,7 @@ const BeneficiariesPage: React.FC = () => {
                 </div>
               )}
               
-              {beneficiaries.length > 0 && (
+              {beneficiaries && beneficiaries.length > 0 && (
                 <div className="mt-4">
                   <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Beneficiary Shares</h4>
                   <div className="space-y-2">

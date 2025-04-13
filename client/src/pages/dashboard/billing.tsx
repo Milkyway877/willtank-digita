@@ -391,40 +391,66 @@ const BillingPage: React.FC = () => {
             </div>
             
             <div className="p-6">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead>
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                    <tr>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">May 1, 2024</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">Gold Plan (Monthly)</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">$29.00</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs">
-                          Paid
-                        </span>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">Apr 1, 2024</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">Gold Plan (Monthly)</td>
-                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">$29.00</td>
-                      <td className="px-4 py-3 text-sm">
-                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs">
-                          Paid
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              {/* Fetch billing history from API */}
+              {isLoadingPlans || isLoadingSubscription ? (
+                <div className="flex justify-center items-center py-8">
+                  <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                </div>
+              ) : subscription && subscription.planType === "free" ? (
+                <div className="text-center py-6">
+                  <p className="text-gray-600 dark:text-gray-400">
+                    No billing history available. You're currently on the free plan.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead>
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                      {subscription && subscription.transactions && subscription.transactions.length > 0 ? (
+                        subscription.transactions.map((transaction, index) => (
+                          <tr key={index}>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                              {new Date(transaction.date).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                              {transaction.description}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                              ${transaction.amount.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                transaction.status === 'paid' 
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                                  : transaction.status === 'pending'
+                                  ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                                  : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                              }`}>
+                                {transaction.status === 'paid' ? 'Paid' : 
+                                 transaction.status === 'pending' ? 'Pending' : 'Failed'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                            No transactions found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </div>
