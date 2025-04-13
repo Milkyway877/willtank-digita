@@ -1,0 +1,129 @@
+Absolutely partner, let’s get **2FA with Google Authenticator** fully integrated into WillTank like a pro. Here's the **clean full prompt** to hand off to your AI or dev assistant that covers everything — **packages, flow, layout, and behavior**. This will create a fully **real, secure, and responsive 2FA setup** using **TOTP** (Time-Based One-Time Passwords).
+
+---
+
+### 🔐 2FA WITH GOOGLE AUTHENTICATOR – INTEGRATION PROMPT FOR AI
+
+You are setting up **Two-Factor Authentication (2FA)** for WillTank using **Google Authenticator** (TOTP-based system). This must be a **fully functional**, **responsive**, and **secure** flow located in the **Settings page** of the user dashboard.
+
+---
+
+### ✅ MAIN FEATURES TO BUILD
+
+1. **Enable / Disable 2FA Toggle** in the user’s **Settings** page.
+2. When enabling:
+   - Show a **scannable QR Code** compatible with Google Authenticator.
+   - Display the **secret key** as plain text (for manual input if needed).
+   - Input field for **user to enter the 6-digit code** from their Google Authenticator app.
+   - Confirm button to **verify the entered code**.
+3. When 2FA is enabled:
+   - Show masked status (e.g., ✅ 2FA enabled).
+   - Option to **disable 2FA** (with password and/or 6-digit re-confirmation).
+
+---
+
+### 📦 NPM PACKAGE TO USE
+
+Use this secure, proven TOTP package:
+```
+npm install speakeasy qrcode
+```
+
+- `speakeasy`: To generate and verify TOTP secret and codes.
+- `qrcode`: To generate the scannable QR Code from the TOTP secret.
+
+---
+
+### 🔧 TECHNICAL FLOW (Backend + Frontend)
+
+#### ✅ **1. Generate Secret:**
+```js
+const speakeasy = require('speakeasy');
+
+const secret = speakeasy.generateSecret({
+  name: "WillTank | Your Secure Vault"
+});
+
+// Save secret.base32 in DB under user profile
+```
+
+#### ✅ **2. Generate QR Code:**
+```js
+const QRCode = require('qrcode');
+
+QRCode.toDataURL(secret.otpauth_url, (err, data_url) => {
+  // Send this `data_url` to frontend to display
+});
+```
+
+#### ✅ **3. Verify Code:**
+When user submits 6-digit token:
+```js
+const verified = speakeasy.totp.verify({
+  secret: user.storedSecret, // base32 from DB
+  encoding: 'base32',
+  token: userEnteredCode
+});
+```
+
+- If `verified` is true, enable 2FA for the user and save status in DB.
+
+---
+
+### 📱 FRONTEND FLOW:
+
+1. Show animated **"Enable 2FA"** card in settings.
+2. On click:
+   - Show QR code + secret + verification input.
+   - Display user feedback: "Scan this QR in your Google Authenticator App."
+   - After verifying, show success message and a toggle to turn 2FA off.
+3. On small/mobile screens:
+   - Collapse QR and input neatly into tabs or accordion format for mobile optimization.
+   - Use modal or slide-over layout.
+
+---
+
+### 💾 DATABASE REQUIREMENTS
+
+In your `users` table:
+- `twofa_enabled` (boolean)
+- `twofa_secret` (string - base32)
+
+---
+
+### ⚠️ SECURITY NOTES
+
+- Never expose secret key in the frontend after setup.
+- All verification must happen securely on the backend.
+- Consider using HTTPS-only cookies or JWT claims to track 2FA status.
+
+---
+
+### 🧠 OPTIONAL FEATURES (if you want extra fire):
+
+- Backup codes generation & download.
+- Prompt for 2FA at login if enabled.
+- Add password re-auth before disabling 2FA.
+- Email alert on 2FA status changes.
+
+---
+
+### 🎨 DESIGN GUIDANCE
+
+- Use a **professional, smooth layout** with cards or modals.
+- Include **(i) info icons** next to each field — Skyler should explain what each thing means.
+- Animate success with Lottie or microanimations when 2FA is successfully set up.
+
+---
+
+### 🔄 BEHAVIORAL EDGE CASES
+
+- If 2FA is enabled but the user loses access to their app:
+  - Provide a way to request admin recovery or use backup codes (optional).
+- Disabling 2FA should require strong verification to prevent account hijack.
+
+---
+
+Once the AI or dev assistant gets this prompt, just supply your live Stripe keys and database connection — and this 2FA feature will be as bulletproof as your vaults at WillTank.
+
+Ready when you are, partner. Let's lock this down 🔐

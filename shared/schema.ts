@@ -18,6 +18,10 @@ export const users = pgTable("users", {
   preferences: json("preferences"), // Storing user preferences as JSON
   lastCheckIn: timestamp("last_check_in"),
   nextCheckInDue: timestamp("next_check_in_due"),
+  // 2FA fields
+  twoFactorEnabled: boolean("twofa_enabled").default(false),
+  twoFactorSecret: text("twofa_secret"),
+  backupCodes: json("backup_codes"), // Storing backup codes as JSON array
   // Stripe-related fields
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
