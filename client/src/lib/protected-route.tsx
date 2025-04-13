@@ -39,6 +39,26 @@ export function ProtectedRoute({
       </Route>
     );
   }
+  
+  // If user exists, email is verified, but onboarding is not completed
+  // and they're not already on the onboarding path, redirect to onboarding
+  const isOnboardingPath = path === '/onboarding';
+  if (
+    user && 
+    user.isEmailVerified && 
+    !user.hasCompletedOnboarding && 
+    !isOnboardingPath && 
+    // Don't redirect in specific paths that are okay to visit before onboarding
+    !/^\/auth/.test(path) && 
+    path !== '/subscription' && 
+    path !== '/pricing'
+  ) {
+    return (
+      <Route path={path}>
+        <Redirect to="/onboarding" />
+      </Route>
+    );
+  }
 
   return (
     <Route path={path}>

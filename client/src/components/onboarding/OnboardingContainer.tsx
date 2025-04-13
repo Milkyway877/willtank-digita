@@ -2,6 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Link, useLocation } from 'wouter'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { apiRequest } from '@/lib/queryClient'
+import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/use-auth'
 
 // Steps
 import WelcomeStep from './steps/WelcomeStep'
@@ -27,19 +31,48 @@ const totalSteps = 7
 
 const OnboardingContainer: React.FC = () => {
   const [, navigate] = useLocation();
+  const { user, refetchUser } = useAuth();
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0)
   const [selectedReason, setSelectedReason] = useState<string | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [animateOnExit, setAnimateOnExit] = useState(true)
   
-  // Check if onboarding is already completed
+  // Check if onboarding is already completed from the user object
   useEffect(() => {
-    const hasCompletedOnboarding = localStorage.getItem('onboardingCompleted') === 'true';
-    if (hasCompletedOnboarding) {
+    if (user?.hasCompletedOnboarding) {
       // Navigate to template selection if onboarding was already completed
       navigate('/template-selection');
     }
-  }, [navigate]);
+  }, [navigate, user]);
+  
+  // Mutation to complete onboarding
+  const completeOnboardingMutation = useMutation({
+    mutationFn: async (profile: any) => {
+      const res = await apiRequest('POST', '/api/onboarding/complete', { profile });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to complete onboarding');
+      }
+      return res.json();
+    },
+    onSuccess: async () => {
+      toast({
+        title: "Onboarding completed",
+        description: "Your preferences have been saved",
+      });
+      // Refetch user data to update the hasCompletedOnboarding flag
+      await refetchUser();
+      navigate('/template-selection');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to complete onboarding",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
   
   const handleNext = () => {
     if (currentStep < totalSteps - 1) {
@@ -56,8 +89,17 @@ const OnboardingContainer: React.FC = () => {
   const handleSkip = () => {
     setAnimateOnExit(false)
     setCurrentStep(totalSteps - 1) // Go to paywall
-    // Mark onboarding as completed when user skips to paywall
-    localStorage.setItem('onboardingCompleted', 'true');
+    
+    // Save user profile with preferences
+    const profile = {
+      preferences: {
+        reason: selectedReason || 'general',
+        template: selectedTemplate || 'standard',
+      }
+    };
+    
+    // Complete onboarding via API
+    completeOnboardingMutation.mutate(profile);
   }
 
   const selectReason = (reason: string) => {

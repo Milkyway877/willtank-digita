@@ -2,6 +2,10 @@ import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Check, X, Shield, Video, Archive, Users, Clock } from 'lucide-react'
 import { useLocation } from 'wouter'
+import { useMutation } from '@tanstack/react-query'
+import { apiRequest } from '@/lib/queryClient'
+import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/use-auth'
 
 type PaywallStepProps = {
   onNext: () => void
@@ -62,6 +66,8 @@ const plans: Plan[] = [
 const PaywallStep: React.FC<PaywallStepProps> = ({ onNext }) => {
   const [period, setPeriod] = useState<PricingPeriod>('yearly')
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const { refetchUser } = useAuth();
 
   const handlePeriodToggle = () => {
     setPeriod(prev => prev === 'monthly' ? 'yearly' : 'monthly')
@@ -70,19 +76,47 @@ const PaywallStep: React.FC<PaywallStepProps> = ({ onNext }) => {
   const formatPrice = (price: number) => {
     return price === 0 ? 'Free' : `$${price.toFixed(2)}`
   }
+  
+  // Mutation to complete onboarding
+  const completeOnboardingMutation = useMutation({
+    mutationFn: async (profile: any) => {
+      const res = await apiRequest('POST', '/api/onboarding/complete', { profile });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to complete onboarding');
+      }
+      return res.json();
+    },
+    onSuccess: async () => {
+      // Refetch user data to update the hasCompletedOnboarding flag
+      await refetchUser();
+      
+      // Navigate to subscription page
+      navigate('/subscription');
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to complete onboarding",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
 
   const handleSubscribe = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Store information that user has completed onboarding
-    localStorage.setItem('onboardingCompleted', 'true');
+    // Save user profile with preferences and billing period choice
+    const profile = {
+      billingPreference: period,
+      preferences: {
+        billingPeriod: period
+      }
+    };
     
-    // Store selected billing period
-    localStorage.setItem('selectedBillingPeriod', period);
-    
-    // Navigate directly to the subscription page without going through onNext
-    navigate('/subscription');
+    // Complete onboarding via API then navigate to subscription
+    completeOnboardingMutation.mutate(profile);
   }
 
   const yearlyDiscount = 16.7 // Approximately 16.7% discount
