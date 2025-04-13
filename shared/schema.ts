@@ -236,6 +236,40 @@ export const insertNotificationSchema = createInsertSchema(notifications).pick({
   relatedEntityId: true,
 });
 
+// Delivery Settings table
+export const deliverySettings = pgTable("delivery_settings", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  method: text("method").notNull(), // email, attorney, executor
+  contacts: json("contacts").notNull(), // array of contact objects
+  message: text("message"),
+  attorneyContact: json("attorney_contact"), // single contact object if method is attorney
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const usersToDeliverySettings = relations(users, ({ one }) => ({
+  deliverySettings: one(deliverySettings, {
+    fields: [users.id],
+    references: [deliverySettings.userId],
+  }),
+}));
+
+export const deliverySettingsToUsers = relations(deliverySettings, ({ one }) => ({
+  user: one(users, {
+    fields: [deliverySettings.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertDeliverySettingsSchema = createInsertSchema(deliverySettings).pick({
+  userId: true,
+  method: true,
+  contacts: true,
+  message: true,
+  attorneyContact: true,
+});
+
 // Export types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -252,3 +286,5 @@ export type WillDocument = typeof willDocuments.$inferSelect;
 export type WillTemplate = typeof willTemplates.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
+export type InsertDeliverySettings = z.infer<typeof insertDeliverySettingsSchema>;
+export type DeliverySettings = typeof deliverySettings.$inferSelect;

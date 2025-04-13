@@ -5,7 +5,15 @@ import { setupAuth, comparePasswords } from "./auth";
 import { initializeScheduler, triggerCheckInEmails } from "./scheduler";
 import { storage as dbStorage } from "./storage";
 import { db } from "./db";
-import { checkInResponses, users, wills, willDocuments, notifications, insertNotificationSchema } from "@shared/schema";
+import { 
+  checkInResponses, 
+  users, 
+  wills, 
+  willDocuments, 
+  notifications, 
+  insertNotificationSchema,
+  deliverySettings
+} from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { NotificationEvents } from "./notification-util";
@@ -1464,6 +1472,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating notification:", error);
       return res.status(500).json({ error: "Failed to create notification" });
+    }
+  });
+
+  // Delivery Settings routes
+  app.get("/api/delivery-settings", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const userId = req.user!.id;
+      
+      // Get the user's delivery settings
+      const [settings] = await db
+        .select()
+        .from(deliverySettings)
+        .where(eq(deliverySettings.userId, userId));
+      
+      if (!settings) {
+        return res.status(200).json({
+          method: '',
+          contacts: [],
+          message: '',
+          attorneyContact: null
+        });
+      }
+      
+      return res.status(200).json(settings);
+    } catch (error) {
+      console.error('Error fetching delivery settings:', error);
+      return res.status(500).json({ error: 'Failed to fetch delivery settings' });
+    }
+  });
+
+  app.post("/api/delivery-settings", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const userId = req.user.id;
+      const { method, contacts, message, attorneyContact } = req.body;
+      
+      // Check if delivery settings already exist for this user
+      const [existingSettings] = await db
+        .select()
+        .from(deliverySettings)
+        .where(eq(deliverySettings.userId, userId));
+      
+      let result;
+      
+      if (existingSettings) {
+        // Update existing settings
+        [result] = await db
+          .update(deliverySettings)
+          .set({
+            method,
+            contacts,
+            message,
+            attorneyContact,
+            updatedAt: new Date()
+          })
+          .where(eq(deliverySettings.userId, userId))
+          .returning();
+      } else {
+        // Create new settings
+        [result] = await db
+          .insert(deliverySettings)
+          .values({
+            userId,
+            method,
+            contacts,
+            message,
+            attorneyContact,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+      }
+      
+      return res.status(200).json(result);
+    } catch (error) {
+      console.error('Error saving delivery settings:', error);
+      return res.status(500).json({ error: 'Failed to save delivery settings' });
     }
   });
 
