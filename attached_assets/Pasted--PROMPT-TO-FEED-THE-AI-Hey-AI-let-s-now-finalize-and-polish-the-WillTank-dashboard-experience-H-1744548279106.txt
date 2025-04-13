@@ -1,0 +1,117 @@
+✅ PROMPT TO FEED THE AI:
+"Hey AI, let's now finalize and polish the WillTank dashboard experience. Here's exactly what needs to happen to ensure a seamless and professional user experience across the entire platform:"
+
+🧼 CLEAN DASHBOARD (NO DUMMY DATA)
+Remove all dummy stats, placeholders, fake cards, or fake charts from the main dashboard.
+
+All metrics, such as:
+
+Number of Wills created
+
+Number of Documents uploaded
+
+Number of Video Recordings
+
+Last will created
+
+Subscription status
+
+Account progress
+
+Any quick action buttons
+
+...should pull live data from the real connected database.
+
+Ensure all data is specific to the logged-in user (based on their Clerk ID or auth session).
+
+If there's no data yet, show a classy empty state with a helpful message and a call-to-action like “Create your first will.”
+
+📁 MY WILLS PAGE
+Should list only the wills created by the logged-in user.
+
+Each will entry should include:
+
+Will Title
+
+Date Created
+
+Status (Completed, Draft, etc.)
+
+Actions: Preview, Edit, Delete, Download
+
+Clicking Preview opens the professional PDF preview with the watermark and logo.
+
+Add a button: “+ Create New Will” that starts the AI-powered will creation flow.
+
+📄 DOCUMENTS PAGE
+Should show a real list of uploaded documents tied to the user's wills.
+
+Each item includes:
+
+Document Name
+
+Linked Will
+
+Date Uploaded
+
+Download / View button
+
+Allow users to upload new documents and associate them with specific wills.
+
+🎥 VIDEO PAGE
+Must show only videos recorded by the user.
+
+Fix the saving mechanism so videos:
+
+Are saved to the cloud (Supabase storage or similar)
+
+Are not downloaded directly to the user’s machine
+
+Can be streamed or downloaded inside the dashboard
+
+Include: video title, date recorded, duration, and play/download buttons.
+
+🧭 SIDEBAR FUNCTIONALITY
+Every page listed in the sidebar should:
+
+Pull live data and reflect the logged-in user's records
+
+Show polished layout using the WillTank color scheme and design system
+
+Not have any placeholder text, buttons, or icons
+
+🎨 THEME & DESIGN
+Make sure the WillTank theme is consistent across:
+
+Colors
+
+Fonts
+
+Icons
+
+Shadows, rounded corners, modern spacing
+
+Ensure Skyler is accessible from the dashboard too — floating button or side chat, ready to assist with questions or actions.
+
+🛠 INTEGRITY & STABILITY
+Do not break any existing features.
+
+Ensure all actions like:
+
+Deleting a will
+
+Editing a document
+
+Previewing videos
+
+Uploading assets
+
+Starting a new will
+
+...work without any crashes, lag, or broken UI.
+
+📡 BONUS (OPTIONAL):
+Add small toast notifications or status bars to confirm actions (e.g., “Will successfully deleted”, “Video uploaded”, etc.)
+
+Make all pages fully responsive and mobile-friendly.
+
