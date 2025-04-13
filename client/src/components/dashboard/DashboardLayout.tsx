@@ -66,8 +66,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </div>
       </div>
       
-      {/* Skyler AI Chatbot - Only shown after onboarding is complete */}
-      {user && user.isEmailVerified && (
+      {/* Skyler AI Chatbot - Shown for all authenticated users */}
+      {user && (
         <SkylerChatbot position="bottom-right" primaryColor="#4F46E5" secondaryColor="#6366F1" />
       )}
     </div>
