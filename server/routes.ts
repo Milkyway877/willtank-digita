@@ -931,6 +931,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         case 'customer.subscription.deleted':
           // Handle subscription cancellation logic
           break;
+          
+        case 'invoice.payment_failed':
+          const failedInvoice = event.data.object;
+          try {
+            // Get user ID by Stripe customer ID
+            const [user] = await db
+              .select()
+              .from(users)
+              .where(eq(users.stripeCustomerId, failedInvoice.customer as string));
+              
+            if (user) {
+              try {
+                await NotificationEvents.PAYMENT_FAILED(user.id, user.planType);
+              } catch (notificationError) {
+                console.error("Failed to create notification for payment failure:", notificationError);
+              }
+            }
+          } catch (error) {
+            console.error("Error handling payment failure:", error);
+          }
+          break;
       }
       
       return res.status(200).json({ received: true });
@@ -966,6 +987,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // You could send an email here using the existing email system
+      
+      // Create notification for support request
+      try {
+        await NotificationEvents.SUPPORT_REQUEST_SENT(userId);
+      } catch (notificationError) {
+        console.error("Failed to create notification for support request:", notificationError);
+        // Continue with response even if notification creation fails
+      }
       
       return res.status(200).json({
         success: true,

@@ -212,6 +212,50 @@ export const NotificationEvents = {
     });
   },
 
+  // Payment-related events
+  PAYMENT_FAILED: async (userId: number, planType?: string) => {
+    return createNotification({
+      userId,
+      title: "Payment Failed",
+      message: `Your recent payment${planType ? ` for ${planType} plan` : ''} failed. Please update your payment method.`,
+      type: "warning",
+      relatedEntityType: "payment",
+    });
+  },
+  
+  PAYMENT_RECEIVED: async (userId: number, planType?: string) => {
+    return createNotification({
+      userId,
+      title: "Payment Successful",
+      message: `Your payment${planType ? ` for ${planType} plan` : ''} has been successfully processed.`,
+      type: "success",
+      relatedEntityType: "payment",
+    });
+  },
+  
+  // Support-related events
+  SUPPORT_REQUEST_SENT: async (userId: number) => {
+    return createNotification({
+      userId,
+      title: "Support Request Received",
+      message: "We've received your message. Our team will respond shortly.",
+      type: "info",
+      relatedEntityType: "support",
+    });
+  },
+  
+  // Onboarding events
+  DRAFT_SAVED: async (userId: number, willId: number, willTitle: string) => {
+    return createNotification({
+      userId,
+      title: "Draft Saved",
+      message: `Your progress on "${willTitle}" has been saved successfully.`,
+      type: "info",
+      relatedEntityType: "will",
+      relatedEntityId: willId,
+    });
+  },
+  
   // Custom notification
   CUSTOM: async (userId: number, title: string, message: string, type: "info" | "warning" | "success" = "info") => {
     return createNotification({
