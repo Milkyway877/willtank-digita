@@ -256,6 +256,52 @@ export const NotificationEvents = {
     });
   },
   
+  // Will finalized/published notification
+  WILL_PUBLISHED: async (userId: number, willId: number, willTitle: string) => {
+    return createNotification({
+      userId,
+      title: "Will Published",
+      message: `Your will "${willTitle}" has been published and is now officially finalized.`,
+      type: "success",
+      relatedEntityType: "will",
+      relatedEntityId: willId,
+    });
+  },
+
+  // Payment method update notification
+  PAYMENT_METHOD_UPDATED: async (userId: number) => {
+    return createNotification({
+      userId,
+      title: "Payment Method Updated",
+      message: "Your payment method has been successfully updated.",
+      type: "success",
+      relatedEntityType: "payment",
+    });
+  },
+
+  // Security-related notifications
+  PASSWORD_CHANGED: async (userId: number) => {
+    return createNotification({
+      userId,
+      title: "Password Changed",
+      message: "Your account password was successfully changed.",
+      type: "success",
+      relatedEntityType: "security",
+    });
+  },
+
+  ACCOUNT_LOGIN: async (userId: number, deviceInfo?: string) => {
+    return createNotification({
+      userId,
+      title: "New Login Detected",
+      message: deviceInfo 
+        ? `Your account was accessed from a new device: ${deviceInfo}.` 
+        : "Your account was accessed from a new device.",
+      type: "info",
+      relatedEntityType: "security",
+    });
+  },
+
   // Custom notification
   CUSTOM: async (userId: number, title: string, message: string, type: "info" | "warning" | "success" = "info") => {
     return createNotification({

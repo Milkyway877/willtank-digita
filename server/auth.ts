@@ -396,8 +396,19 @@ export function setupAuth(app: Express) {
       await storage.clearVerificationCode(user.id);
       
       // Log the user in
-      req.login(user, (loginErr: Error | null) => {
+      req.login(user, async (loginErr: Error | null) => {
         if (loginErr) return next(loginErr);
+        
+        // Create login notification with device info
+        try {
+          const { NotificationEvents } = require('./notification-util');
+          const userAgent = req.headers['user-agent'] || 'Unknown device';
+          await NotificationEvents.ACCOUNT_LOGIN(user.id, userAgent);
+        } catch (notificationError) {
+          console.error("Failed to create notification for login:", notificationError);
+          // Continue with response even if notification creation fails
+        }
+
         return res.status(200).json({
           id: user.id,
           username: user.username,
@@ -531,6 +542,15 @@ export function setupAuth(app: Express) {
       // Update password
       const hashedPassword = await hashPassword(newPassword);
       await storage.updatePassword(user.id, hashedPassword);
+
+      // Create notification for password change
+      try {
+        const { NotificationEvents } = require('./notification-util');
+        await NotificationEvents.PASSWORD_CHANGED(user.id);
+      } catch (notificationError) {
+        console.error("Failed to create notification for password change:", notificationError);
+        // Continue with response even if notification creation fails
+      }
 
       return res.status(200).json({ message: "Password changed successfully" });
     } catch (err) {
