@@ -198,7 +198,35 @@ const BillingPage: React.FC = () => {
                     </button>
                     
                     {currentPlan.price > 0 && (
-                      <button className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md transition-colors">
+                      <button 
+                        onClick={async () => {
+                          if (confirm("Are you sure you want to cancel your subscription? You'll still have access until the end of your billing period.")) {
+                            try {
+                              const res = await fetch('/api/subscription/cancel', {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                },
+                              });
+                              
+                              if (res.ok) {
+                                alert("Your subscription has been canceled successfully. You'll continue to have access until the end of your billing period.");
+                                // Update UI state to reflect cancellation
+                                setPlans(plans.map(p => ({
+                                  ...p,
+                                  isCurrent: p.id === 'basic'
+                                })));
+                              } else {
+                                throw new Error("Failed to cancel subscription");
+                              }
+                            } catch (error) {
+                              console.error("Error canceling subscription:", error);
+                              alert("There was an error canceling your subscription. Please try again or contact support.");
+                            }
+                          }
+                        }}
+                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md transition-colors"
+                      >
                         Cancel Subscription
                       </button>
                     )}
@@ -483,6 +511,15 @@ const BillingPage: React.FC = () => {
                         Our Family plan covers up to 5 family members, perfect for ensuring everyone's future is secure.
                       </p>
                     </div>
+                  </div>
+                  
+                  <div className="mt-6">
+                    <button
+                      onClick={() => navigate('/pricing')}
+                      className="w-full px-4 py-3 border border-primary text-primary bg-primary/5 hover:bg-primary/10 rounded-lg transition-colors flex items-center justify-center"
+                    >
+                      View All Plans & Pricing
+                    </button>
                   </div>
                 </div>
                 
