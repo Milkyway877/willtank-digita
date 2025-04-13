@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { saveAs } from "file-saver";
+// No longer using file-saver for downloads
 
 interface VideoRecorderProps {
   onComplete?: (blob: Blob) => void;
@@ -101,10 +101,7 @@ const VideoRecorder: React.FC<VideoRecorderProps> = ({ onComplete, onSkip }) => 
           const videoURL = URL.createObjectURL(blob);
           setRecordedVideo(videoURL);
           
-          // Save locally (download)
-          saveAs(blob, "willtank-recording.webm");
-          
-          // Send blob to parent component
+          // Send blob to parent component for server upload
           if (onComplete) onComplete(blob);
         };
       } catch (err) {
