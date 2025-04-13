@@ -1,47 +1,29 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Bell, CheckCircle, Clock, Calendar, X, Info, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Search, Bell, CheckCircle, Clock, Calendar, X, Info, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { useNotifications } from '@/hooks/use-notifications';
 import { useIsMobile } from '@/hooks/use-mobile';
 import Logo from '@/components/ui/Logo';
+import { formatDistanceToNow } from 'date-fns';
 
 interface DashboardHeaderProps {
   title?: string;
 }
 
-// Notification data type
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-  type: 'info' | 'warning' | 'success';
-}
-
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
-  const [notificationCount, setNotificationCount] = useState<number>(2);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      title: 'Will Update Reminder',
-      message: 'It\'s been 6 months since your last will update. Consider reviewing your will.',
-      time: '2 hours ago',
-      read: false,
-      type: 'info'
-    },
-    {
-      id: '2',
-      title: 'Document Upload',
-      message: 'Your property deed was successfully uploaded and attached to your will.',
-      time: '1 day ago',
-      read: false,
-      type: 'success'
-    }
-  ]);
   
   const { user } = useAuth();
+  const { 
+    notifications, 
+    unreadCount, 
+    isLoading, 
+    markAsReadMutation, 
+    markAllAsReadMutation,
+    deleteNotificationMutation 
+  } = useNotifications();
+  
   const isMobile = useIsMobile();
   const notificationRef = useRef<HTMLDivElement>(null);
 
@@ -56,12 +38,6 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
   // Extract first name from email
   const userName = user?.username?.split('@')[0] || 'User';
   const formattedUserName = userName.charAt(0).toUpperCase() + userName.slice(1);
-
-  // Calculate number of unread notifications
-  useEffect(() => {
-    const unreadCount = notifications.filter(n => !n.read).length;
-    setNotificationCount(unreadCount);
-  }, [notifications]);
 
   // Handle clicks outside the notification panel
   useEffect(() => {
@@ -79,25 +55,27 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
 
   // Mark all notifications as read
   const markAllAsRead = () => {
-    setNotifications(prevNotifications => 
-      prevNotifications.map(notification => ({ ...notification, read: true }))
-    );
+    markAllAsReadMutation.mutate();
   };
 
   // Mark a specific notification as read
-  const markAsRead = (id: string) => {
-    setNotifications(prevNotifications => 
-      prevNotifications.map(notification => 
-        notification.id === id ? { ...notification, read: true } : notification
-      )
-    );
+  const markAsRead = (id: number) => {
+    markAsReadMutation.mutate(id);
   };
 
   // Delete a notification
-  const removeNotification = (id: string) => {
-    setNotifications(prevNotifications => 
-      prevNotifications.filter(notification => notification.id !== id)
-    );
+  const removeNotification = (id: number) => {
+    deleteNotificationMutation.mutate(id);
+  };
+
+  // Format the date as a relative time (e.g., "2 hours ago")
+  const formatRelativeTime = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return formatDistanceToNow(date, { addSuffix: true });
+    } catch (error) {
+      return 'Unknown time';
+    }
   };
 
   // Get icon based on notification type
@@ -161,13 +139,13 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
               aria-label="Notifications"
             >
               <Bell className="h-5 w-5" />
-              {notificationCount > 0 && (
+              {unreadCount > 0 && (
                 <motion.span 
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center"
                 >
-                  {notificationCount}
+                  {unreadCount}
                 </motion.span>
               )}
             </button>
@@ -185,19 +163,25 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
                   {/* Notification Header */}
                   <div className="px-4 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                     <h3 className="font-medium text-gray-800 dark:text-white">Notifications</h3>
-                    {notificationCount > 0 && (
+                    {unreadCount > 0 && (
                       <button 
                         onClick={markAllAsRead}
-                        className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                        disabled={markAllAsReadMutation.isPending}
+                        className="text-xs text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors disabled:opacity-50"
                       >
-                        Mark all as read
+                        {markAllAsReadMutation.isPending ? 'Marking...' : 'Mark all as read'}
                       </button>
                     )}
                   </div>
                   
                   {/* Notification List */}
                   <div className="overflow-y-auto max-h-72">
-                    {notifications.length === 0 ? (
+                    {isLoading ? (
+                      <div className="p-8 text-center">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-gray-400" />
+                        <p className="mt-2 text-sm text-gray-500">Loading notifications...</p>
+                      </div>
+                    ) : notifications.length === 0 ? (
                       <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                         <p>No notifications</p>
                       </div>
@@ -206,7 +190,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
                         <div 
                           key={notification.id}
                           className={`p-4 border-b border-gray-200 dark:border-gray-700 ${
-                            !notification.read 
+                            notification.isRead === false 
                               ? 'bg-blue-50 dark:bg-blue-900/10' 
                               : 'bg-white dark:bg-gray-800'
                           }`}
@@ -224,7 +208,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
                                 {notification.message}
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                                {notification.time}
+                                {formatRelativeTime(notification.createdAt.toString())}
                               </p>
                             </div>
                             <button 
@@ -233,8 +217,12 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ title }) => {
                                 e.stopPropagation();
                                 removeNotification(notification.id);
                               }}
+                              disabled={deleteNotificationMutation.isPending}
                             >
-                              <X className="h-4 w-4" />
+                              {deleteNotificationMutation.isPending ? 
+                                <Loader2 className="h-4 w-4 animate-spin" /> : 
+                                <X className="h-4 w-4" />
+                              }
                             </button>
                           </div>
                         </div>

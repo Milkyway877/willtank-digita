@@ -34,6 +34,7 @@ import FinalReview from "@/pages/FinalReview";
 import Completion from "@/pages/Completion";
 import EmailTest from "@/pages/EmailTest";
 import { AuthProvider } from "@/hooks/use-auth";
+import { NotificationsProvider } from "@/hooks/use-notifications";
 import { ProtectedRoute } from "./lib/protected-route";
 
 function Router() {
@@ -84,9 +85,11 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router />
-        <UnfinishedWillNotification />
-        <Toaster />
+        <NotificationsProvider>
+          <Router />
+          <UnfinishedWillNotification />
+          <Toaster />
+        </NotificationsProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

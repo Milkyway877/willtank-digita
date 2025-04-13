@@ -81,7 +81,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     isLoading,
   } = useQuery<Notification[], Error>({
     queryKey: ["/api/notifications"],
-    queryFn: getQueryFn(),
+    queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!user,
   });
 
@@ -91,7 +91,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     isLoading: isUnreadCountLoading,
   } = useQuery<{ count: number }, Error>({
     queryKey: ["/api/notifications/unread-count"],
-    queryFn: getQueryFn(),
+    queryFn: getQueryFn({ on401: "returnNull" }),
     enabled: !!user,
   });
 
