@@ -210,3 +210,4 @@ export type InsertWill = z.infer<typeof insertWillSchema>;
 export type Will = typeof wills.$inferSelect;
 export type InsertWillDocument = z.infer<typeof insertWillDocumentSchema>;
 export type WillDocument = typeof willDocuments.$inferSelect;
+export type WillTemplate = typeof willTemplates.$inferSelect;

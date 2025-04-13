@@ -1,0 +1,88 @@
+Absolutely partner, here's the **final AI implementation prompt** you can pass to your dev AI assistant to **completely upgrade WillTank** for **real data usage**, improved functionality, and flawless Will creation workflow — **without breaking anything**:
+
+---
+
+### 🚨 FULL IMPLEMENTATION INSTRUCTIONS FOR AI — REAL DATA, NO DUMMY DATA, ZERO BREAKAGE
+
+---
+
+### ✅ **1. REMOVE ALL DUMMY DATA ACROSS THE PLATFORM**
+
+- Replace all placeholder or mock data (dashboard stats, user lists, document previews, etc.) with **live data** directly from Supabase.
+- Any area using static `.json` files or hardcoded arrays must now query the real Supabase database using the appropriate client methods.
+- Ensure proper error handling: if data is missing or loading, display soft UI fallbacks like “No data yet” rather than breaking the page.
+
+---
+
+### 📁 **2. REAL DOCUMENTS, WILLS, VIDEOS MANAGEMENT**
+
+**In the database:**
+- Store created wills under a table like `wills`
+  - Fields: `id`, `user_id`, `title`, `content`, `status`, `created_at`, `updated_at`
+- Store video uploads under a `videos` table
+  - Fields: `id`, `will_id`, `user_id`, `url`, `created_at`
+- Store uploaded documents under a `documents` table
+  - Fields: `id`, `will_id`, `user_id`, `title`, `file_url`, `type`, `created_at`
+
+**In the app:**
+- Fetch these assets per authenticated user
+- Display them in:
+  - **My Will** section (preview + edit)
+  - **View only portal** for beneficiaries
+- Support file types like `.pdf`, `.docx`, `.mp4` using embedded previews
+
+---
+
+### ➕ **3. ADD “Create New Will” BUTTON**
+
+**Where:**
+- Add a clean, clearly visible button on the “My Will” page
+
+**Function:**
+- Button should redirect user back to the **will creation flow**, from the beginning
+- Label: `"Create New Will"` or `"Start Another Will"`
+
+**Logic:**
+- Allow a user to have multiple wills
+- Ensure each new will has a new `will_id` and is treated as a separate record
+- When user selects a previous will, they can view or edit it independently
+
+---
+
+### 🧠 **4. SKYLER INTEGRATION MUST RESPECT LIVE DATA**
+
+- When helping users create or edit wills, Skyler should:
+  - Pull real-time suggestions from the current input
+  - Offer helpful reminders based on previous wills
+- If a user asks “Show me my last will” or “How many wills do I have?”, Skyler should query Supabase and respond accordingly
+- Integrate Skyler into:
+  - New will creation
+  - My Wills view/edit experience
+
+---
+
+### 🧪 **5. QA CHECKLIST FOR AI TO FOLLOW**
+
+- [ ] All dummy data is gone.
+- [ ] All will/document/video data reflects real database entries.
+- [ ] “My Will” page displays a list of real wills.
+- [ ] “Create New Will” starts fresh but doesn’t overwrite past ones.
+- [ ] View/Edit functionality works per individual will.
+- [ ] Skyler intelligently guides and responds using real-time data.
+- [ ] No page or component crashes when no data is available.
+- [ ] All functionality remains intact. **NO BREAKAGE.**
+
+---
+
+### 💥 FINAL NOTE FOR THE AI:
+
+- ✅ Use Supabase auth to identify `user_id`
+- ✅ Fetch related `wills`, `documents`, `videos` from appropriate tables
+- ✅ Use smooth transitions and real-time data updates
+- ✅ DO NOT delete or modify any unrelated code
+- ✅ DO NOT hardcode ANY dummy values
+- ✅ Skyler must stay informed and usable throughout
+
+---
+
+Let me know when you're ready for me to help you write a production-ready `MyWills.jsx` file or API logic for Supabase – I got you, partner. 💼🔥

@@ -1,4 +1,9 @@
-import { users, type User, type InsertUser } from "@shared/schema";
+import { 
+  users, type User, type InsertUser,
+  wills, type Will, type InsertWill,
+  willDocuments, type WillDocument, type InsertWillDocument,
+  willTemplates, type WillTemplate
+} from "@shared/schema";
 import { db } from "./db";
 import { eq, and, lt, isNull, sql } from "drizzle-orm";
 import session from "express-session";
@@ -6,6 +11,7 @@ import connectPg from "connect-pg-simple";
 import { pool } from "./db";
 
 export interface IStorage {
+  // User authentication methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
@@ -18,6 +24,21 @@ export interface IStorage {
   clearVerificationCode(userId: number): Promise<void>;
   clearResetToken(userId: number): Promise<void>;
   sessionStore: session.Store;
+  
+  // Will management methods
+  getWillsByUserId(userId: number): Promise<Will[]>;
+  getWillById(willId: number): Promise<Will | undefined>;
+  createWill(will: InsertWill): Promise<Will>;
+  updateWill(willId: number, updates: Partial<Will>): Promise<Will | undefined>;
+  
+  // Will template methods
+  getWillTemplates(): Promise<WillTemplate[]>;
+  getWillTemplateById(templateId: number): Promise<WillTemplate | undefined>;
+  
+  // Document management methods
+  getWillDocuments(willId: number): Promise<WillDocument[]>;
+  addWillDocument(document: InsertWillDocument): Promise<WillDocument>;
+  deleteWillDocument(documentId: number): Promise<void>;
 }
 
 const PostgresSessionStore = connectPg(session);
@@ -156,6 +177,81 @@ export class DatabaseStorage implements IStorage {
         resetPasswordExpiry: null,
       })
       .where(eq(users.id, userId));
+  }
+
+  // Will management methods implementation
+  async getWillsByUserId(userId: number): Promise<Will[]> {
+    return db
+      .select()
+      .from(wills)
+      .where(eq(wills.userId, userId))
+      .orderBy(sql`${wills.createdAt} DESC`);
+  }
+
+  async getWillById(willId: number): Promise<Will | undefined> {
+    const [will] = await db
+      .select()
+      .from(wills)
+      .where(eq(wills.id, willId));
+    return will;
+  }
+
+  async createWill(will: InsertWill): Promise<Will> {
+    const [newWill] = await db
+      .insert(wills)
+      .values(will)
+      .returning();
+    return newWill;
+  }
+
+  async updateWill(willId: number, updates: Partial<Will>): Promise<Will | undefined> {
+    try {
+      const [updated] = await db
+        .update(wills)
+        .set(updates)
+        .where(eq(wills.id, willId))
+        .returning();
+      return updated;
+    } catch (error) {
+      console.error('Failed to update will:', error);
+      return undefined;
+    }
+  }
+
+  // Will template methods implementation
+  async getWillTemplates(): Promise<WillTemplate[]> {
+    return db.select().from(willTemplates);
+  }
+
+  async getWillTemplateById(templateId: number): Promise<WillTemplate | undefined> {
+    const [template] = await db
+      .select()
+      .from(willTemplates)
+      .where(eq(willTemplates.id, templateId));
+    return template;
+  }
+
+  // Document management methods implementation
+  async getWillDocuments(willId: number): Promise<WillDocument[]> {
+    return db
+      .select()
+      .from(willDocuments)
+      .where(eq(willDocuments.willId, willId))
+      .orderBy(sql`${willDocuments.uploadDate} DESC`);
+  }
+
+  async addWillDocument(document: InsertWillDocument): Promise<WillDocument> {
+    const [newDocument] = await db
+      .insert(willDocuments)
+      .values(document)
+      .returning();
+    return newDocument;
+  }
+
+  async deleteWillDocument(documentId: number): Promise<void> {
+    await db
+      .delete(willDocuments)
+      .where(eq(willDocuments.id, documentId));
   }
 }
 
