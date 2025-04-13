@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { CreditCard, Shield, Check, ArrowLeft, BadgeCheck, CreditCardIcon, Clock, Star, AlertCircle, Plus, Users } from 'lucide-react';
+import { CreditCard, Shield, Check, ArrowLeft, BadgeCheck, CreditCardIcon, Clock, Star, AlertCircle, Plus, Users, Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { apiRequest, queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface Plan {
   id: string;
@@ -25,74 +28,54 @@ interface PaymentMethod {
 
 const BillingPage: React.FC = () => {
   const [, navigate] = useLocation();
-  const [plans, setPlans] = useState<Plan[]>([
-    {
-      id: 'free',
-      name: 'Free',
-      price: 0,
-      billingCycle: 'monthly',
-      features: [
-        'Create and store one will',
-        'Annual reminders',
-        'Basic document storage',
-        'Email support'
-      ],
-      isCurrent: false
-    },
-    {
-      id: 'starter',
-      name: 'Starter',
-      price: 14.99,
-      billingCycle: 'monthly',
-      features: [
-        'Basic will creation',
-        'Document storage up to 100MB',
-        'Email support'
-      ],
-      isCurrent: false
-    },
-    {
-      id: 'gold',
-      name: 'Gold',
-      price: 29,
-      billingCycle: 'monthly',
-      features: [
-        'Everything in Starter',
-        'Multiple wills',
-        'Advanced templates',
-        'Document storage up to 1GB',
-        'Priority email support'
-      ],
-      isCurrent: true
-    },
-    {
-      id: 'platinum',
-      name: 'Platinum',
-      price: 55,
-      billingCycle: 'monthly',
-      features: [
-        'Everything in Gold',
-        'Unlimited wills',
-        'Custom templates',
-        'Document storage up to 10GB',
-        'Phone support',
-        'Legacy planning consultation'
-      ],
-      isCurrent: false
-    }
-  ]);
+  const { toast } = useToast();
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
-    {
-      id: 'card_1',
-      type: 'card',
-      lastFour: '4242',
-      expiryMonth: '12',
-      expiryYear: '2025',
-      brand: 'Visa',
-      isDefault: true
+  // Get subscription plans from the API
+  const { 
+    data: plans, 
+    isLoading: isLoadingPlans,
+    error: plansError
+  } = useQuery<Plan[]>({
+    queryKey: ['/api/subscription/plans'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/subscription/plans');
+      if (!res.ok) throw new Error('Failed to fetch subscription plans');
+      return res.json();
     }
-  ]);
+  });
+  
+  // Get user's current subscription
+  const { 
+    data: subscription, 
+    isLoading: isLoadingSubscription,
+    error: subscriptionError
+  } = useQuery({
+    queryKey: ['/api/subscription'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/subscription');
+      if (!res.ok) throw new Error('Failed to fetch subscription');
+      return res.json();
+    }
+  });
+  
+  // Fetch payment methods
+  const { 
+    data: paymentMethods = [], 
+    isLoading: isLoadingPaymentMethods 
+  } = useQuery<PaymentMethod[]>({
+    queryKey: ['/api/subscription/payment-methods'],
+    queryFn: async () => {
+      try {
+        const res = await apiRequest('GET', '/api/subscription/payment-methods');
+        if (!res.ok) return [];
+        return res.json();
+      } catch (error) {
+        console.error('Error fetching payment methods:', error);
+        return [];
+      }
+    }
+  });
   
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [isPlanChanging, setIsPlanChanging] = useState(false);
@@ -108,17 +91,39 @@ const BillingPage: React.FC = () => {
     setIsPlanChanging(true);
   };
   
-  const handleConfirmPlanChange = () => {
-    if (selectedPlan) {
-      // Update plans
-      setPlans(plans.map(p => ({
-        ...p,
-        isCurrent: p.id === selectedPlan.id
-      })));
+  // Mutation for changing plans
+  const changePlanMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      const res = await apiRequest('POST', '/api/subscription/change-plan', { planId });
+      if (!res.ok) throw new Error('Failed to change plan');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Plan updated",
+        description: "Your subscription plan has been updated successfully.",
+        variant: "default"
+      });
+      
+      // Invalidate queries to refetch data
+      queryClient.invalidateQueries({ queryKey: ['/api/subscription'] });
       
       // Reset UI state
       setIsPlanChanging(false);
       setSelectedPlan(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to change plan: ${error.message}`,
+        variant: "destructive"
+      });
+    }
+  });
+  
+  const handleConfirmPlanChange = () => {
+    if (selectedPlan) {
+      changePlanMutation.mutate(selectedPlan.id);
     }
   };
   
@@ -126,8 +131,6 @@ const BillingPage: React.FC = () => {
     setIsPlanChanging(false);
     setSelectedPlan(null);
   };
-  
-  const currentPlan = plans.find(p => p.isCurrent);
   
   return (
     <DashboardLayout title="Plan & Billing">
@@ -153,95 +156,133 @@ const BillingPage: React.FC = () => {
             </div>
             
             <div className="p-6">
-              {currentPlan && (
+              {isLoadingPlans || isLoadingSubscription ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <Loader2 className="h-10 w-10 text-primary animate-spin mb-4" />
+                  <p className="text-gray-600 dark:text-gray-400">Loading your subscription...</p>
+                </div>
+              ) : plansError || subscriptionError ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <AlertCircle className="h-10 w-10 text-red-500 mb-4" />
+                  <p className="text-gray-800 dark:text-gray-200 text-center font-medium mb-2">Failed to load subscription data</p>
+                  <p className="text-gray-600 dark:text-gray-400 text-center">
+                    There was an error loading your subscription details. Please try refreshing the page.
+                  </p>
+                </div>
+              ) : subscription && plans && plans.length > 0 ? (
                 <div>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h4 className="text-xl font-bold text-gray-800 dark:text-white">{currentPlan.name}</h4>
-                      <p className="text-gray-600 dark:text-gray-400 mt-1">
-                        ${currentPlan.price} / {currentPlan.billingCycle}
-                      </p>
-                    </div>
+                  {/* Get the current plan or use a default free plan */}
+                  {(() => {
+                    const currentPlan = plans.find(p => 
+                      subscription.planId ? p.id === subscription.planId : p.price === 0
+                    ) || plans.find(p => p.price === 0) || plans[0];
                     
-                    <div className="bg-green-100 dark:bg-green-900/30 px-3 py-1 rounded-full text-green-700 dark:text-green-400 text-sm font-medium">
-                      Active
-                    </div>
+                    return (
+                      <>
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h4 className="text-xl font-bold text-gray-800 dark:text-white">{currentPlan.name}</h4>
+                            <p className="text-gray-600 dark:text-gray-400 mt-1">
+                              ${currentPlan.price} / {currentPlan.billingCycle}
+                            </p>
+                          </div>
+                          
+                          <div className="bg-green-100 dark:bg-green-900/30 px-3 py-1 rounded-full text-green-700 dark:text-green-400 text-sm font-medium">
+                            Active
+                          </div>
+                        </div>
+                        
+                        <div className="mt-6">
+                          <h5 className="font-medium text-gray-800 dark:text-white mb-3">Plan Features</h5>
+                          <ul className="space-y-2">
+                            {currentPlan.features.map((feature, index) => (
+                              <li key={index} className="flex items-start">
+                                <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
+                                <span className="text-gray-600 dark:text-gray-400">{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        
+                        <div className="mt-6">
+                          <h5 className="font-medium text-gray-800 dark:text-white mb-3">Billing Cycle</h5>
+                          <div className="flex items-center space-x-4">
+                            <div className={`px-4 py-2 rounded-lg cursor-pointer border ${
+                              currentPlan.billingCycle === 'monthly' 
+                                ? 'border-primary bg-primary/5' 
+                                : 'border-gray-200 dark:border-gray-700'
+                            }`}>
+                              Monthly
+                            </div>
+                            <div className={`px-4 py-2 rounded-lg cursor-pointer border ${
+                              currentPlan.billingCycle === 'yearly' 
+                                ? 'border-primary bg-primary/5' 
+                                : 'border-gray-200 dark:border-gray-700'
+                            }`}>
+                              Yearly <span className="text-green-500 text-xs">Save 20%</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-6 flex space-x-3">
+                          <button 
+                            onClick={() => navigate('/pricing')}
+                            className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
+                          >
+                            View Pricing Plans
+                          </button>
+                          
+                          {currentPlan.price > 0 && subscription && (
+                            <button 
+                              onClick={async () => {
+                                if (confirm("Are you sure you want to cancel your subscription? You'll still have access until the end of your billing period.")) {
+                                  try {
+                                    const res = await apiRequest('POST', '/api/subscription/cancel');
+                                    if (!res.ok) throw new Error('Failed to cancel subscription');
+                                    
+                                    toast({
+                                      title: "Subscription canceled",
+                                      description: "Your subscription has been canceled successfully. You'll continue to have access until the end of your billing period.",
+                                      variant: "default"
+                                    });
+                                    
+                                    // Invalidate the subscription query to refetch data
+                                    queryClient.invalidateQueries({ queryKey: ['/api/subscription'] });
+                                  } catch (error) {
+                                    console.error("Error canceling subscription:", error);
+                                    toast({
+                                      title: "Error",
+                                      description: "There was an error canceling your subscription. Please try again or contact support.",
+                                      variant: "destructive"
+                                    });
+                                  }
+                                }
+                              }}
+                              className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md transition-colors"
+                            >
+                              Cancel Subscription
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="bg-gray-100 dark:bg-gray-700 p-5 rounded-full mb-6">
+                    <BadgeCheck className="h-12 w-12 text-gray-400 dark:text-gray-500" />
                   </div>
-                  
-                  <div className="mt-6">
-                    <h5 className="font-medium text-gray-800 dark:text-white mb-3">Plan Features</h5>
-                    <ul className="space-y-2">
-                      {currentPlan.features.map((feature, index) => (
-                        <li key={index} className="flex items-start">
-                          <Check className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                          <span className="text-gray-600 dark:text-gray-400">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div className="mt-6">
-                    <h5 className="font-medium text-gray-800 dark:text-white mb-3">Billing Cycle</h5>
-                    <div className="flex items-center space-x-4">
-                      <div className={`px-4 py-2 rounded-lg cursor-pointer border ${
-                        currentPlan.billingCycle === 'monthly' 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-gray-200 dark:border-gray-700'
-                      }`}>
-                        Monthly
-                      </div>
-                      <div className={`px-4 py-2 rounded-lg cursor-pointer border ${
-                        currentPlan.billingCycle === 'yearly' 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-gray-200 dark:border-gray-700'
-                      }`}>
-                        Yearly <span className="text-green-500 text-xs">Save 20%</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="mt-6 flex space-x-3">
-                    <button 
-                      onClick={() => navigate('/pricing')}
-                      className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
-                    >
-                      View Pricing Plans
-                    </button>
-                    
-                    {currentPlan.price > 0 && (
-                      <button 
-                        onClick={async () => {
-                          if (confirm("Are you sure you want to cancel your subscription? You'll still have access until the end of your billing period.")) {
-                            try {
-                              const res = await fetch('/api/subscription/cancel', {
-                                method: 'POST',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                },
-                              });
-                              
-                              if (res.ok) {
-                                alert("Your subscription has been canceled successfully. You'll continue to have access until the end of your billing period.");
-                                // Update UI state to reflect cancellation
-                                setPlans(plans.map(p => ({
-                                  ...p,
-                                  isCurrent: p.id === 'basic'
-                                })));
-                              } else {
-                                throw new Error("Failed to cancel subscription");
-                              }
-                            } catch (error) {
-                              console.error("Error canceling subscription:", error);
-                              alert("There was an error canceling your subscription. Please try again or contact support.");
-                            }
-                          }
-                        }}
-                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-md transition-colors"
-                      >
-                        Cancel Subscription
-                      </button>
-                    )}
-                  </div>
+                  <h4 className="text-lg font-medium text-gray-800 dark:text-white mb-2">No Active Plan</h4>
+                  <p className="text-gray-600 dark:text-gray-400 text-center max-w-md mb-6">
+                    You're currently on the free plan. Upgrade to access premium features and increase your storage limits.
+                  </p>
+                  <button
+                    onClick={() => navigate('/pricing')}
+                    className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors"
+                  >
+                    View Pricing Plans
+                  </button>
                 </div>
               )}
             </div>
@@ -450,13 +491,27 @@ const BillingPage: React.FC = () => {
                   <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-sm text-amber-700 dark:text-amber-300 flex items-start">
                     <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
                     <div>
-                      You are changing from <span className="font-medium">{currentPlan?.name}</span> to <span className="font-medium">{selectedPlan.name}</span>.
-                      {selectedPlan.price > (currentPlan?.price || 0) ? (
-                        ' You will be charged the difference immediately.'
-                      ) : selectedPlan.price < (currentPlan?.price || 0) ? (
-                        ' Your account will be credited with the difference.'
-                      ) : (
-                        ' There will be no change in billing.'
+                      {subscription && plans ? (() => {
+                        const currentPlan = plans.find(p => 
+                          subscription.planId ? p.id === subscription.planId : p.price === 0
+                        ) || plans.find(p => p.price === 0) || plans[0];
+                        
+                        return (
+                          <>
+                            You are changing from <span className="font-medium">{currentPlan.name}</span> to <span className="font-medium">{selectedPlan.name}</span>.
+                            {selectedPlan.price > currentPlan.price ? (
+                              ' You will be charged the difference immediately.'
+                            ) : selectedPlan.price < currentPlan.price ? (
+                              ' Your account will be credited with the difference.'
+                            ) : (
+                              ' There will be no change in billing.'
+                            )}
+                          </>
+                        );
+                      })() : (
+                        <>
+                          You are about to change to <span className="font-medium">{selectedPlan.name}</span> plan.
+                        </>
                       )}
                     </div>
                   </div>
