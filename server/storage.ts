@@ -2,7 +2,8 @@ import {
   users, type User, type InsertUser,
   wills, type Will, type InsertWill,
   willDocuments, type WillDocument, type InsertWillDocument,
-  willTemplates, type WillTemplate
+  willTemplates, type WillTemplate,
+  notifications, type Notification, type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, lt, isNull, sql } from "drizzle-orm";
@@ -39,6 +40,14 @@ export interface IStorage {
   getWillDocuments(willId: number): Promise<WillDocument[]>;
   addWillDocument(document: InsertWillDocument): Promise<WillDocument>;
   deleteWillDocument(documentId: number): Promise<void>;
+  
+  // Notification methods
+  getUserNotifications(userId: number): Promise<Notification[]>;
+  getUserUnreadNotificationCount(userId: number): Promise<number>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(notificationId: number): Promise<Notification>;
+  markAllUserNotificationsAsRead(userId: number): Promise<void>;
+  deleteNotification(notificationId: number): Promise<void>;
 }
 
 const PostgresSessionStore = connectPg(session);
@@ -252,6 +261,62 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(willDocuments)
       .where(eq(willDocuments.id, documentId));
+  }
+
+  // Notification methods implementation
+  async getUserNotifications(userId: number): Promise<Notification[]> {
+    return db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.userId, userId))
+      .orderBy(sql`${notifications.createdAt} DESC`);
+  }
+
+  async getUserUnreadNotificationCount(userId: number): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(notifications)
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false)
+      ));
+    
+    return result[0]?.count || 0;
+  }
+
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    const [newNotification] = await db
+      .insert(notifications)
+      .values(notification)
+      .returning();
+    
+    return newNotification;
+  }
+
+  async markNotificationAsRead(notificationId: number): Promise<Notification> {
+    const [updatedNotification] = await db
+      .update(notifications)
+      .set({ isRead: true })
+      .where(eq(notifications.id, notificationId))
+      .returning();
+    
+    return updatedNotification;
+  }
+
+  async markAllUserNotificationsAsRead(userId: number): Promise<void> {
+    await db
+      .update(notifications)
+      .set({ isRead: true })
+      .where(and(
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false)
+      ));
+  }
+
+  async deleteNotification(notificationId: number): Promise<void> {
+    await db
+      .delete(notifications)
+      .where(eq(notifications.id, notificationId));
   }
 }
 

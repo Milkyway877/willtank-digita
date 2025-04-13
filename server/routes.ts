@@ -5,8 +5,9 @@ import { setupAuth } from "./auth";
 import { initializeScheduler, triggerCheckInEmails } from "./scheduler";
 import { storage as dbStorage } from "./storage";
 import { db } from "./db";
-import { checkInResponses, users, wills, willDocuments } from "@shared/schema";
+import { checkInResponses, users, wills, willDocuments, notifications, insertNotificationSchema } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 import { sendEmail, createVerificationEmailTemplate } from "./email";
 import multer from "multer";
 import path from "path";
@@ -900,6 +901,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error submitting enterprise request:', error);
       return res.status(500).json({ error: 'Failed to submit enterprise request' });
+    }
+  });
+
+  // Notification API endpoints
+  app.get("/api/notifications", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const notifications = await dbStorage.getUserNotifications(userId);
+      return res.status(200).json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      return res.status(500).json({ error: "Failed to fetch notifications" });
+    }
+  });
+
+  app.get("/api/notifications/unread-count", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const count = await dbStorage.getUserUnreadNotificationCount(userId);
+      return res.status(200).json({ count });
+    } catch (error) {
+      console.error("Error fetching unread notification count:", error);
+      return res.status(500).json({ error: "Failed to fetch unread notification count" });
+    }
+  });
+
+  app.post("/api/notifications/mark-read/:id", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const notificationId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
+      // Get notification to verify ownership
+      const [notification] = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.id, notificationId));
+      
+      if (!notification) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+      
+      if (notification.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized access to notification" });
+      }
+      
+      const updatedNotification = await dbStorage.markNotificationAsRead(notificationId);
+      return res.status(200).json(updatedNotification);
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      return res.status(500).json({ error: "Failed to mark notification as read" });
+    }
+  });
+
+  app.post("/api/notifications/mark-all-read", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      await dbStorage.markAllUserNotificationsAsRead(userId);
+      return res.status(200).json({ message: "All notifications marked as read" });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      return res.status(500).json({ error: "Failed to mark all notifications as read" });
+    }
+  });
+
+  app.delete("/api/notifications/:id", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const notificationId = parseInt(req.params.id);
+      const userId = req.user!.id;
+      
+      // Get notification to verify ownership
+      const [notification] = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.id, notificationId));
+      
+      if (!notification) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+      
+      if (notification.userId !== userId) {
+        return res.status(403).json({ error: "Unauthorized access to notification" });
+      }
+      
+      await dbStorage.deleteNotification(notificationId);
+      return res.status(200).json({ message: "Notification deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      return res.status(500).json({ error: "Failed to delete notification" });
+    }
+  });
+
+  // Helper function to create a notification
+  app.post("/api/notifications", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const validatedData = insertNotificationSchema.parse({
+        ...req.body,
+        userId
+      });
+      
+      const newNotification = await dbStorage.createNotification(validatedData);
+      return res.status(201).json(newNotification);
+    } catch (error) {
+      console.error("Error creating notification:", error);
+      return res.status(500).json({ error: "Failed to create notification" });
     }
   });
 
