@@ -134,13 +134,12 @@ export function useSkyler() {
         });
       }
       
-      // Call streaming API
+      // Call streaming API with credentials
       const response = await fetch('/api/skyler/chat-stream', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: apiMessages }),
+        credentials: 'include'
       });
       
       if (!response.ok) {

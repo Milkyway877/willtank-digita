@@ -13,7 +13,8 @@ import { getChatCompletion, getStreamingChatCompletion } from './openai';
 export async function registerRoutes(app: Express): Promise<Server> {
   // Skyler AI Chat Endpoint
   app.post("/api/skyler/chat", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    // Check if user is authenticated
+    if (!req.session || !(req.session as any).passport?.user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
@@ -39,7 +40,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Skyler AI Chat Streaming Endpoint
   app.post("/api/skyler/chat-stream", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    // Check auth from session
+    if (!req.session?.passport?.user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 

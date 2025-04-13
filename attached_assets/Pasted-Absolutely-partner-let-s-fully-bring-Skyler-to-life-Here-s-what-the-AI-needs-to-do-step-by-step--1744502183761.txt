@@ -1,0 +1,112 @@
+Absolutely, partner — let’s fully bring Skyler to life. Here's what the AI needs to do step-by-step to deliver a complete and realistic AI-powered will creation experience using **Skyler**:
+
+---
+
+### ✅ **Objective: Build an Intelligent, Interactive Will Creation System with Skyler**
+
+---
+
+### 🧠 SKYLER’S FUNCTIONAL ROLE
+
+1. **Start Point**: Skyler activates right after the user completes onboarding.
+2. **Persistent Presence**: Skyler stays in the bottom-right corner as a sleek, floating chatbot with a modern AI avatar.
+3. **Knows Everything**: Feed Skyler all the context of WillTank:
+   - Will creation steps and meanings.
+   - Documents, beneficiaries, executors, assets, messages, check-ins.
+   - Legal terminology and common will mistakes.
+
+---
+
+### 💡 INTERACTIVE EXPERIENCE DURING WILL CREATION
+
+1. **(i) Info Symbol on Each Question**:
+   - When clicked, Skyler pops up and explains:
+     - What the question means.
+     - Suggestions or examples.
+     - Legal tips or what to avoid.
+
+2. **Smart Input Validation**:
+   - Skyler automatically detects:
+     - Misspellings (names, locations, etc.).
+     - Incorrect phone/email formats.
+     - Suspicious or vague inputs (e.g., “John Doe” with no relation).
+   - Shows a gentle message:
+     > “Hmm, did you mean *Jonathan Doe* instead of *Jonh Doe*?”
+   - Displays 2 buttons:
+     - ✅ **Fix**
+     - ❌ **Continue as is**
+
+3. **Required Fields for Every Individual Mentioned**:
+   - Email (must be valid).
+   - Phone number (with country code).
+   - Location (city, state, country).
+   - Relation to testator.
+
+---
+
+### 📝 SKYLER WILL FLOW WITH THE FORM QUESTIONS
+
+- Examples of enhanced questions:
+  - **“Who should be the main executor of your will?”**  
+    *(i) Skyler explains what an executor is, gives examples, and what responsibilities they carry.*
+  
+  - **“Would you like to leave specific messages or instructions?”**  
+    *(i) Skyler gives ideas like video farewells, messages to children, reminders for birthdays, etc.)*
+
+---
+
+### 📦 SKYLER FUNCTIONALITY TO ADD
+
+| Feature                              | Behavior |
+|--------------------------------------|---------|
+| 🌍 Contextual guidance               | Explain terms like "beneficiary", "executor", "residue", etc. |
+| 🛑 Input validation                  | Flag common mistakes & give suggestions |
+| 💬 Tone of voice                     | Friendly, helpful, non-intrusive |
+| 🧠 Memory                            | Skyler should remember previous answers in the session to avoid repetitive prompts |
+| 📚 Legal grammar checking            | For wills written in natural language |
+| ✨ Fix / Continue buttons            | Appear right after flagged inputs |
+| 🧾 Will Summary                      | Before generation, Skyler shows a “summary” of key choices for final approval |
+| 📥 Optional AI Suggestions           | Skyler can ask “Would you like to include a fallback executor just in case?” |
+
+---
+
+### 💻 DEVELOPMENT NOTES FOR AI IMPLEMENTATION
+
+1. **Skyler Chat UI**:
+   - Use a fixed position floating chat bubble.
+   - Use TailwindCSS and Framer Motion for smooth popups and buttons.
+   - When a user hovers or clicks (i), Skyler opens with contextual message.
+
+2. **Validation & Suggestions**:
+   - Hook into form inputs using controlled fields in React.
+   - Use regex for email/phone.
+   - For names and locations, integrate a simple spell-checker like `typo-js` or build a mini validator with Levenshtein distance.
+   - Add `Fix / Continue` buttons with real-time updates to the form values.
+
+3. **Skyler API Integration**:
+   - Use `fetch` with the GPT-4o-Mini API key:
+     ```js
+     const response = await fetch("https://api.openai.com/v1/chat/completions", {
+       method: "POST",
+       headers: {
+         "Content-Type": "application/json",
+         "Authorization": "Bearer sk-proj-xxxxxxxxxxxxxxxxx",
+       },
+       body: JSON.stringify({
+         model: "gpt-4o",
+         messages: [
+           { role: "system", content: "You are Skyler, the AI assistant guiding users through will creation..." },
+           { role: "user", content: "What is an executor and who should I choose?" }
+         ],
+       }),
+     });
+     ```
+
+4. **Component Design**:
+   - Info icon on each question opens a modal or inline popup.
+   - Validation logic uses `useEffect` to trigger on input change.
+   - Error messages are subtle and helpful, never aggressive.
+
+---
+
+Would you like me to help generate the actual **Skyler component** with full validation, floating UI, and GPT-4o mini integration now?
