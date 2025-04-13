@@ -31,55 +31,98 @@ const TrustProgressBar: React.FC<TrustProgressBarProps> = ({
     return () => clearTimeout(timer);
   }, [progress]);
   
-  // Trust factors that contribute to overall trust score
+  // Fetch user data to determine actual status of trust factors
+  const { data: user } = useQuery({
+    queryKey: ['/api/user'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/user');
+      return res.json();
+    },
+  });
+
+  const { data: wills } = useQuery({
+    queryKey: ['/api/wills'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/wills');
+      return res.json();
+    },
+  });
+
+  const { data: beneficiaries } = useQuery({
+    queryKey: ['/api/beneficiaries'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/beneficiaries');
+      if (!res.ok) return [];
+      return res.json();
+    },
+  });
+
+  const { data: twofaStatus } = useQuery({
+    queryKey: ['/api/2fa/status'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/2fa/status');
+      if (!res.ok) return { enabled: false };
+      return res.json();
+    },
+  });
+
+  const { data: deliverySettings } = useQuery({
+    queryKey: ['/api/delivery-settings'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/delivery-settings');
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
+
+  // Trust factors that contribute to overall trust score (using real data)
+  const mostRecentWill = wills && wills.length > 0 
+    ? [...wills].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
+    : null;
+
+  const hasWill = !!mostRecentWill;
+  const hasVideoTestimony = mostRecentWill?.isComplete || false;
+  const hasDocuments = mostRecentWill?.documents?.length > 0 || false;
+  const hasBeneficiaries = beneficiaries && beneficiaries.length > 0;
+  const hasDeliverySettings = deliverySettings && deliverySettings.method && deliverySettings.method !== '';
+  const has2FA = twofaStatus?.enabled || false;
+
   const trustFactors: TrustFactor[] = [
     {
       name: 'Will Completeness',
-      completed: true,
+      completed: hasWill,
       importance: 'high',
-      description: 'All required sections of your will are complete'
+      description: hasWill ? 'Your will has been created and saved' : 'Create your will to improve trust score'
     },
     {
       name: 'Supporting Documents',
-      completed: true,
+      completed: hasDocuments,
       importance: 'high',
-      description: 'All required supporting documents are uploaded'
+      description: hasDocuments ? 'Supporting documents are uploaded' : 'Upload important documents to support your will'
     },
     {
       name: 'Video Testimony',
-      completed: true,
+      completed: hasVideoTestimony,
       importance: 'high',
-      description: 'Video confirmation is recorded and stored'
+      description: hasVideoTestimony ? 'Video confirmation is recorded and stored' : 'Record a video testimony to add validity to your will'
     },
     {
       name: 'Beneficiary Information',
-      completed: true,
+      completed: hasBeneficiaries,
       importance: 'medium',
-      description: 'All beneficiaries have complete contact information'
-    },
-    {
-      name: 'Executor Details',
-      completed: true,
-      importance: 'medium',
-      description: 'Executor has been designated with complete contact info'
+      description: hasBeneficiaries ? 'Beneficiaries have been added to your estate plan' : 'Add beneficiaries to specify who should receive your assets'
     },
     {
       name: 'Delivery Instructions',
-      completed: false,
+      completed: hasDeliverySettings,
       importance: 'medium',
-      description: 'Instructions for how to deliver your will are missing'
-    },
-    {
-      name: 'Regular Check-ins',
-      completed: true,
-      importance: 'low',
-      description: 'You have completed your recent scheduled check-in'
+      description: hasDeliverySettings ? 'Delivery instructions are configured' : 'Instructions for how to deliver your will are missing'
     },
     {
       name: 'Two-Factor Authentication',
-      completed: false,
+      completed: has2FA,
       importance: 'low',
-      description: 'Enable 2FA to add an extra layer of security to your account'
+      description: has2FA ? '2FA security is enabled on your account' : 'Enable 2FA to add an extra layer of security to your account'
     }
   ];
   
