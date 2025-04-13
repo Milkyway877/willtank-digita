@@ -101,7 +101,17 @@ const AiChat: React.FC = () => {
     }
   }, [navigate]);
 
-  // Skyler questions based on the template
+  // Use Skyler AI with GPT-4o Mini API instead of hardcoded questions
+  const {
+    messages: skylerMessages,
+    isLoading: isSkylerLoading,
+    error: skylerError,
+    streamingContent,
+    isStreaming,
+    sendStreamingMessage
+  } = useSkyler();
+  
+  // This is left here only for compatibility
   const questions: Question[] = [
     {
       id: 'name',
@@ -203,24 +213,25 @@ const AiChat: React.FC = () => {
     }
   ];
 
-  // Initialize first message from Skyler when the component mounts
+  // Initialize first message from Skyler AI when the component mounts
   useEffect(() => {
-    if (questions.length > 0 && messages.length === 0) {
+    if (messages.length === 0 && selectedTemplate && !isStreaming && !isSkylerLoading) {
       setIsTyping(true);
       
-      // Simulate Skyler's typing delay
-      setTimeout(() => {
-        const initialMessage: Message = {
-          id: `skyler-${Date.now()}`,
-          role: 'assistant',
-          content: questions[0].text,
-          createdAt: new Date()
-        };
-        setMessages([initialMessage]);
-        setIsTyping(false);
-      }, 1000);
+      // Send initial context to Skyler
+      const initialPrompt = `I'm creating a ${selectedTemplate} will. Please introduce yourself as Skyler, my AI will creation assistant, and guide me through the process of creating my will step by step.`;
+      
+      // Use the streaming API to get Skyler's response
+      sendStreamingMessage(initialPrompt)
+        .then(() => {
+          setIsTyping(false);
+        })
+        .catch((error) => {
+          console.error("Error initializing Skyler:", error);
+          setIsTyping(false);
+        });
     }
-  }, [questions, messages.length]);
+  }, [messages.length, selectedTemplate, isStreaming, isSkylerLoading, sendStreamingMessage]);
 
   // Auto scroll to the latest message
   useEffect(() => {
@@ -237,84 +248,53 @@ const AiChat: React.FC = () => {
   }, [isTyping, messages]);
 
   // Handle user's message submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!input.trim() || isTyping) return;
+    if (!input.trim() || isTyping || isStreaming) return;
     
-    // Add user message
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: input,
-      createdAt: new Date()
-    };
-    
-    setMessages(prevMessages => [...prevMessages, userMessage]);
-    setInput('');
-    
-    // Update will data based on current question
-    const currentQuestion = questions[currentQuestionIndex];
-    
-    // Process user response
-    updateWillData(currentQuestion.fieldName, input);
-    
-    // Prepare Skyler's response with typing indicator
-    setIsTyping(true);
-    
-    // Generate followup response
-    const followupResponse = currentQuestion.followupResponse 
-      ? currentQuestion.followupResponse.replace('{response}', input)
-      : 'Thank you for that information.';
-      
-    // Simulate AI typing delay
-    setTimeout(() => {
-      const followupMessage: Message = {
-        id: `skyler-followup-${Date.now()}`,
-        role: 'assistant',
-        content: followupResponse,
+    try {
+      // Add user message to the local messages state for immediate UI feedback
+      const userMessage: Message = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: input,
         createdAt: new Date()
       };
       
-      setMessages(prevMessages => [...prevMessages, followupMessage]);
+      setMessages(prevMessages => [...prevMessages, userMessage]);
       
-      // Prepare next question after a brief pause
-      setTimeout(() => {
-        const nextQuestionIndex = currentQuestionIndex + 1;
+      // Clear input field
+      setInput('');
+      
+      // Set typing indicator
+      setIsTyping(true);
+      
+      // Extract will information from the user's input based on context
+      // This still uses the structure of the previous implementation for compatibility
+      try {
+        const currentQuestion = questions[currentQuestionIndex];
+        if (currentQuestion) {
+          updateWillData(currentQuestion.fieldName, input);
+        }
+      } catch (error) {
+        console.error("Error updating will data:", error);
+      }
+      
+      // Send message to Skyler AI through the API
+      await sendStreamingMessage(input);
+      
+      // After receiving Skyler's response, check if we need to show the continue button
+      // This was previously triggered after the last question, now we'll try to detect it from the content
+      const lastMessage = skylerMessages[skylerMessages.length - 1];
+      if (lastMessage && lastMessage.role === 'assistant') {
+        const content = lastMessage.content.toLowerCase();
         
-        if (nextQuestionIndex < questions.length) {
-          const nextQuestion = questions[nextQuestionIndex];
+        if ((content.includes('all the information') || content.includes('all the details')) && 
+            content.includes('document') && 
+            (content.includes('complete') || content.includes('ready to proceed'))) {
           
-          const nextQuestionMessage: Message = {
-            id: `skyler-${Date.now()}`,
-            role: 'assistant',
-            content: nextQuestion.text,
-            createdAt: new Date()
-          };
-          
-          setMessages(prevMessages => [...prevMessages, nextQuestionMessage]);
-          setCurrentQuestionIndex(nextQuestionIndex);
-          setIsTyping(false);
-          
-          // Special case for final question
-          if (nextQuestionIndex === questions.length - 1) {
-            // Handle completion logic
-          }
-        } else {
-          // All questions answered, proceed to next step
-          setIsTyping(false);
-          
-          // For demo, just say we're ready to go to document upload
-          const finalMessage: Message = {
-            id: `skyler-final-${Date.now()}`,
-            role: 'assistant',
-            content: "You've completed all the questions! Let's move on to uploading supporting documents. Click 'Continue' to proceed.",
-            createdAt: new Date()
-          };
-          
-          setMessages(prevMessages => [...prevMessages, finalMessage]);
-          
-          // Show continue button
+          // Add a continue button if Skyler indicates the will is complete
           setTimeout(() => {
             const continueMessage: Message = {
               id: `skyler-continue-${Date.now()}`,
@@ -326,8 +306,25 @@ const AiChat: React.FC = () => {
             setMessages(prevMessages => [...prevMessages, continueMessage]);
           }, 1000);
         }
-      }, 800);
-    }, 1500);
+      }
+      
+      // Turn off typing indicator
+      setIsTyping(false);
+    } catch (error) {
+      console.error("Error submitting message:", error);
+      // Turn off typing indicator in case of error
+      setIsTyping(false);
+      
+      // Show error message
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        role: 'assistant',
+        content: "I'm sorry, I'm having trouble processing your request. Please try again.",
+        createdAt: new Date()
+      };
+      
+      setMessages(prevMessages => [...prevMessages, errorMessage]);
+    }
   };
 
   // Update will data based on user responses
@@ -480,6 +477,7 @@ const AiChat: React.FC = () => {
         {/* Chat Messages */}
         <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900 relative">
           <AnimatePresence>
+            {/* Local messages from pre-AI implementation */}
             {messages.map(message => (
               <motion.div
                 key={message.id}
@@ -515,18 +513,76 @@ const AiChat: React.FC = () => {
               </motion.div>
             ))}
             
+            {/* Skyler AI Messages */}
+            {skylerMessages.map((message) => (
+              <motion.div
+                key={message.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className={`mb-4 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                {message.role === 'assistant' ? (
+                  <div className="flex">
+                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center mr-2 mt-1 flex-shrink-0">
+                      <span className="text-white font-bold text-sm">S</span>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg py-2 px-4 max-w-[85%] shadow-sm">
+                      <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{message.content}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-row-reverse">
+                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center ml-2 mt-1 flex-shrink-0">
+                      <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                    </div>
+                    <div className="bg-blue-500 rounded-lg py-2 px-4 max-w-[85%] shadow-sm">
+                      <p className="text-white whitespace-pre-wrap">{message.content}</p>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            ))}
+            
+            {/* Streaming indicator */}
+            {isStreaming && streamingContent && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="mb-4 flex justify-start"
+              >
+                <div className="flex">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center mr-2 mt-1 flex-shrink-0">
+                    <span className="text-white font-bold text-sm">S</span>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg py-2 px-4 max-w-[85%] shadow-sm">
+                    <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
+                      {streamingContent}
+                      <span className="inline-block w-2 h-4 bg-primary ml-1 animate-pulse"></span>
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+            
             {/* Typing indicator */}
-            {isTyping && (
+            {isTyping && !isStreaming && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="mb-4 flex justify-start"
               >
-                <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm rounded-tl-none">
-                  <div className="flex space-x-2">
-                    <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-bounce"></div>
-                    <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                <div className="flex">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center mr-2 mt-1 flex-shrink-0">
+                    <span className="text-white font-bold text-sm">S</span>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm rounded-tl-none">
+                    <div className="flex space-x-2">
+                      <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-bounce"></div>
+                      <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                    </div>
                   </div>
                 </div>
               </motion.div>

@@ -36,6 +36,7 @@ import EmailTest from "@/pages/EmailTest";
 import { AuthProvider } from "@/hooks/use-auth";
 import { NotificationsProvider } from "@/hooks/use-notifications";
 import { TwoFactorProvider } from "@/hooks/use-2fa";
+import { SkylerProvider } from "@/hooks/use-skyler";
 import { ProtectedRoute } from "./lib/protected-route";
 
 function Router() {
@@ -88,9 +89,11 @@ function App() {
       <AuthProvider>
         <NotificationsProvider>
           <TwoFactorProvider>
-            <Router />
-            <UnfinishedWillNotification />
-            <Toaster />
+            <SkylerProvider>
+              <Router />
+              <UnfinishedWillNotification />
+              <Toaster />
+            </SkylerProvider>
           </TwoFactorProvider>
         </NotificationsProvider>
       </AuthProvider>
