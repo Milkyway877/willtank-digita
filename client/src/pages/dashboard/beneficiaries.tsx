@@ -245,7 +245,7 @@ const BeneficiariesPage: React.FC = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {beneficiaries.map((beneficiary) => (
+                  {beneficiaries && beneficiaries.map((beneficiary) => (
                     <motion.div
                       key={beneficiary.id}
                       initial={{ opacity: 0, y: 10 }}

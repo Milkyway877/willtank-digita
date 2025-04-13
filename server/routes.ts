@@ -12,9 +12,10 @@ import {
   willDocuments, 
   notifications, 
   insertNotificationSchema,
-  deliverySettings
+  deliverySettings,
+  beneficiaries
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { NotificationEvents } from "./notification-util";
 import { sendEmail, createVerificationEmailTemplate } from "./email";
@@ -1556,6 +1557,157 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error saving delivery settings:', error);
       return res.status(500).json({ error: 'Failed to save delivery settings' });
+    }
+  });
+
+  // Beneficiaries API routes
+  app.get("/api/beneficiaries", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const userId = req.user!.id;
+      const beneficiariesData = await db
+        .select()
+        .from(beneficiaries)
+        .where(eq(beneficiaries.userId, userId));
+      
+      // Map DB model to client expected format
+      const mappedBeneficiaries = beneficiariesData.map(b => ({
+        id: b.id.toString(),
+        name: b.fullName,
+        relationship: b.relationship,
+        email: b.email,
+        phone: b.phone || undefined,
+        location: '', // Not in DB schema but expected by client
+        share: '', // Not in DB schema but expected by client
+        willId: undefined,
+        userId: b.userId
+      }));
+      
+      return res.status(200).json(mappedBeneficiaries);
+    } catch (error) {
+      console.error("Error fetching beneficiaries:", error);
+      return res.status(500).json({ error: "Failed to fetch beneficiaries" });
+    }
+  });
+
+  app.post("/api/beneficiaries", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const userId = req.user!.id;
+      const { name, relationship, email, phone } = req.body;
+      
+      const [newBeneficiary] = await db.insert(beneficiaries).values({
+        userId: userId,
+        fullName: name,
+        relationship,
+        email,
+        phone: phone || null,
+        status: 'pending'
+      }).returning();
+      
+      // Map to client expected format
+      const mappedBeneficiary = {
+        id: newBeneficiary.id.toString(),
+        name: newBeneficiary.fullName,
+        relationship: newBeneficiary.relationship,
+        email: newBeneficiary.email,
+        phone: newBeneficiary.phone || undefined,
+        location: '', // Not in DB schema but expected by client
+        share: '', // Not in DB schema but expected by client
+        userId: newBeneficiary.userId
+      };
+      
+      return res.status(201).json(mappedBeneficiary);
+    } catch (error) {
+      console.error("Error creating beneficiary:", error);
+      return res.status(500).json({ error: "Failed to create beneficiary" });
+    }
+  });
+
+  app.put("/api/beneficiaries/:id", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const userId = req.user!.id;
+      const { id } = req.params;
+      const { name, relationship, email, phone } = req.body;
+      
+      // Verify ownership
+      const beneficiary = await db.select().from(beneficiaries)
+        .where(and(
+          eq(beneficiaries.id, parseInt(id)),
+          eq(beneficiaries.userId, userId)
+        ));
+      
+      if (beneficiary.length === 0) {
+        return res.status(404).json({ error: "Beneficiary not found" });
+      }
+      
+      const [updatedBeneficiary] = await db.update(beneficiaries)
+        .set({
+          fullName: name,
+          relationship,
+          email,
+          phone: phone || null,
+          updatedAt: new Date()
+        })
+        .where(eq(beneficiaries.id, parseInt(id)))
+        .returning();
+      
+      // Map to client expected format
+      const mappedBeneficiary = {
+        id: updatedBeneficiary.id.toString(),
+        name: updatedBeneficiary.fullName,
+        relationship: updatedBeneficiary.relationship,
+        email: updatedBeneficiary.email,
+        phone: updatedBeneficiary.phone || undefined,
+        location: '', // Not in DB schema but expected by client
+        share: '', // Not in DB schema but expected by client
+        userId: updatedBeneficiary.userId
+      };
+      
+      return res.status(200).json(mappedBeneficiary);
+    } catch (error) {
+      console.error("Error updating beneficiary:", error);
+      return res.status(500).json({ error: "Failed to update beneficiary" });
+    }
+  });
+
+  app.delete("/api/beneficiaries/:id", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const userId = req.user!.id;
+      const { id } = req.params;
+      
+      // Verify ownership
+      const beneficiary = await db.select().from(beneficiaries)
+        .where(and(
+          eq(beneficiaries.id, parseInt(id)),
+          eq(beneficiaries.userId, userId)
+        ));
+      
+      if (beneficiary.length === 0) {
+        return res.status(404).json({ error: "Beneficiary not found" });
+      }
+      
+      await db.delete(beneficiaries)
+        .where(eq(beneficiaries.id, parseInt(id)));
+      
+      return res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Error deleting beneficiary:", error);
+      return res.status(500).json({ error: "Failed to delete beneficiary" });
     }
   });
 
