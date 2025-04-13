@@ -8,6 +8,7 @@ import AuthLayout from '@/components/auth/AuthLayout';
 import AuthInput from '@/components/auth/AuthInput';
 import AuthButton from '@/components/auth/AuthButton';
 import { useAuth } from '@/hooks/use-auth';
+import { use2FA } from '@/hooks/use-2fa';
 import { 
   hasUnfinishedWill, 
   getWillProgress, 
@@ -16,13 +17,15 @@ import {
 
 enum LoginStep {
   INITIAL = 'initial',
-  VERIFICATION = 'verification'
+  VERIFICATION = 'verification',
+  TWO_FACTOR = 'two-factor'
 }
 
 const SignIn: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loginStep, setLoginStep] = useState<LoginStep>(LoginStep.INITIAL);
   
@@ -30,10 +33,11 @@ const SignIn: React.FC = () => {
     email?: string; 
     password?: string;
     verificationCode?: string;
+    twoFactorCode?: string;
   }>({});
   
   const [authStatus, setAuthStatus] = useState<{
-    type?: 'success' | 'error' | 'warning'; 
+    type?: 'success' | 'error' | 'warning' | 'info'; 
     message?: string;
   }>({});
   
@@ -45,6 +49,9 @@ const SignIn: React.FC = () => {
     resendVerificationMutation,
     refetchUser
   } = useAuth();
+  
+  // Get 2FA hooks
+  const { verifyTokenMutation } = use2FA();
   
   const [, navigate] = useLocation();
   
@@ -109,6 +116,23 @@ const SignIn: React.FC = () => {
       isValid = false;
     } else if (verificationCode.length !== 6 || !/^\d+$/.test(verificationCode)) {
       newErrors.verificationCode = 'Please enter a valid 6-digit code';
+      isValid = false;
+    }
+    
+    setErrors(newErrors);
+    return isValid;
+  };
+  
+  const validateTwoFactorForm = () => {
+    const newErrors: typeof errors = {};
+    let isValid = true;
+    
+    // Two-factor code validation
+    if (!twoFactorCode) {
+      newErrors.twoFactorCode = 'Authentication code is required';
+      isValid = false;
+    } else if (twoFactorCode.length !== 6 || !/^\d+$/.test(twoFactorCode)) {
+      newErrors.twoFactorCode = 'Please enter a valid 6-digit code';
       isValid = false;
     }
     
@@ -183,6 +207,13 @@ const SignIn: React.FC = () => {
         
         // Trigger resend verification code
         await resendVerificationMutation.mutateAsync({ email: email.toLowerCase() });
+      } else if (response && response.requiresTwoFactor) {
+        // If 2FA is enabled for this user, proceed to the 2FA step
+        setLoginStep(LoginStep.TWO_FACTOR);
+        setAuthStatus({
+          type: 'info',
+          message: 'Please enter your authentication code to complete sign in'
+        });
       } else {
         // For verified users, check if they have a will and redirect accordingly
         await refetchUser(); // Explicitly fetch user data
@@ -217,11 +248,38 @@ const SignIn: React.FC = () => {
     }
   };
   
+  // Complete login with 2FA verification
+  const handleTwoFactorVerification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateTwoFactorForm()) return;
+    
+    setAuthStatus({});
+    
+    try {
+      // Verify 2FA token
+      await verifyTokenMutation.mutateAsync({ token: twoFactorCode });
+      
+      // If successful, fetch the user data again
+      await refetchUser();
+      
+      // Will check and redirect to dashboard will be handled by useEffect after user is set
+      
+    } catch (error: any) {
+      setAuthStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Failed to verify authentication code'
+      });
+    }
+  };
+  
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (loginStep === LoginStep.INITIAL) {
       await handleRequestVerificationCode(e);
+    } else if (loginStep === LoginStep.TWO_FACTOR) {
+      await handleTwoFactorVerification(e);
     } else {
       await handleCompleteLogin(e);
     }
@@ -259,6 +317,8 @@ const SignIn: React.FC = () => {
                 ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-400 border border-green-200 dark:border-green-800'
                 : authStatus.type === 'warning'
                 ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                : authStatus.type === 'info'
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-400 border border-blue-200 dark:border-blue-800'
                 : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-400 border border-red-200 dark:border-red-800'
             }`}
           >
@@ -266,6 +326,8 @@ const SignIn: React.FC = () => {
               <CheckCircle2 className="h-5 w-5 mr-2 flex-shrink-0" />
             ) : authStatus.type === 'warning' ? (
               <AlertTriangle className="h-5 w-5 mr-2 flex-shrink-0" />
+            ) : authStatus.type === 'info' ? (
+              <ShieldCheck className="h-5 w-5 mr-2 flex-shrink-0" />
             ) : (
               <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
             )}
