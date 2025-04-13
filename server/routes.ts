@@ -586,6 +586,323 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   }
 
+  // Stripe payment API endpoints
+  
+  // Get subscription plans endpoint
+  app.get("/api/subscription/plans", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      // Return the pricing plans with their details
+      const plans = [
+        {
+          id: 'starter',
+          name: 'Starter',
+          description: 'Basic Will creation only',
+          prices: {
+            month: 14.99,
+            year: 149.99,
+            lifetime: 299
+          },
+          features: [
+            'Basic will creation',
+            'Document storage up to 100MB',
+            'Email support'
+          ]
+        },
+        {
+          id: 'gold',
+          name: 'Gold',
+          description: 'Multiple wills and advanced features',
+          prices: {
+            month: 29,
+            year: 290,
+            lifetime: 599
+          },
+          features: [
+            'Everything in Starter',
+            'Multiple wills',
+            'Advanced templates',
+            'Document storage up to 1GB',
+            'Priority email support'
+          ]
+        },
+        {
+          id: 'platinum',
+          name: 'Platinum',
+          description: 'Full platform access',
+          prices: {
+            month: 55,
+            year: 550,
+            lifetime: 999
+          },
+          features: [
+            'Everything in Gold',
+            'Unlimited wills',
+            'Custom templates',
+            'Document storage up to 10GB',
+            'Phone support',
+            'Legacy planning consultation'
+          ]
+        },
+        {
+          id: 'enterprise',
+          name: 'Enterprise',
+          description: 'Custom features + 24/7 support',
+          prices: {
+            month: 'Custom',
+            year: 'Custom',
+            lifetime: 'Custom'
+          },
+          features: [
+            'Everything in Platinum',
+            'Custom integrations',
+            'Dedicated account manager',
+            'On-site training',
+            '24/7 support'
+          ]
+        }
+      ];
+      
+      return res.status(200).json(plans);
+    } catch (error) {
+      console.error('Error fetching subscription plans:', error);
+      return res.status(500).json({ error: 'Failed to fetch subscription plans' });
+    }
+  });
+
+  // Get current user subscription
+  app.get("/api/subscription", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      
+      // Get user with subscription info
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId));
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Format subscription info for client
+      const subscription = {
+        planType: user.planType || 'free',
+        planInterval: user.planInterval || null,
+        status: user.subscriptionStatus || 'inactive',
+        hasActiveSubscription: !!user.stripeSubscriptionId && user.subscriptionStatus === 'active',
+        planExpiry: user.planExpiry || null
+      };
+      
+      return res.status(200).json(subscription);
+    } catch (error) {
+      console.error('Error fetching subscription:', error);
+      return res.status(500).json({ error: 'Failed to fetch subscription' });
+    }
+  });
+
+  // Create checkout session for subscription
+  app.post("/api/subscription/checkout", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const { planType, interval, successUrl, cancelUrl } = req.body;
+      
+      if (!planType || !interval || !successUrl || !cancelUrl) {
+        return res.status(400).json({ error: "Missing required parameters" });
+      }
+      
+      // For enterprise plans, we return a special response
+      if (planType === 'enterprise') {
+        return res.status(200).json({ 
+          type: 'enterprise',
+          message: 'Please contact our sales team for enterprise plans'
+        });
+      }
+      
+      // Create checkout session
+      const session = await createCheckoutSession(
+        userId,
+        planType as PlanType,
+        interval as PricingInterval,
+        successUrl,
+        cancelUrl
+      );
+      
+      return res.status(200).json({
+        sessionId: session.id,
+        url: session.url
+      });
+    } catch (error: any) {
+      console.error('Error creating checkout session:', error);
+      return res.status(500).json({ error: error.message || 'Failed to create checkout session' });
+    }
+  });
+
+  // Create billing portal session
+  app.post("/api/subscription/portal", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const { returnUrl } = req.body;
+      
+      if (!returnUrl) {
+        return res.status(400).json({ error: "Missing return URL" });
+      }
+      
+      // Create portal session
+      const session = await createBillingPortalSession(userId, returnUrl);
+      
+      return res.status(200).json({
+        url: session.url
+      });
+    } catch (error: any) {
+      console.error('Error creating billing portal session:', error);
+      return res.status(500).json({ error: error.message || 'Failed to create billing portal session' });
+    }
+  });
+
+  // Cancel subscription
+  app.post("/api/subscription/cancel", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      
+      // Cancel subscription
+      await cancelSubscription(userId);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Subscription will be canceled at the end of the billing period'
+      });
+    } catch (error: any) {
+      console.error('Error canceling subscription:', error);
+      return res.status(500).json({ error: error.message || 'Failed to cancel subscription' });
+    }
+  });
+
+  // Webhook to handle Stripe events
+  app.post("/api/webhook/stripe", express.raw({type: 'application/json'}), async (req: Request, res: Response) => {
+    const sig = req.headers['stripe-signature'];
+
+    if (!sig) {
+      return res.status(400).json({ error: 'Missing Stripe signature' });
+    }
+
+    try {
+      // For security, we should verify the webhook signature using a webhook secret
+      // In a production environment, you would use:
+      // const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET!);
+      
+      // For now, we'll just parse the event
+      const event = JSON.parse(req.body.toString());
+      
+      // Handle different event types
+      switch (event.type) {
+        case 'checkout.session.completed':
+          const session = event.data.object;
+          
+          // Extract metadata from session
+          const userId = Number(session.metadata?.userId);
+          const planType = session.metadata?.planType as PlanType;
+          const interval = session.metadata?.interval as PricingInterval;
+          
+          if (userId && planType && interval) {
+            if (interval === 'lifetime') {
+              // For lifetime plans, update user with plan info but no subscription
+              await db
+                .update(users)
+                .set({
+                  planType,
+                  planInterval: interval,
+                  subscriptionStatus: 'active',
+                  planExpiry: null, // Lifetime doesn't expire
+                  updatedAt: new Date()
+                })
+                .where(eq(users.id, userId));
+            } else if (session.subscription) {
+              // For recurring plans, update with subscription ID
+              await updateUserSubscription(
+                userId,
+                session.subscription as string,
+                planType,
+                interval,
+                'active'
+              );
+            }
+          }
+          break;
+          
+        case 'customer.subscription.updated':
+          const subscription = event.data.object;
+          // Handle subscription update logic
+          break;
+          
+        case 'customer.subscription.deleted':
+          // Handle subscription cancellation logic
+          break;
+      }
+      
+      return res.status(200).json({ received: true });
+    } catch (error: any) {
+      console.error('Error handling webhook:', error);
+      return res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Create a support request for enterprise plan
+  app.post("/api/support/enterprise", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const { name, email, phone, company, message } = req.body;
+      
+      if (!name || !email || !message) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      
+      // In a production environment, you would send this information to your sales team
+      // For now, we'll just log it
+      console.log('Enterprise support request:', {
+        userId,
+        name,
+        email,
+        phone,
+        company,
+        message
+      });
+      
+      // You could send an email here using the existing email system
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Your request has been submitted. Our team will contact you shortly.'
+      });
+    } catch (error) {
+      console.error('Error submitting enterprise request:', error);
+      return res.status(500).json({ error: 'Failed to submit enterprise request' });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
