@@ -161,6 +161,16 @@ export const NotificationEvents = {
     });
   },
   
+  ONBOARDING_COMPLETED: async (userId: number) => {
+    return createNotification({
+      userId,
+      title: "Onboarding Complete",
+      message: "Your profile has been set up successfully. You're now ready to create your first will!",
+      type: "success",
+      relatedEntityType: "system",
+    });
+  },
+  
   SECURITY_2FA_ENABLED: async (userId: number) => {
     return createNotification({
       userId,

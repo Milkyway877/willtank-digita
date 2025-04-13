@@ -26,6 +26,10 @@ export interface IStorage {
   clearResetToken(userId: number): Promise<void>;
   sessionStore: session.Store;
   
+  // Onboarding methods
+  updateOnboardingStatus(userId: number, hasCompleted: boolean): Promise<User>;
+  saveUserProfile(userId: number, profile: { fullName?: string, [key: string]: any }): Promise<User>;
+  
   // Will management methods
   getWillsByUserId(userId: number): Promise<Will[]>;
   getWillById(willId: number): Promise<Will | undefined>;
@@ -186,6 +190,38 @@ export class DatabaseStorage implements IStorage {
         resetPasswordExpiry: null,
       })
       .where(eq(users.id, userId));
+  }
+
+  // Onboarding methods implementation
+  async updateOnboardingStatus(userId: number, hasCompleted: boolean): Promise<User> {
+    const [updated] = await db
+      .update(users)
+      .set({
+        hasCompletedOnboarding: hasCompleted,
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return updated;
+  }
+
+  async saveUserProfile(userId: number, profile: { fullName?: string, [key: string]: any }): Promise<User> {
+    // Extract specific fields that go into columns
+    const { fullName, ...otherDetails } = profile;
+    
+    // Store other details as JSON in preferences
+    const preferences = JSON.stringify(otherDetails);
+    
+    const [updated] = await db
+      .update(users)
+      .set({
+        fullName: fullName || undefined,
+        preferences: preferences as any, // Type cast to satisfy TypeScript
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return updated;
   }
 
   // Will management methods implementation

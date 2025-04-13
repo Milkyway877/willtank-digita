@@ -1406,6 +1406,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Onboarding routes
+  app.get("/api/onboarding/status", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const user = await dbStorage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      return res.status(200).json({
+        hasCompletedOnboarding: user.hasCompletedOnboarding || false
+      });
+    } catch (error) {
+      console.error("Error fetching onboarding status:", error);
+      return res.status(500).json({ error: "Failed to fetch onboarding status" });
+    }
+  });
+  
+  app.post("/api/onboarding/complete", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const { profile } = req.body;
+      
+      // Update user profile if provided
+      if (profile) {
+        await dbStorage.saveUserProfile(userId, profile);
+      }
+      
+      // Mark onboarding as completed
+      const updatedUser = await dbStorage.updateOnboardingStatus(userId, true);
+      
+      // Create notification for onboarding completion
+      try {
+        await NotificationEvents.ONBOARDING_COMPLETED(userId);
+      } catch (notificationError) {
+        console.error("Failed to create notification for onboarding completion:", notificationError);
+        // Continue with response even if notification creation fails
+      }
+      
+      return res.status(200).json({
+        message: "Onboarding completed successfully",
+        hasCompletedOnboarding: true,
+        fullName: updatedUser.fullName
+      });
+    } catch (error) {
+      console.error("Error completing onboarding:", error);
+      return res.status(500).json({ error: "Failed to complete onboarding" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
