@@ -77,6 +77,22 @@ const DocumentUpload: React.FC = () => {
         required: true,
         fileTypes: ['.jpg', '.jpeg', '.png', '.pdf'],
         maxSize: 10
+      },
+      {
+        id: 'proof-of-address',
+        name: 'Proof of Address',
+        description: 'Utility bill, bank statement, or other official document showing your current address',
+        required: false,
+        fileTypes: ['.jpg', '.jpeg', '.png', '.pdf'],
+        maxSize: 10
+      },
+      {
+        id: 'birth-certificate',
+        name: 'Birth Certificate',
+        description: 'A copy of your birth certificate or similar vital record',
+        required: false,
+        fileTypes: ['.jpg', '.jpeg', '.png', '.pdf'],
+        maxSize: 10
       }
     ];
 
