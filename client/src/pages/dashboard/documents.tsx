@@ -35,6 +35,18 @@ const DocumentsPage: React.FC = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [selectedWillId, setSelectedWillId] = useState<number | null>(null);
   
+  // Required document categories with completion based on actual uploads
+  const [requiredDocuments, setRequiredDocuments] = useState<Array<{
+    id: string;
+    name: string;
+    completed: boolean;
+  }>>([
+    { id: 'doc1', name: 'Photo ID', completed: false },
+    { id: 'doc2', name: 'Property Deed', completed: false },
+    { id: 'doc3', name: 'Insurance Policy', completed: false },
+    { id: 'doc4', name: 'Banking Information', completed: false }
+  ]);
+  
   // Fetch user's wills
   const { data: wills, isLoading: isLoadingWills } = useQuery<Will[]>({
     queryKey: ['/api/wills'],
@@ -69,6 +81,45 @@ const DocumentsPage: React.FC = () => {
     },
     enabled: !!selectedWillId
   });
+  
+  // Update required documents completion status based on uploaded files
+  useEffect(() => {
+    if (documents && documents.length > 0) {
+      const updatedRequiredDocs = [...requiredDocuments];
+      
+      // Check for Photo ID
+      const hasPhotoId = documents.some(doc => 
+        doc.fileName.toLowerCase().includes('id') || 
+        doc.fileName.toLowerCase().includes('license') || 
+        doc.fileName.toLowerCase().includes('passport')
+      );
+      updatedRequiredDocs[0].completed = hasPhotoId;
+      
+      // Check for Property Deed
+      const hasPropertyDeed = documents.some(doc => 
+        doc.fileName.toLowerCase().includes('deed') || 
+        doc.fileName.toLowerCase().includes('property')
+      );
+      updatedRequiredDocs[1].completed = hasPropertyDeed;
+      
+      // Check for Insurance Policy
+      const hasInsurance = documents.some(doc => 
+        doc.fileName.toLowerCase().includes('insurance') || 
+        doc.fileName.toLowerCase().includes('policy')
+      );
+      updatedRequiredDocs[2].completed = hasInsurance;
+      
+      // Check for Banking Information
+      const hasBankingInfo = documents.some(doc => 
+        doc.fileName.toLowerCase().includes('bank') || 
+        doc.fileName.toLowerCase().includes('account') || 
+        doc.fileName.toLowerCase().includes('financial')
+      );
+      updatedRequiredDocs[3].completed = hasBankingInfo;
+      
+      setRequiredDocuments(updatedRequiredDocs);
+    }
+  }, [documents]);
   
   // Mutation to delete documents
   const deleteDocumentMutation = useMutation({
@@ -199,7 +250,7 @@ const DocumentsPage: React.FC = () => {
               <UploadCloud className="h-5 w-5 text-primary mr-2" />
               <h3 className="font-semibold text-gray-800 dark:text-white">My Documents</h3>
               <span className="ml-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full">
-                {documents.length}
+                {documents ? documents.length : 0}
               </span>
             </div>
             
@@ -389,11 +440,21 @@ const DocumentsPage: React.FC = () => {
               <div className="flex items-center justify-between mb-2">
                 <h4 className="font-medium text-gray-800 dark:text-white text-sm">Completion Status</h4>
                 <span className="text-sm font-medium text-primary">
-                  75% Complete
+                  {(() => {
+                    const completedCount = requiredDocuments.filter(doc => doc.completed).length;
+                    const totalCount = requiredDocuments.length;
+                    const percentage = Math.round((completedCount / totalCount) * 100);
+                    return `${percentage}% Complete`;
+                  })()}
                 </span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full" style={{ width: '75%' }}></div>
+                <div 
+                  className="bg-primary h-2 rounded-full" 
+                  style={{ 
+                    width: `${Math.round((requiredDocuments.filter(doc => doc.completed).length / requiredDocuments.length) * 100)}%` 
+                  }}
+                ></div>
               </div>
             </div>
           </div>

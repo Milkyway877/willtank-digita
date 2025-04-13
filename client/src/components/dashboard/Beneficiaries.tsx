@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, User, Mail, Phone, MapPin, Edit, Plus, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, User, Mail, Phone, MapPin, Edit, Plus, X, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 interface Beneficiary {
   id: string;
@@ -11,41 +14,62 @@ interface Beneficiary {
   location?: string;
 }
 
-interface BeneficiariesProps {
-  initialBeneficiaries?: Beneficiary[];
+interface Will {
+  id: number;
+  userId: number;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  isComplete: boolean;
+  beneficiaries?: Beneficiary[];
 }
 
+interface BeneficiariesProps {
+  initialBeneficiaries?: Beneficiary[];
+  willId?: number;
+}
+
+const defaultBeneficiaries: Beneficiary[] = [];
+
 const Beneficiaries: React.FC<BeneficiariesProps> = ({
-  initialBeneficiaries = [
-    {
-      id: '1',
-      name: 'Jane Smith',
-      relationship: 'Spouse',
-      email: 'jane.smith@example.com',
-      phone: '+1 (555) 123-4567',
-      location: 'New York, NY'
-    },
-    {
-      id: '2',
-      name: 'Michael Johnson',
-      relationship: 'Son',
-      email: 'michael.j@example.com',
-      phone: '+1 (555) 987-6543',
-      location: 'Boston, MA'
-    },
-    {
-      id: '3',
-      name: 'Sarah Williams',
-      relationship: 'Daughter',
-      email: 'sarah.w@example.com',
-      phone: '+1 (555) 456-7890',
-      location: 'Chicago, IL'
-    }
-  ]
+  initialBeneficiaries = defaultBeneficiaries,
+  willId
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>(initialBeneficiaries);
   const [selectedBeneficiary, setSelectedBeneficiary] = useState<Beneficiary | null>(null);
+  const { toast } = useToast();
+  
+  // Fetch will details if willId is provided
+  const { data: will, isLoading: isLoadingWill } = useQuery<Will>({
+    queryKey: ['/api/wills', willId],
+    queryFn: async () => {
+      if (!willId) return null;
+      const res = await apiRequest('GET', `/api/wills/${willId}`);
+      return res.json();
+    },
+    enabled: !!willId
+  });
+  
+  // Extract beneficiaries from will data if available
+  useEffect(() => {
+    if (will?.beneficiaries) {
+      setBeneficiaries(will.beneficiaries);
+    } else if (will && will.content) {
+      // Parse content to potentially extract beneficiary data
+      // For example, extract a JSON section from the will content
+      try {
+        const contentObj = JSON.parse(will.content);
+        if (contentObj.beneficiaries && Array.isArray(contentObj.beneficiaries)) {
+          setBeneficiaries(contentObj.beneficiaries);
+        }
+      } catch (e) {
+        // If content isn't parseable as JSON, that's ok - it might be plain text
+        console.log("Will content doesn't contain parseable beneficiaries");
+      }
+    }
+  }, [will]);
 
   // Toggle card expansion
   const toggleExpand = () => {
@@ -90,55 +114,72 @@ const Beneficiaries: React.FC<BeneficiariesProps> = ({
             {/* Beneficiaries List */}
             <div className="p-4">
               <div className="space-y-3">
-                {beneficiaries.map((beneficiary) => (
-                  <motion.div
-                    key={beneficiary.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                  >
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <User className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="ml-3">
-                        <h4 className="font-medium text-gray-800 dark:text-white">{beneficiary.name}</h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{beneficiary.relationship}</p>
-                      </div>
+                {isLoadingWill ? (
+                  <div className="flex flex-col items-center justify-center py-6">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Loading beneficiaries...</p>
+                  </div>
+                ) : beneficiaries.length === 0 ? (
+                  <div className="text-center py-6">
+                    <div className="mx-auto w-14 h-14 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mb-3">
+                      <Users className="h-6 w-6 text-gray-400 dark:text-gray-500" />
                     </div>
-                    
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      {beneficiary.email && (
-                        <div className="flex items-center bg-white dark:bg-gray-800 py-1 px-2 rounded border border-gray-200 dark:border-gray-700">
-                          <Mail className="h-3 w-3 text-gray-500 mr-1" />
-                          <span className="truncate max-w-[120px]">{beneficiary.email}</span>
+                    <h4 className="text-base font-medium text-gray-700 dark:text-gray-300 mb-1">No Beneficiaries Added</h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-4">
+                      Add beneficiaries to specify who should receive your assets and be contacted when your will is executed.
+                    </p>
+                  </div>
+                ) : (
+                  beneficiaries.map((beneficiary) => (
+                    <motion.div
+                      key={beneficiary.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                          <User className="h-5 w-5 text-primary" />
                         </div>
-                      )}
-                      
-                      {beneficiary.phone && (
-                        <div className="flex items-center bg-white dark:bg-gray-800 py-1 px-2 rounded border border-gray-200 dark:border-gray-700">
-                          <Phone className="h-3 w-3 text-gray-500 mr-1" />
-                          <span>{beneficiary.phone}</span>
+                        <div className="ml-3">
+                          <h4 className="font-medium text-gray-800 dark:text-white">{beneficiary.name}</h4>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{beneficiary.relationship}</p>
                         </div>
-                      )}
+                      </div>
                       
-                      {beneficiary.location && (
-                        <div className="flex items-center bg-white dark:bg-gray-800 py-1 px-2 rounded border border-gray-200 dark:border-gray-700">
-                          <MapPin className="h-3 w-3 text-gray-500 mr-1" />
-                          <span>{beneficiary.location}</span>
-                        </div>
-                      )}
-                      
-                      <button 
-                        onClick={() => setSelectedBeneficiary(beneficiary)}
-                        className="ml-auto flex-shrink-0 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
-                      >
-                        <Edit className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        {beneficiary.email && (
+                          <div className="flex items-center bg-white dark:bg-gray-800 py-1 px-2 rounded border border-gray-200 dark:border-gray-700">
+                            <Mail className="h-3 w-3 text-gray-500 mr-1" />
+                            <span className="truncate max-w-[120px]">{beneficiary.email}</span>
+                          </div>
+                        )}
+                        
+                        {beneficiary.phone && (
+                          <div className="flex items-center bg-white dark:bg-gray-800 py-1 px-2 rounded border border-gray-200 dark:border-gray-700">
+                            <Phone className="h-3 w-3 text-gray-500 mr-1" />
+                            <span>{beneficiary.phone}</span>
+                          </div>
+                        )}
+                        
+                        {beneficiary.location && (
+                          <div className="flex items-center bg-white dark:bg-gray-800 py-1 px-2 rounded border border-gray-200 dark:border-gray-700">
+                            <MapPin className="h-3 w-3 text-gray-500 mr-1" />
+                            <span>{beneficiary.location}</span>
+                          </div>
+                        )}
+                        
+                        <button 
+                          onClick={() => setSelectedBeneficiary(beneficiary)}
+                          className="ml-auto flex-shrink-0 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
               </div>
 
               {/* Add New Button */}
