@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { initializeScheduler, triggerCheckInEmails } from "./scheduler";
@@ -10,6 +11,15 @@ import { sendEmail, createVerificationEmailTemplate } from "./email";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { 
+  stripe,
+  createCheckoutSession,
+  createBillingPortalSession,
+  updateUserSubscription,
+  cancelSubscription,
+  PlanType, 
+  PricingInterval 
+} from "./stripe";
 
 import { getChatCompletion, getStreamingChatCompletion } from './openai';
 
@@ -25,6 +35,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Initialize the scheduler for weekly check-ins
   initializeScheduler();
+  
+  // Set up static file serving for uploads
+  const uploadDir = path.join(process.cwd(), 'uploads');
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+  // Serve uploaded files statically
+  app.use('/uploads', (req, res, next) => {
+    // Basic security check to prevent directory traversal
+    if (req.path.includes('..') || req.path.includes('~')) {
+      return res.status(403).send('Forbidden');
+    }
+    next();
+  });
+  app.use('/uploads', express.static(uploadDir));
   
   // Skyler AI Chat Endpoint
   app.post("/api/skyler/chat", async (req: Request, res: Response) => {
@@ -101,13 +126,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   // Auth routes and scheduler have already been initialized above
 
-  // Configure file uploads for documents and videos
-  const uploadDir = path.join(process.cwd(), 'uploads');
-  // Create uploads directory if it doesn't exist
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
-  
   // Configure multer for file uploads
   const fileStorage = multer.diskStorage({
     destination: (req, file, cb) => {

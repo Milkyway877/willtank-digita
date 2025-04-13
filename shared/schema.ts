@@ -16,6 +16,13 @@ export const users = pgTable("users", {
   resetPasswordExpiry: timestamp("reset_password_expiry"),
   lastCheckIn: timestamp("last_check_in"),
   nextCheckInDue: timestamp("next_check_in_due"),
+  // Stripe-related fields
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  subscriptionStatus: text("subscription_status").default("inactive"),
+  planType: text("plan_type").default("free"),
+  planInterval: text("plan_interval"),
+  planExpiry: timestamp("plan_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

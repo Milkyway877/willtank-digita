@@ -1,0 +1,97 @@
+Absolutely, partner — here’s your **crystal-clear, full-blown AI prompt** for integrating **Stripe payments** into **WillTank**, with all pricing plans, product IDs, and expected behaviors baked in. Drop this into your AI or dev assistant and you’ll be cooking with gas:
+
+---
+
+**🔥 FULL STRIPE INTEGRATION PROMPT FOR WILLTANK 🔥**
+
+You are building a **fully functional Stripe payment integration** for WillTank, a next-gen AI-powered will creation platform. Follow these precise instructions:
+
+---
+
+### ✅ USE STRIPE API (LIVE MODE)
+- Wait for the user to input the actual **Stripe Secret Key** and **Publishable Key**.
+- Use **Stripe Checkout** for smooth, secure payment flows.
+- Alternatively, implement **Stripe Billing** for managing subscriptions inside the app if needed.
+
+---
+
+### 📦 PLANS TO IMPLEMENT (USE THESE EXACT PRODUCT IDs):
+
+| Plan Name   | Monthly | Yearly | Lifetime | Stripe Product ID            |
+|-------------|---------|--------|----------|-------------------------------|
+| Platinum    | $55     | $550   | $999     | `prod_S2537v7mpccHQI`        |
+| Gold        | $29     | $290   | $599     | `prod_S252Aj8D5tFfXg`        |
+| Starter     | $14.99  | $149.99| $299     | `prod_S251guGbh50tje`        |
+| Enterprise  | Custom  | Custom | Custom   | Trigger `Contact Support` UI |
+
+> 🧠 **NOTE:** Make sure the correct `price IDs` are also fetched or configured for each pricing interval when creating Checkout Sessions or billing.
+
+---
+
+### 🎯 FUNCTIONAL GOALS:
+
+1. **Pricing Page** with 4 options: Starter, Gold, Platinum, and Enterprise.
+   - Monthly, Yearly, and Lifetime toggles.
+   - Clicking a plan triggers a Stripe Checkout session.
+
+2. **Post-payment redirect:**
+   - Users land on a **“Success” page** with animated confirmation and access to start or continue will creation.
+
+3. **Subscription Data Sync:**
+   - User metadata or Firestore/Supabase DB updated to reflect the chosen plan and billing cycle.
+   - Lifetime plans should be one-time payments.
+   - Monthly and yearly plans should support auto-renewal and cancellation.
+
+4. **Billing Portal:**
+   - Accessible via Dashboard > Billing.
+   - Allow users to:
+     - View plan
+     - Update card
+     - Cancel subscription
+     - Upgrade or downgrade
+     - View billing history
+
+5. **Enterprise Plan Logic:**
+   - Instead of Stripe Checkout, clicking Enterprise triggers a **Support Contact Modal** (email, form, or chat).
+   - No automatic Stripe flow unless manually upgraded by admin.
+
+6. **Plan-based Access Control:**
+   - Users should see platform features based on plan level:
+     - Starter: Basic Will creation only.
+     - Gold: Adds multiple wills and advanced features.
+     - Platinum: Full platform access.
+     - Enterprise: Custom features + 24/7 support.
+
+---
+
+### ⚙️ OPTIONAL FEATURES (IF TIME ALLOWS):
+
+- Use `webhooks` to listen to events like:
+  - `checkout.session.completed`
+  - `invoice.payment_succeeded`
+  - `customer.subscription.updated`
+  - `customer.subscription.deleted`
+- Set up automated emails post-purchase using the existing custom SMTP.
+
+---
+
+### 🎨 DESIGN MUSTS:
+
+- Modern pricing UI with animated toggles.
+- Stripe-hosted checkout preferred for security and ease.
+- Transitions and redirects must be **smooth and responsive**.
+- Responsive layout — fully mobile and desktop compatible.
+
+---
+
+### 🚨 DO NOT:
+
+- Use test keys in production.
+- Display dummy pricing — use **real values and IDs**.
+- Break any existing UI flow. Billing should integrate *seamlessly* with the onboarding system.
+
+---
+
+Once the API keys are entered, complete the setup and trigger a test checkout session to confirm everything is working.
+
+Let’s go full throttle with this, partner — we’re almost done building a beast! Ready for Stripe keys anytime.
