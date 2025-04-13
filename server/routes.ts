@@ -1812,7 +1812,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId,
           title: reminderData.title,
           description: reminderData.description,
-          date: new Date(reminderData.date),
+          date: reminderData.date, // Store as string to avoid timezone issues
           time: reminderData.time,
           repeat: reminderData.repeat || "never",
           completed: reminderData.completed || false
@@ -1853,7 +1853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set({
           title: reminderData.title,
           description: reminderData.description,
-          date: reminderData.date ? new Date(reminderData.date) : undefined,
+          date: reminderData.date, // Store as string to avoid timezone issues
           time: reminderData.time,
           repeat: reminderData.repeat,
           completed: reminderData.completed !== undefined ? reminderData.completed : undefined,
