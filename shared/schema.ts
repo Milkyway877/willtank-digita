@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, date, uniqueIndex, pgEnum, foreignKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, date, uniqueIndex, pgEnum, foreignKey, json } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -26,14 +26,6 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
-
-// Define user relations
-export const usersRelations = relations(users, ({ many }) => ({
-  beneficiaries: many(beneficiaries),
-  executors: many(executors),
-  deathVerifiers: many(deathVerifiers),
-  wills: many(wills),
-}));
 
 // Role status enum
 export const roleStatusEnum = pgEnum("role_status", ["pending", "verified", "declined"]);
@@ -126,6 +118,17 @@ export const wills = pgTable("wills", {
   isReleased: boolean("is_released").default(false), // Set to true when death is verified
 });
 
+// Will documents table
+export const willDocuments = pgTable("will_documents", {
+  id: serial("id").primaryKey(),
+  willId: integer("will_id").notNull().references(() => wills.id),
+  fileName: text("file_name").notNull(),
+  fileType: text("file_type").notNull(),
+  fileSize: integer("file_size").notNull(),
+  uploadDate: timestamp("upload_date").defaultNow(),
+  fileUrl: text("file_url").notNull(),
+});
+
 // Define will relations
 export const willsRelations = relations(wills, ({ one, many }) => ({
   user: one(users, {
@@ -139,16 +142,30 @@ export const willsRelations = relations(wills, ({ one, many }) => ({
   documents: many(willDocuments),
 }));
 
-// Will documents table
-export const willDocuments = pgTable("will_documents", {
+// Notification types enum
+export const notificationTypeEnum = pgEnum("notification_type", ["info", "warning", "success"]);
+
+// Notifications table
+export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
-  willId: integer("will_id").notNull().references(() => wills.id),
-  fileName: text("file_name").notNull(),
-  fileType: text("file_type").notNull(),
-  fileSize: integer("file_size").notNull(),
-  uploadDate: timestamp("upload_date").defaultNow(),
-  fileUrl: text("file_url").notNull(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: notificationTypeEnum("type").default("info").notNull(),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  relatedEntityType: text("related_entity_type"), // 'will', 'document', 'beneficiary', etc.
+  relatedEntityId: integer("related_entity_id"), // ID of the related entity
 });
+
+// Define user relations
+export const usersRelations = relations(users, ({ many }) => ({
+  beneficiaries: many(beneficiaries),
+  executors: many(executors),
+  deathVerifiers: many(deathVerifiers),
+  wills: many(wills),
+  notifications: many(notifications),
+}));
 
 // Define base schemas
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -204,6 +221,15 @@ export const insertWillDocumentSchema = createInsertSchema(willDocuments).pick({
   fileUrl: true,
 });
 
+export const insertNotificationSchema = createInsertSchema(notifications).pick({
+  userId: true,
+  title: true,
+  message: true,
+  type: true,
+  relatedEntityType: true,
+  relatedEntityId: true,
+});
+
 // Export types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -218,3 +244,5 @@ export type Will = typeof wills.$inferSelect;
 export type InsertWillDocument = z.infer<typeof insertWillDocumentSchema>;
 export type WillDocument = typeof willDocuments.$inferSelect;
 export type WillTemplate = typeof willTemplates.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
