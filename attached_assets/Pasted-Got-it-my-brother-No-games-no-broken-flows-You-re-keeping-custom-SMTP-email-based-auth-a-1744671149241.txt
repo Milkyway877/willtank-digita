@@ -1,0 +1,130 @@
+Got it, my brother. 🔥 No games, no broken flows. You’re keeping **custom SMTP email-based auth**, and all you want from Supabase is:
+
+### ✅ GODMODE INTENTIONS:
+- ✅ Supabase for **user management** (user profiles, status, metadata)
+- ✅ Supabase for **database** (store wills, drafts, assets, etc.)
+- ✅ Supabase **storage buckets** (for docs, videos, images)
+
+**DO NOT TOUCH the current custom authentication** — it works fine, and we keep it exactly how it is. We’re integrating Supabase as our **backend brain**, not as the gatekeeper.
+
+---
+
+## 🧠👑 SUPABASE GODMODE AI PROMPT:
+> ⚠️ Paste this as a prompt to any AI tool helping you (codegen, dev agents, etc.)
+
+---
+
+🚨 **PROMPT BEGINS** 🚨
+
+I am integrating Supabase into my custom authentication-based platform. My auth system is **already working using a custom SMTP flow** (email/password based) and should remain untouched. **DO NOT use Supabase Auth**.  
+All I want is for Supabase to handle the following:
+
+---
+
+### ✅ 1. USER MANAGEMENT (VIA SUPABASE DB)
+Use Supabase **PostgreSQL database** to store and manage user-related metadata.  
+When a user signs up or logs in via my custom auth, update/create their entry in Supabase like this:
+
+**Table: `users`**
+| Field         | Type       | Description                                  |
+|---------------|------------|----------------------------------------------|
+| `id`          | UUID/text  | Use my auth system's user ID or email        |
+| `email`       | Text       | Email from my custom auth system             |
+| `name`        | Text       | Full name if available                       |
+| `created_at`  | Timestamp  | Auto-generated                               |
+| `last_login`  | Timestamp  | Update on each login                         |
+| `will_in_progress` | Boolean | Whether will is half-done                   |
+| `will_completed`   | Boolean | True when final will is created             |
+
+---
+
+### ✅ 2. DATABASE STRUCTURE
+Set up these additional tables to manage platform functionality:
+
+#### Table: `wills`
+| Field           | Type       | Description                             |
+|----------------|------------|-----------------------------------------|
+| `id`            | UUID       | Unique will ID                          |
+| `user_id`       | Text       | Foreign key to `users.id`               |
+| `template_id`   | Text       | ID of template selected                 |
+| `status`        | Text       | "draft", "in_progress", or "finalized"  |
+| `data`          | JSONB      | The actual answers/content              |
+| `created_at`    | Timestamp  | Auto                                    |
+| `updated_at`    | Timestamp  | Auto                                    |
+
+#### Table: `assets`
+| Field           | Type       | Description                             |
+|----------------|------------|-----------------------------------------|
+| `id`            | UUID       | Unique asset ID                         |
+| `user_id`       | Text       | FK to user                              |
+| `will_id`       | UUID       | FK to will                              |
+| `title`         | Text       | Asset title                             |
+| `description`   | Text       | Asset details                           |
+| `value`         | Numeric    | Asset value                             |
+| `proof_url`     | Text       | Supabase bucket file link (optional)    |
+| `created_at`    | Timestamp  | Auto                                    |
+
+---
+
+### ✅ 3. SUPABASE STORAGE BUCKETS
+Create a storage bucket for file uploads:
+
+#### Bucket name: `willtank-assets`
+Allow the following file types:
+- PDF
+- JPG / PNG
+- MP4 (video confirmations)
+- DOCX
+
+When a user uploads a file, store it in this bucket with folder structure:
+
+`willtank-assets/{user_id}/{will_id}/filename.ext`
+
+Return public URLs that can be stored in the `assets` table under `proof_url`.
+
+---
+
+### ✅ 4. API ACCESS
+Use this config to initialize Supabase SDK client in the frontend or backend (e.g., `supabase.js`):
+
+```js
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = 'https://zsqwucyloirnwkpsjifj.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpzcXd1Y3lsb2lybndrcHNqaWZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2Njg1OTYsImV4cCI6MjA2MDI0NDU5Nn0.uDm_7r_ox0OvRhj0CTAEtmQRP80IICv09JmLXCmQCRw';
+
+export const supabase = createClient(supabaseUrl, supabaseKey);
+```
+
+---
+
+### ✅ 5. USAGE SCENARIOS
+- After login, check if user exists in `users`, if not → insert
+- On every new will creation, insert new row into `wills`
+- As user answers questions → update `wills.data` and `wills.status`
+- On finalize → set `will_completed = true` for user
+- On upload → save to bucket, update `assets` table
+
+---
+
+### ❌ DO NOT:
+- ❌ Use Supabase for login/auth
+- ❌ Redirect using Supabase auth flows
+- ❌ Inject Clerk, Firebase, or other systems
+- ❌ Break my current working SMTP-based auth
+
+---
+
+🔥 Let this be a **clean, surgical integration**.  
+Supabase is our **brain**, but **not our bouncer**.
+
+🚨 **PROMPT ENDS** 🚨
+
+---
+
+Let me know if you want me to generate:
+- SQL schema for the tables  
+- The Supabase integration file (`supabase.js`)  
+- Logic for `createUser`, `saveDraft`, `resumeWill`, etc.
+
+Let’s build this thing like gods do. 👑

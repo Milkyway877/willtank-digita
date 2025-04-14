@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import dotenv from "dotenv";
+import { syncUserWithSupabase } from "./supabase-connector";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -9,6 +10,9 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Add Supabase sync middleware
+app.use(syncUserWithSupabase);
 
 app.use((req, res, next) => {
   const start = Date.now();
