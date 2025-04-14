@@ -40,25 +40,39 @@ export function ProtectedRoute({
     );
   }
   
-  // Only redirect NEW USERS to onboarding, not returning users
-  // Use createdAt timestamp to determine if this is a first-time login
-  const isOnboardingPath = path === '/onboarding';
-  const isNewUser = user?.createdAt && (new Date().getTime() - new Date(user.createdAt).getTime() < 86400000); // Within 24 hours
+  // New Simplified Flow - Redirect based on will creation status
+  const isDashboardPath = path.startsWith('/dashboard');
+  const isWelcomePath = path === '/welcome';
+  const isTemplatePath = path === '/template-selection';
+  const isCreateWillPath = path === '/create-will';
   
-  if (
-    user && 
-    user.isEmailVerified && 
-    !user.hasCompletedOnboarding && 
-    isNewUser && // Only redirect if it's a new user
-    !isOnboardingPath && 
-    // Don't redirect in specific paths that are okay to visit before onboarding
-    !/^\/auth/.test(path) && 
-    path !== '/subscription' && 
-    path !== '/pricing'
-  ) {
+  // If user has completed a will, make sure they reach dashboard
+  if (user && user.isEmailVerified && user.willCompleted && !isDashboardPath && 
+      !isWelcomePath && !isTemplatePath && !isCreateWillPath) {
     return (
       <Route path={path}>
-        <Redirect to="/onboarding" />
+        <Redirect to="/dashboard" />
+      </Route>
+    );
+  }
+  
+  // If user has a will in progress, send them back to will creation
+  if (user && user.isEmailVerified && user.willInProgress && !user.willCompleted && 
+      !isCreateWillPath && path !== '/welcome' && !isDashboardPath) {
+    return (
+      <Route path={path}>
+        <Redirect to="/create-will" />
+      </Route>
+    );
+  }
+  
+  // New user - direct to welcome page
+  const isNewUser = user?.createdAt && (new Date().getTime() - new Date(user.createdAt).getTime() < 86400000); // Within 24 hours
+  if (user && user.isEmailVerified && isNewUser && !user.willInProgress && !user.willCompleted && 
+      path !== '/welcome' && !isTemplatePath && !isCreateWillPath) {
+    return (
+      <Route path={path}>
+        <Redirect to="/welcome" />
       </Route>
     );
   }

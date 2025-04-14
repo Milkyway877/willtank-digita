@@ -6,10 +6,10 @@ import { Toaster } from "@/components/ui/toaster";
 import UnfinishedWillNotification from "@/components/UnfinishedWillNotification";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
+import Welcome from "@/pages/Welcome";
 import AuthRouter from "@/pages/auth";
 import SignIn from "@/pages/auth/SignIn";
 import SignUp from "@/pages/auth/SignUp";
-import OnboardingContainer from "@/components/onboarding/OnboardingContainer";
 import Dashboard from "@/pages/Dashboard";
 import DashboardIndex from "@/pages/dashboard";
 import DashboardCheckIn from "@/pages/dashboard/check-in";
@@ -53,10 +53,21 @@ function Router() {
       <Route path="/login">
         <SignIn />
       </Route>
-      <ProtectedRoute path="/onboarding" component={OnboardingContainer} />
+      
+      {/* New Simplified Flow */}
+      <ProtectedRoute path="/welcome" component={Welcome} />
+      <ProtectedRoute path="/template-selection" component={TemplateSelection} />
+      <ProtectedRoute path="/create-will" component={AiChat} /> {/* Repurpose AiChat as create-will */}
+      <ProtectedRoute path="/document-upload" component={DocumentUpload} />
+      <ProtectedRoute path="/video-recording" component={VideoRecording} />
+      <ProtectedRoute path="/finalize" component={FinalReview} /> {/* Renamed for clarity */}
+      
+      {/* Subscription */}
       <ProtectedRoute path="/pricing" component={PricingPage} />
       <ProtectedRoute path="/subscription" component={SubscriptionPage} />
       <ProtectedRoute path="/subscription/success" component={SubscriptionSuccessPage} />
+      
+      {/* Dashboard - User Hub */}
       <ProtectedRoute path="/dashboard" component={DashboardIndex} />
       <ProtectedRoute path="/dashboard/check-in" component={DashboardCheckIn} />
       <ProtectedRoute path="/dashboard/will" component={DashboardWill} />
@@ -70,14 +81,15 @@ function Router() {
       <ProtectedRoute path="/dashboard/settings" component={DashboardSettings} />
       <ProtectedRoute path="/dashboard/video-testimony" component={VideoTestimonyPage} />
       <ProtectedRoute path="/view-will-details" component={ViewWillDetails} />
-      <ProtectedRoute path="/template-selection" component={TemplateSelection} />
+      
+      {/* Legacy routes - kept for backwards compatibility */}
       <ProtectedRoute path="/ai-chat" component={AiChat} />
-      <ProtectedRoute path="/document-upload" component={DocumentUpload} />
-      <ProtectedRoute path="/video-recording" component={VideoRecording} />
       <ProtectedRoute path="/final-review" component={FinalReview} />
       <ProtectedRoute path="/completion" component={Completion} />
+      
       {/* Email Test Route - For development testing only */}
       <Route path="/email-test" component={EmailTest} />
+      
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>

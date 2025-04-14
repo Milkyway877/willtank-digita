@@ -20,6 +20,10 @@ interface ExtendedUser {
   createdAt: Date | null;
   twoFactorEnabled?: boolean;
   requiresTwoFactor?: boolean;
+  // Add new fields for simplified flow
+  willInProgress?: boolean;
+  willCompleted?: boolean;
+  // Keep for backwards compatibility
   hasCompletedOnboarding?: boolean;
   fullName?: string;
 }
