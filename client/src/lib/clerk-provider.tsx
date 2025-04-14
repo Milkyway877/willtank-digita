@@ -94,7 +94,7 @@ const createMockClerkContext = () => {
 
 // This is our custom ClerkProvider that handles multiple authentication scenarios
 export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const isPublicPage = publicPages.some(page => 
     page === location || 
     (page.endsWith('*') && location.startsWith(page.slice(0, -1)))
@@ -113,15 +113,21 @@ export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
     
     // Create a basic mock of ClerkProvider to allow useUser() hooks to work
     // This prevents component errors while still using legacy auth
+    // Note: We're using regular publishableKey without mock in newer Clerk versions
     return (
       <BaseClerkProvider
         publishableKey="pk_test_mock_key_for_legacy_auth"
-        __unstable_mockClerk={createMockClerkContext()}
       >
         {children}
       </BaseClerkProvider>
     );
   }
+  
+  // Callback handler for Clerk navigation
+  const handleNavigate = (to: string) => {
+    console.log(`Clerk navigation: ${to}`);
+    navigate(to);
+  };
   
   // For public pages, we don't need to check authentication
   if (isPublicPage) {
@@ -129,6 +135,11 @@ export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
     return (
       <BaseClerkProvider 
         publishableKey={ACTIVE_CLERK_KEY}
+        // Set all the redirect URLs without passing navigate prop
+        signInUrl="/sign-in"
+        signUpUrl="/sign-up"
+        afterSignInUrl="/dashboard"
+        afterSignUpUrl="/onboarding"
         appearance={{
           elements: {
             rootBox: "max-w-md mx-auto",
@@ -145,6 +156,12 @@ export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <BaseClerkProvider 
       publishableKey={ACTIVE_CLERK_KEY}
+      // FIXED: Add navigation handler and proper redirects
+      navigate={handleNavigate}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      afterSignInUrl="/dashboard"
+      afterSignUpUrl="/onboarding"
       // Configure for development vs production environments
       appearance={{
         elements: {

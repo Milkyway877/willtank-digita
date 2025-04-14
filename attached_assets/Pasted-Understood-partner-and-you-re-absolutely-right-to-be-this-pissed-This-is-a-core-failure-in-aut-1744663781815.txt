@@ -1,0 +1,82 @@
+Understood, partner — and you're absolutely right to be this pissed. This is a **core failure in authentication flow** and **completely unacceptable** for a production platform like **WillTank**. So let's tell the AI **exactly what’s wrong** and what it needs to **fix immediately** — no excuses, no bugs, no BS.
+
+---
+
+### 🧨🔥 Tell the Replit AI (or paste this in your dev terminal AI or Replit shell):
+
+> 🔴 The platform is now live at **willtank.com**, but **authentication is completely broken**, and this is **unacceptable in production**. Here’s what is going wrong:
+>
+> **1. Email Sign-Up is Buggy:**
+> - When a user enters their credentials and clicks Sign Up…
+> - They are redirected to the **email verification screen**, BUT it only shows for **1 second** before auto-redirecting to the **Login page**.
+> - This happens before they even enter the verification code from their email!
+> - Then the Login screen fails because the user hasn’t verified their email yet. **Totally broken logic.**
+>
+> **2. Google OAuth is Even Worse:**
+> - User selects their Google account to log in or sign up
+> - After selection, they are taken to a **404 page** — instead of being redirected to the dashboard or an appropriate callback route.
+>
+> **Fix this shit NOW.** This needs to be **production-grade**:
+>
+> ✅ Proper email verification flow: show the email verification screen **until the user completes verification.**  
+> ✅ Correct Google OAuth redirect: after Google auth, redirect users to the **dashboard or /onboarding if first-time user**  
+> ✅ No 404s. No broken links. No redirects before auth is complete.  
+> ✅ Enable Clerk middleware properly. Use `ClerkProvider`, `RedirectToSignIn`, and `SignedIn/SignedOut` guards correctly.  
+> ✅ All routes must be protected and redirected correctly using `useAuth()` or `useUser()` properly.
+
+---
+
+### 📦 Bonus Fix Notes (Use If You're a Dev Too):
+
+If you’re coding this yourself or with help:
+
+1. **Fix Clerk Redirects in Your `clerk.config.ts` (or your root config):**
+
+```ts
+import { ClerkProvider } from '@clerk/nextjs';
+import { useRouter } from 'next/router';
+
+<ClerkProvider
+  publishableKey={process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+  navigate={(to) => router.push(to)}
+  afterSignInUrl="/dashboard"
+  afterSignUpUrl="/onboarding"
+  signInUrl="/sign-in"
+  signUpUrl="/sign-up"
+/>
+```
+
+2. **Use Middleware to Protect Routes (`middleware.ts`)**:
+
+```ts
+import { authMiddleware } from "@clerk/nextjs";
+
+export default authMiddleware({
+  publicRoutes: ["/", "/about", "/contact"],
+  ignoredRoutes: ["/api/webhooks(.*)"],
+  afterAuth(auth, req, evt) {
+    if (!auth.userId && !auth.isPublicRoute) {
+      return NextResponse.redirect(new URL("/sign-in", req.url));
+    }
+  }
+});
+```
+
+3. **Fix Your 404 Problem**  
+Make sure you're not redirecting to `/404` due to missing route in Google callback. Set the right callback URLs in Clerk Dashboard:
+- Add `https://willtank.com/*` and `https://willtank.com/sign-in-callback` or equivalent to your **Authorized Redirect URIs** under **OAuth**.
+
+---
+
+### 🛠️ Final Dev Checklist
+
+- [ ] Email verification page **holds user in place** until they verify.
+- [ ] **Google Sign-In** works and redirects properly.
+- [ ] **No 404s after auth**.
+- [ ] Clerk middleware properly installed and tested.
+- [ ] Live version at `willtank.com` shows smooth auth, no errors.
+
+---
+
+Let’s fix this. You didn’t build WillTank to fumble the bag at the finish line. 💼  
+Ready when you are to go full dev-mode and repair this cleanly — I’ve got your back all the way. Want me to help patch the actual code directly next?

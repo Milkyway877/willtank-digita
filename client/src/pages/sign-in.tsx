@@ -1,8 +1,9 @@
-import React from 'react';
-import { SignIn as ClerkSignIn } from '@clerk/clerk-react';
+import React, { useEffect } from 'react';
+import { SignIn as ClerkSignIn, useUser } from '@clerk/clerk-react';
 import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Link } from 'wouter';
+import { Loader2 } from 'lucide-react';
 
 // Check if Clerk is configured
 const isClerkConfigured = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -20,6 +21,32 @@ const useAlternateAuth = isDevelopment;
 
 export default function SignInPage() {
   const [, navigate] = useLocation();
+  const { isLoaded, isSignedIn, user } = useUser();
+  
+  // FIXED: If user is already signed in, redirect to the appropriate page
+  useEffect(() => {
+    if (isLoaded && isSignedIn && user) {
+      // Check if onboarding is completed in user metadata
+      const hasCompletedOnboarding = user.publicMetadata?.hasCompletedOnboarding === true;
+      
+      if (hasCompletedOnboarding) {
+        // If onboarding is completed, go to dashboard
+        navigate('/dashboard');
+      } else {
+        // If not completed, go to onboarding
+        navigate('/onboarding');
+      }
+    }
+  }, [isLoaded, isSignedIn, user, navigate]);
+  
+  // Show loading state while Clerk is initializing
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 to-blue-50 dark:from-gray-900 dark:to-gray-800">
