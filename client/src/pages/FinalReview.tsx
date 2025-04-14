@@ -4,7 +4,7 @@ import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
 import { Check, Edit, FileText, AlertCircle, Save, ArrowRight, CheckCircle, Download } from 'lucide-react';
 import AnimatedAurora from '@/components/ui/AnimatedAurora';
-import { saveWillProgress, WillCreationStep, clearWillProgress } from '@/lib/will-progress-tracker';
+import { saveWillProgress, WillCreationStep, resetWillProgress } from '@/lib/will-progress-tracker';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 

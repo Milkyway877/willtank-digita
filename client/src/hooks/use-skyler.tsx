@@ -1,202 +1,202 @@
-import { createContext, ReactNode, useContext, useState, useCallback } from 'react';
+import React, { createContext, ReactNode, useContext, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
-import { v4 as uuidv4 } from 'uuid';
 
-// Message types
-export interface SkylerMessage {
-  id: string;
-  role: 'assistant' | 'user';
+interface SkylerMessage {
+  role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
-// Context for Skyler AI
-type SkylerContextType = {
+interface SkylerContextType {
   messages: SkylerMessage[];
+  addMessage: (message: SkylerMessage) => void;
+  streamingMessage: string;
   isLoading: boolean;
-  isStreaming: boolean;
-  streamingContent: string;
-  error: Error | null;
   sendMessage: (content: string) => Promise<void>;
   sendStreamingMessage: (content: string) => Promise<void>;
-  clearMessages: () => void;
-};
+}
 
-export const SkylerContext = createContext<SkylerContextType | null>(null);
+const SkylerContext = createContext<SkylerContextType | null>(null);
 
-export function SkylerProvider({ children }: { children: ReactNode }) {
+export const SkylerProvider = ({ children }: { children: ReactNode }) => {
   const [messages, setMessages] = useState<SkylerMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState('');
-  const [error, setError] = useState<Error | null>(null);
+  const [streamingMessage, setStreamingMessage] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { toast } = useToast();
 
-  // Send a message to Skyler AI and get a full response
-  const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim()) return;
+  const addMessage = (message: SkylerMessage) => {
+    setMessages((prev) => [...prev, message]);
+  };
 
-    setIsLoading(true);
-    setError(null);
-
+  // Regular non-streaming message
+  const sendMessage = async (content: string): Promise<void> => {
     try {
-      // Add user message to the conversation
+      setIsLoading(true);
+
+      // Add user message to context
       const userMessage: SkylerMessage = {
-        id: uuidv4(),
         role: 'user',
-        content
+        content: content
       };
+      
+      // Prepare messages history including previous context 
+      const messagesToSend = [...messages, userMessage];
+      setMessages(messagesToSend);
 
-      setMessages(prevMessages => [...prevMessages, userMessage]);
-
-      // Send message to API
+      // Send to API
       const response = await apiRequest('POST', '/api/skyler/chat', {
-        messages: [...messages, userMessage].map(msg => ({
-          role: msg.role,
-          content: msg.content
+        messages: messagesToSend.map(m => ({
+          role: m.role,
+          content: m.content
         }))
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get response from Skyler');
+        throw new Error('Failed to communicate with Skyler');
       }
 
-      const responseData = await response.json();
+      const data = await response.json();
       
-      // Add Skyler's response to the conversation
+      // Add assistant response to context
       const assistantMessage: SkylerMessage = {
-        id: uuidv4(),
         role: 'assistant',
-        content: responseData.content
+        content: data.message
       };
-
-      setMessages(prevMessages => [...prevMessages, assistantMessage]);
-    } catch (err) {
-      console.error('Error sending message to Skyler:', err);
-      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
+      
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error('Error communicating with Skyler:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to communicate with Skyler. Please try again.',
+        variant: 'destructive'
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [messages]);
+  };
 
-  // Send a message to Skyler AI with streaming response
-  const sendStreamingMessage = useCallback(async (content: string) => {
-    if (!content.trim()) return;
-
-    setIsStreaming(true);
-    setStreamingContent('');
-    setError(null);
-
+  // Streaming message implementation
+  const sendStreamingMessage = async (content: string): Promise<void> => {
     try {
-      // Add user message to the conversation 
+      setIsLoading(true);
+      setStreamingMessage('');
+
+      // Add user message to context
       const userMessage: SkylerMessage = {
-        id: uuidv4(),
         role: 'user',
-        content
+        content: content
       };
+      
+      // Update messages
+      setMessages((prev) => [...prev, userMessage]);
 
-      setMessages(prevMessages => [...prevMessages, userMessage]);
+      // Prepare messages history including previous context and new user message
+      const messagesToSend = [...messages, userMessage];
 
-      // Set up stream
+      // Create fetch request with appropriate options for streaming
       const response = await fetch('/api/skyler/chat-stream', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage].map(msg => ({
-            role: msg.role,
-            content: msg.content
+          messages: messagesToSend.map(m => ({
+            role: m.role,
+            content: m.content
           }))
         })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get streaming response from Skyler');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to communicate with Skyler');
       }
 
+      // Handle the stream
       const reader = response.body?.getReader();
-      let receivedContent = '';
-
       if (!reader) {
-        throw new Error('ReadableStream not supported or response body is null');
+        throw new Error('Failed to create stream reader');
       }
 
-      // Process the stream
-      while (true) {
-        const { done, value } = await reader.read();
-        
-        if (done) break;
-        
-        // Convert bytes to text
-        const chunk = new TextDecoder().decode(value);
-        
-        // Handle SSE format (each line starts with "data: ")
-        const lines = chunk.split('\n').filter(line => line.trim() !== '');
-        
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6); // Remove 'data: ' prefix
-            if (data === '[DONE]') {
+      let accumulatedMessage = '';
+      const decoder = new TextDecoder();
+
+      const processStream = async () => {
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
               break;
             }
             
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.content) {
-                receivedContent += parsed.content;
-                setStreamingContent(receivedContent);
+            // Decode the chunk and process it
+            const chunk = decoder.decode(value, { stream: true });
+            
+            // Process the chunk which may contain multiple SSE messages
+            const lines = chunk.split('\n\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const data = line.substring(6);
+                
+                if (data === '[DONE]') {
+                  break;
+                }
+                
+                try {
+                  const parsedData = JSON.parse(data);
+                  if (parsedData.content) {
+                    accumulatedMessage += parsedData.content;
+                    setStreamingMessage(accumulatedMessage);
+                  }
+                } catch (e) {
+                  console.error('Error parsing SSE data:', e);
+                }
               }
-            } catch (e) {
-              console.error('Error parsing JSON from stream:', e);
             }
           }
+        } catch (error) {
+          console.error('Error processing stream:', error);
+          throw error;
         }
-      }
-
-      // Add the final message
-      const assistantMessage: SkylerMessage = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: receivedContent
       };
 
-      setMessages(prevMessages => [...prevMessages, assistantMessage]);
+      await processStream();
+      setStreamingMessage(accumulatedMessage);
 
-    } catch (err) {
-      console.error('Error with streaming message:', err);
-      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
+    } catch (error) {
+      console.error('Error with streaming message:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to communicate with Skyler. Please try again.',
+        variant: 'destructive'
+      });
     } finally {
-      setIsStreaming(false);
-      setStreamingContent('');
+      setIsLoading(false);
     }
-  }, [messages]);
-
-  // Clear all messages
-  const clearMessages = useCallback(() => {
-    setMessages([]);
-  }, []);
+  };
 
   return (
     <SkylerContext.Provider
       value={{
         messages,
+        addMessage,
+        streamingMessage,
         isLoading,
-        isStreaming,
-        streamingContent,
-        error,
         sendMessage,
-        sendStreamingMessage,
-        clearMessages
+        sendStreamingMessage
       }}
     >
       {children}
     </SkylerContext.Provider>
   );
-}
+};
 
-export function useSkyler() {
+export const useSkyler = () => {
   const context = useContext(SkylerContext);
   if (!context) {
     throw new Error('useSkyler must be used within a SkylerProvider');
   }
   return context;
-}
+};

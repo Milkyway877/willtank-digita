@@ -1,115 +1,171 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
-import { FileWarning, X, AlertTriangle, ArrowRight } from 'lucide-react';
-import { hasUnfinishedWill, getWillProgress, getRouteForStep } from '@/lib/will-progress-tracker';
+import { useAuth } from '@/hooks/use-auth';
+import { AlertCircle, ArrowRight, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import {
+  hasUnfinishedWill,
+  getLastStep,
+  getResumeUrl,
+  getLastUpdated,
+  getStepDescription,
+  WillCreationStep
+} from '@/lib/will-progress-tracker';
 
+/**
+ * Component to show a notification if the user has an unfinished will
+ * Only shown on dashboard pages and not during the will creation flow
+ */
 const UnfinishedWillNotification: React.FC = () => {
-  const [visible, setVisible] = useState(false);
   const [, navigate] = useLocation();
-  const [currentPath] = useLocation();
-
-  // Paths where we should not show the notification
+  const { user } = useAuth();
+  const [showNotification, setShowNotification] = useState(false);
+  const [lastStepDescription, setLastStepDescription] = useState('');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [resumeUrl, setResumeUrl] = useState('');
+  
+  // Paths where notification should not appear
   const excludedPaths = [
-    '/template-selection', 
-    '/ai-chat', 
-    '/document-upload', 
-    '/video-recording', 
+    '/welcome',
+    '/template-selection',
+    '/create-will',
+    '/document-upload',
+    '/video-recording',
+    '/finalize',
+    // Legacy paths
+    '/ai-chat',
     '/final-review',
     '/completion'
   ];
-
+  
   useEffect(() => {
-    // Don't show the notification if the user is already in the will creation process
-    if (excludedPaths.some(path => currentPath.startsWith(path))) {
-      return;
-    }
-
-    // Check if there's an unfinished will
-    const unfinishedWill = hasUnfinishedWill();
-    
-    if (unfinishedWill) {
-      // Show the notification after a short delay
-      const timer = setTimeout(() => {
-        setVisible(true);
-      }, 1500);
+    // Only show notification if:
+    // 1. User is logged in
+    // 2. User has willInProgress flag set
+    // 3. User is not already on a will creation page
+    // 4. Local tracker shows unfinished will
+    const checkUnfinishedWill = () => {
+      if (!user) return;
       
-      return () => clearTimeout(timer);
+      const path = window.location.pathname;
+      const isExcludedPath = excludedPaths.some(excludedPath => path.startsWith(excludedPath));
+      
+      // If user is on a will creation page, don't show notification
+      if (isExcludedPath) {
+        setShowNotification(false);
+        return;
+      }
+      
+      // Check if user has willInProgress flag
+      if (user.willInProgress && !user.willCompleted) {
+        // Also check local storage for the actual unfinished step
+        if (hasUnfinishedWill()) {
+          const lastStep = getLastStep();
+          setLastStepDescription(getStepDescription(lastStep));
+          setResumeUrl(getResumeUrl());
+          setLastUpdated(getLastUpdated());
+          setShowNotification(true);
+        }
+      } else {
+        setShowNotification(false);
+      }
+    };
+    
+    checkUnfinishedWill();
+    
+    // Listen for path changes
+    const handlePathChange = () => {
+      checkUnfinishedWill();
+    };
+    
+    window.addEventListener('popstate', handlePathChange);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePathChange);
+    };
+  }, [user, excludedPaths]);
+  
+  const formatTimeAgo = (date: Date): string => {
+    if (!date) return '';
+    
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.round(diffMs / 60000);
+    const diffHours = Math.round(diffMins / 60);
+    const diffDays = Math.round(diffHours / 24);
+    
+    if (diffMins < 1) {
+      return 'Just now';
+    } else if (diffMins < 60) {
+      return `${diffMins} minute${diffMins === 1 ? '' : 's'} ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+    } else {
+      return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
     }
-  }, [currentPath]);
-
-  const handleContinue = () => {
-    const progress = getWillProgress();
-    if (progress) {
-      const routeToNavigate = getRouteForStep(progress.currentStep);
-      navigate(routeToNavigate);
-    }
-    setVisible(false);
   };
-
+  
+  const handleResume = () => {
+    navigate(resumeUrl);
+  };
+  
   const handleDismiss = () => {
-    setVisible(false);
+    setShowNotification(false);
   };
-
-  if (!visible) return null;
-
+  
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 100, opacity: 0 }}
-        transition={{
-          type: 'spring',
-          damping: 25,
-          stiffness: 300
-        }}
-        className="fixed bottom-6 right-6 z-50"
-      >
-        <div className="max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-amber-200 dark:border-amber-900">
-          <div className="bg-amber-50 dark:bg-amber-900/30 border-b border-amber-100 dark:border-amber-800 px-4 py-3 flex justify-between items-center">
-            <div className="flex items-center text-amber-800 dark:text-amber-300">
-              <AlertTriangle className="h-5 w-5 mr-2" />
-              <h3 className="font-semibold">Unfinished Will Detected</h3>
-            </div>
-            <button 
-              onClick={handleDismiss}
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="p-4">
-            <div className="flex">
-              <div className="flex-shrink-0 mr-4">
-                <div className="bg-amber-100 dark:bg-amber-900/50 p-2 rounded-full">
-                  <FileWarning className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                </div>
+      {showNotification && (
+        <motion.div
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 50 }}
+          transition={{ duration: 0.3 }}
+          className="fixed bottom-4 right-4 z-50 max-w-md"
+        >
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-amber-300 dark:border-amber-700 p-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <AlertCircle className="h-5 w-5 text-amber-500" />
               </div>
-              <div>
-                <p className="text-gray-700 dark:text-gray-300 mb-4">
-                  You have an unfinished will in progress. Would you like to continue where you left off?
-                </p>
-                <div className="flex justify-end space-x-3">
-                  <button
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                  You have an unfinished will
+                </h3>
+                <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                  <p>
+                    You were last working on <strong>{lastStepDescription}</strong>
+                    {lastUpdated && (
+                      <> {formatTimeAgo(lastUpdated)}</>
+                    )}.
+                  </p>
+                </div>
+                <div className="mt-3 flex items-center justify-between">
+                  <Button
+                    onClick={handleResume}
+                    variant="default"
+                    size="sm"
+                    className="bg-amber-500 hover:bg-amber-600 text-white"
+                  >
+                    Resume
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Button>
+                  <Button
                     onClick={handleDismiss}
-                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    variant="ghost"
+                    size="sm"
+                    className="text-gray-500"
                   >
-                    Dismiss
-                  </button>
-                  <button
-                    onClick={handleContinue}
-                    className="px-3 py-1.5 text-sm bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center"
-                  >
-                    Continue
-                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                  </button>
+                    <X className="h-4 w-4" />
+                    <span className="sr-only">Dismiss</span>
+                  </Button>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
     </AnimatePresence>
   );
 };
