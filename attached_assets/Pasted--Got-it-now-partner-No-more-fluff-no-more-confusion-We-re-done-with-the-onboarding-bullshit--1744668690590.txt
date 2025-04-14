@@ -1,0 +1,104 @@
+🔥 Got it now, partner. No more fluff, no more confusion. We’re done with the **onboarding bullshit**. We’re building a **clean, fast, no-nonsense functional platform** from the ground up — **no Clerk**, **no onboarding**, just a **fully working app**.
+
+---
+
+## 🧠🛠️ FINAL BOSS MODE PROMPT FOR AI TO FIX EVERYTHING  
+### 🎯 GOAL:
+**A fully working WillTank platform — no onboarding, no bugs, no loops. Just clean signup/login → straight into will creation → finalize → dashboard.**
+
+---
+
+### ✅ CORE USER FLOW:
+
+1. **SIGNUP** → go to **Welcome Page**
+2. **Welcome Page** → go to **Template Selection**
+3. **Template Selected** → go to **Skyler Will Creation**
+4. **Skyler Guides the User Step-by-Step**
+5. **User Finalizes Will** → lands on **Dashboard**
+6. **RETURNING USERS** → go straight to **Dashboard**, unless they left will creation halfway — then resume Skyler from last step.
+7. **EVERYTHING auto-saves** into database (Replit DB or Supabase later).
+
+---
+
+### 🚫 STRIP THESE RIGHT NOW:
+
+- ❌ **ALL onboarding logic or routes** (delete or disable `onboarding.js`, `useOnboarding`, etc.)
+- ❌ Any logic that checks if user has “completed onboarding”
+- ❌ **Clerk**, **legacy Clerk routes**, or anything 3rd-party related to auth (they’re gone, baby)
+- ❌ Any repeated Skyler loops or logic that fires questions without waiting for user response
+- ❌ Auto-redirection to onboarding after login — redirect only to Dashboard or Skyler
+
+---
+
+### ✅ WHAT MUST BE IN PLACE (MINIMUM VIABLE FUNCTIONALITY):
+
+#### 🔐 CUSTOM AUTH:
+- Signup with email & password
+- Login with email & password
+- Redirect after login:
+  - If user has `willCompleted = true` → Dashboard
+  - If user has `willInProgress = true` → Skyler (resume)
+  - Else → Welcome → Template → Skyler
+
+#### 🤖 SKYLER WILL CREATION LOGIC:
+- Skyler introduces itself **ONCE**
+- It **asks one question at a time**
+- **Waits for the user's answer** before continuing
+- No auto-skipping, no auto-answering, no looping
+- Stores user answers in `willDraft` object in DB
+- Show "Fix" or "Continue" buttons on each answer
+- Progress saved after each answer
+- When complete → sets `willCompleted = true` → redirect to Dashboard
+
+#### 📂 DASHBOARD:
+- Lists completed wills
+- Button to start a new will
+- Button to edit (if allowed)
+- Shows stats or messages ("You haven't completed your will yet...")
+
+---
+
+### 📁 ROUTE STRUCTURE (NO ONBOARDING AT ALL):
+
+| Route             | Purpose                             |
+|-------------------|--------------------------------------|
+| `/signup`         | Custom signup page                  |
+| `/login`          | Custom login page                   |
+| `/welcome`        | Welcome page after signup           |
+| `/template`       | Template selection page             |
+| `/create-will`    | Skyler will creation interface      |
+| `/finalize`       | Confirmation + redirect to dashboard|
+| `/dashboard`      | User hub with options               |
+
+---
+
+### 🔥 ACTION PLAN FOR AI TO EXECUTE:
+
+1. **Remove** all onboarding-related files, logic, or conditions
+2. **Clean all routing** to remove onboarding redirects
+3. **Fix signup/login flow** with custom auth only (SMTP + password)
+4. **Restructure Skyler logic** to:
+   - Show intro once
+   - Ask one question at a time
+   - Wait for input
+   - Store state and resume properly
+5. **Fix returning user logic**:
+   - Resume unfinished will OR go to dashboard
+6. **Fix 404s, loops, broken routes** (especially post-Google sign-in logic)
+7. **Fix all page transitions** — no flickers, no broken steps
+
+---
+
+### 🧪 READY TO TEST:
+
+After fixes:
+- Create new user → test full flow to dashboard
+- Sign out → sign in → make sure user lands in right place
+- Half-complete a will → sign out → come back → resume from same spot
+- Try Skyler — make sure no auto questions, no loops
+
+---
+
+Let’s **fully nuke** the bugs and build the **actual WillTank experience** now.
+
+Say the word and I’ll give you the fixed code structure, components, and routing system — all onboarding logic will be wiped clean. Ready?

@@ -14,7 +14,8 @@ export const users = pgTable("users", {
   verificationCodeExpiry: timestamp("verification_code_expiry"),
   resetPasswordToken: text("reset_password_token"),
   resetPasswordExpiry: timestamp("reset_password_expiry"),
-  hasCompletedOnboarding: boolean("has_completed_onboarding").default(false),
+  willInProgress: boolean("will_in_progress").default(false),
+  willCompleted: boolean("will_completed").default(false),
   preferences: json("preferences"), // Storing user preferences as JSON
   lastCheckIn: timestamp("last_check_in"),
   nextCheckInDue: timestamp("next_check_in_due"),
