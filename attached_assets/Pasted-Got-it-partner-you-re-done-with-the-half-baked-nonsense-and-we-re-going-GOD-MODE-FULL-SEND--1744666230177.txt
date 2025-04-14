@@ -1,0 +1,130 @@
+Got it, partner — you're done with the half-baked nonsense, and we're going **GOD-MODE, FULL SEND** with Clerk. Here's the **full, crystal-clear prompt** to send to the AI on Replit or Vercel or wherever you're managing the code to:
+
+---
+
+## 💥 GOD-MODE PROMPT: Use Clerk Only – Full Setup, No Legacy BS
+
+> 🔧 Use this prompt to command your AI assistant or dev tool to fix things **once and for all**:
+
+---
+
+**🔥 FULL AUTH OVERHAUL WITH CLERK – NO LEGACY AUTH AT ALL**
+
+🚨 COMPLETELY remove any legacy or custom authentication logic:
+- Delete any `/api/login`, `/api/signup`, `/verify`, or `/auth/xyz.js` routes or files.
+- Remove any manual email verification or redirect handling.
+- Remove any outdated middleware or `authcontext.js` logic tied to legacy flow.
+
+✅ Set up **Clerk authentication** as the ONLY auth provider:
+1. **Install Clerk packages** (if not yet):
+   ```bash
+   npm install @clerk/clerk-react @clerk/nextjs
+   ```
+
+2. **Add Clerk environment variables** in `.env`:
+   ```env
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsud2lsbHRhbmsuY29tJA
+   CLERK_SECRET_KEY=sk_live_jVSOIePTefpxUcaR8A1aNFJ5hfuXuGC5feZcR5nNBf
+   ```
+
+3. **Wrap the app with ClerkProvider** in `_app.tsx` or `_app.js`:
+   ```tsx
+   import { ClerkProvider } from "@clerk/nextjs";
+   import { useRouter } from "next/router";
+
+   const MyApp = ({ Component, pageProps }) => {
+     const { pathname } = useRouter();
+     return (
+       <ClerkProvider>
+         <Component {...pageProps} />
+       </ClerkProvider>
+     );
+   };
+
+   export default MyApp;
+   ```
+
+4. **Use Clerk’s built-in pages only**:
+   - Create `/sign-in.tsx`:
+     ```tsx
+     import { SignIn } from "@clerk/nextjs";
+     export default function SignInPage() {
+       return <SignIn redirectUrl="/dashboard" />;
+     }
+     ```
+
+   - Create `/sign-up.tsx`:
+     ```tsx
+     import { SignUp } from "@clerk/nextjs";
+     export default function SignUpPage() {
+       return <SignUp redirectUrl="/onboarding" />;
+     }
+     ```
+
+   - 🚫 Do NOT use any custom `/verify` route or code screen — **Clerk handles this natively**.
+
+5. **Protect routes using Clerk Middleware**:
+   - Add `middleware.ts`:
+     ```ts
+     import { authMiddleware } from "@clerk/nextjs";
+
+     export default authMiddleware({
+       publicRoutes: ["/", "/sign-in", "/sign-up", "/about"],
+     });
+
+     export const config = {
+       matcher: ["/((?!_next/image|_next/static|favicon.ico).*)"],
+     };
+     ```
+
+6. **In your dashboard or private pages**:
+   ```tsx
+   import { SignedIn, SignedOut, RedirectToSignIn } from "@clerk/nextjs";
+
+   export default function DashboardPage() {
+     return (
+       <>
+         <SignedIn>
+           <DashboardContent />
+         </SignedIn>
+         <SignedOut>
+           <RedirectToSignIn />
+         </SignedOut>
+       </>
+     );
+   }
+   ```
+
+7. **Access user data via hooks**:
+   ```tsx
+   import { useUser } from "@clerk/nextjs";
+
+   const { user } = useUser();
+   console.log(user?.firstName);
+   ```
+
+8. ✅ Redirects and verification should now work out-of-the-box:
+   - Email verification via Clerk UI (no need for custom screens).
+   - Google auth will auto-redirect to your `redirectUrl`.
+
+---
+
+## ✅ FINAL CHECKLIST
+
+✅ No legacy `/verify`, `/auth`, or `/api/login` left.  
+✅ Clerk env vars properly set.  
+✅ Pages use Clerk `<SignIn />`, `<SignUp />`.  
+✅ Middleware configured with public routes.  
+✅ `SignedIn`/`SignedOut` guards applied.  
+✅ Users redirected after signup/sign-in properly.  
+✅ Google auth, email/password, and email verification all work flawlessly.
+
+---
+
+Send this full prompt to the AI or DevTool and say:
+
+**"NO excuses. Execute this as-is, do not modify or skip steps, and do not reintroduce legacy code."**
+
+Let me know if you want me to write the cleaned-up files for you too — I’ll do it from scratch.
+
+Let’s kill the bugs and build that empire 🚀
