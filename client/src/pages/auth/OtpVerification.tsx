@@ -157,12 +157,11 @@ const OtpVerification: React.FC = () => {
         message: 'Email verified successfully!'
       });
       
-      // For new users coming from registration, always go to onboarding
-      // This ensures they don't skip the onboarding flow
+      // For new users coming from registration, direct them to welcome page
       setTimeout(() => {
-        // Always direct to onboarding for new users after verification
-        // The onboarding will then direct to template selection
-        setLocation('/onboarding');
+        // Direct new users to welcome page after verification
+        // From there they can begin the will creation process
+        setLocation('/welcome');
       }, 2000);
     } catch (error) {
       setAuthStatus({
@@ -273,11 +272,11 @@ const OtpVerification: React.FC = () => {
             <AuthButton 
               type="button" 
               onClick={() => {
-                // New users coming from verification should always go to onboarding
-                setLocation('/onboarding');
+                // New users coming from verification should start at welcome page
+                setLocation('/welcome');
               }}
             >
-              Continue to Onboarding
+              Continue
             </AuthButton>
           </motion.div>
         )}

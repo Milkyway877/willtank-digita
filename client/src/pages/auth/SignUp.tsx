@@ -43,7 +43,7 @@ const SignUp: React.FC = () => {
   useEffect(() => {
     if (user) {
       if (user.isEmailVerified) {
-        navigate('/'); // Navigate to dashboard or onboarding
+        navigate('/welcome'); // Navigate to welcome page
       } else {
         // If user has registered but not verified, show verification page
         navigate(`/auth/verify/${encodeURIComponent(user.username)}`);
@@ -155,7 +155,7 @@ const SignUp: React.FC = () => {
       
       // Redirect after a short delay
       setTimeout(() => {
-        navigate('/');
+        navigate('/welcome');
       }, 1500);
       
     } catch (error) {
