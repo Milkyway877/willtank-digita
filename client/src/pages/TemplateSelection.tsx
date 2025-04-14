@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import AnimatedAurora from '@/components/ui/AnimatedAurora';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
+import { useToast } from '@/hooks/use-toast';
 
 interface TemplateOption {
   id: string;
@@ -74,6 +75,7 @@ const templateOptions: TemplateOption[] = [
 const TemplateSelection: React.FC = () => {
   const [, navigate] = useLocation();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   
   const handleBack = () => {
@@ -81,7 +83,15 @@ const TemplateSelection: React.FC = () => {
   };
   
   const handleContinue = async () => {
-    if (!selectedTemplate) return;
+    if (!selectedTemplate) {
+      // Show an error toast if no template is selected
+      toast({
+        title: "No template selected",
+        description: "Please select a template before continuing",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
       // Save selected template to localStorage for use in AI chat
@@ -91,6 +101,11 @@ const TemplateSelection: React.FC = () => {
       navigate('/create-will');
     } catch (error) {
       console.error('Error selecting template:', error);
+      toast({
+        title: "Error",
+        description: "There was a problem with your selection. Please try again.",
+        variant: "destructive"
+      });
     }
   };
   

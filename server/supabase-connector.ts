@@ -11,38 +11,26 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 // Initialize Supabase tables if they don't exist
 export async function initializeSupabaseTables() {
   try {
-    // Check if the users table exists by attempting to query it
-    const { error } = await supabase.from('users').select('id').limit(1);
+    // The supabase-js client doesn't support raw SQL directly from the client for security reasons
+    // Instead, we'll use the REST API to create the table through the dashboard
 
-    // If we get a specific error about the table not existing, create it
+    console.log('Checking Supabase users table...');
+    
+    // Attempt to use the table (this will succeed if it exists)
+    const { error } = await supabase.from('users').select('id').limit(1);
+    
     if (error && error.code === '42P01') {
-      console.log('Creating Supabase users table...');
-      
-      // Use Supabase's SQL executor to create the table
-      const { error: createError } = await supabase.rpc('create_users_table', {});
-      
-      if (createError) {
-        // If the RPC doesn't exist, use raw SQL
-        const { error: sqlError } = await supabase.rpc('execute_sql', {
-          sql_query: `
-            CREATE TABLE IF NOT EXISTS public.users (
-              id TEXT PRIMARY KEY,
-              email TEXT UNIQUE NOT NULL,
-              name TEXT,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-              last_login TIMESTAMP WITH TIME ZONE,
-              will_in_progress BOOLEAN DEFAULT FALSE,
-              will_completed BOOLEAN DEFAULT FALSE
-            );
-          `
-        });
-        
-        if (sqlError) {
-          console.error('Error creating users table:', sqlError);
-        } else {
-          console.log('Users table created successfully');
-        }
-      }
+      console.log('Users table does not exist. Please create it in the Supabase dashboard.');
+      console.log('Create a table named "users" with the following columns:');
+      console.log('- id: text (primary key)');
+      console.log('- email: text (unique)');
+      console.log('- name: text');
+      console.log('- created_at: timestamptz (default: now())');
+      console.log('- last_login: timestamptz');
+      console.log('- will_in_progress: boolean (default: false)');
+      console.log('- will_completed: boolean (default: false)');
+    } else {
+      console.log('Supabase users table exists and is accessible.');
     }
   } catch (error) {
     console.error('Error initializing Supabase tables:', error);

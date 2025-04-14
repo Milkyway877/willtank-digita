@@ -88,11 +88,12 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
         content: content
       };
       
-      // Update messages
-      setMessages((prev) => [...prev, userMessage]);
+      // Update messages with the new user message
+      const updatedMessages = [...messages, userMessage];
+      setMessages(updatedMessages);
 
-      // Prepare messages history including previous context and new user message
-      const messagesToSend = [...messages, userMessage];
+      // Use updated messages array (not the stale state variable)
+      const messagesToSend = updatedMessages;
 
       // Create fetch request with appropriate options for streaming
       const response = await fetch('/api/skyler/chat-stream', {
@@ -163,7 +164,15 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
       };
 
       await processStream();
-      setStreamingMessage(accumulatedMessage);
+      
+      // After streaming is done, add the assistant message to the messages array
+      const assistantMessage: SkylerMessage = {
+        role: 'assistant',
+        content: accumulatedMessage
+      };
+      
+      setMessages(prev => [...prev, assistantMessage]);
+      setStreamingMessage(''); // Clear streaming message as it's now in the messages array
 
     } catch (error) {
       console.error('Error with streaming message:', error);

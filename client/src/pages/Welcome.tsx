@@ -14,13 +14,18 @@ const Welcome: React.FC = () => {
   // Redirect based on user's will status
   useEffect(() => {
     if (user) {
+      console.log('Will status:', { willCompleted: user.willCompleted, willInProgress: user.willInProgress });
+      
       // If user has a completed will, redirect to dashboard
       if (user.willCompleted) {
+        console.log('Redirecting to dashboard (completed will)');
         navigate('/dashboard');
       } 
-      // If user has a will in progress but not on welcome page yet, redirect to template selection
-      else if (user.willInProgress && window.location.pathname === '/welcome') {
-        navigate('/template-selection');
+      // If user has a will in progress, redirect to the dashboard as well
+      // This ensures returning users always go to the dashboard, not template selection
+      else if (user.willInProgress) {
+        console.log('Redirecting to dashboard (will in progress)');
+        navigate('/dashboard');
       }
     }
   }, [user, navigate]);

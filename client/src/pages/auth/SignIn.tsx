@@ -62,18 +62,9 @@ const SignIn: React.FC = () => {
   useEffect(() => {
     if (user) {
       if (user.isEmailVerified) {
-        // First check user object flags from database
-        if (user.willCompleted) {
-          // If will is completed, go to dashboard
-          navigate('/dashboard');
-        } else if (user.willInProgress) {
-          // If will is in progress, go back to where they left off
-          const resumeUrl = getResumeUrl();
-          navigate(resumeUrl);
-        } else {
-          // If no will yet, go to welcome page
-          navigate('/welcome');
-        }
+        // For ALL users who are logged in and verified,
+        // ALWAYS direct them to the dashboard first
+        navigate('/dashboard');
       } else {
         // If user is logged in but not verified, redirect to verification page
         navigate(`/auth/verify/${encodeURIComponent(user.username)}`);
