@@ -400,20 +400,5 @@ const DashboardPage: React.FC = () => {
   );
 };
 
-// ✅ FIXED: Using import at the top of the file
-
-// This ensures only authenticated users can access the dashboard
-const ProtectedDashboardPage = () => {
-  return (
-    <>
-      <SignedIn>
-        <DashboardPage />
-      </SignedIn>
-      <SignedOut>
-        <RedirectToSignIn />
-      </SignedOut>
-    </>
-  );
-};
-
-export default ProtectedDashboardPage;
+// The dashboard is already protected by the ProtectedRoute component in App.tsx
+export default DashboardPage;

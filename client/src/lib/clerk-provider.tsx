@@ -48,7 +48,7 @@ const shouldUseLegacyAuth = !isWillTankDomain || !CLERK_PUBLISHABLE_KEY;
 
 // Clearer log message about authentication method
 if (shouldUseLegacyAuth) {
-  console.log(`Missing Clerk publishable key. Using legacy authentication.`);
+  console.log(`Using legacy authentication for non-willtank.com domain or development environment`);
 }
 
 // Pages that don't require authentication
