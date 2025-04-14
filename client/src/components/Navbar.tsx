@@ -15,14 +15,12 @@ import {
 import { Link, useLocation } from 'wouter'
 import { ExpandableTabs } from '@/components/ui/expandable-tabs'
 import Logo from '@/components/ui/Logo'
-import { useUser, UserButton } from '@clerk/clerk-react'
 
 const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [selectedTab, setSelectedTab] = useState<number | null>(null)
   const [currentLocation, setLocation] = useLocation()
-  const { isSignedIn, isLoaded } = useUser()
 
   // Don't show the navbar on auth or dashboard pages
   if (currentLocation.startsWith('/auth') || currentLocation.startsWith('/dashboard')) {
@@ -95,9 +93,9 @@ const Navbar: React.FC = () => {
 
   const handleAuthItemClick = (index: number | null) => {
     if (index === 0) {
-      setLocation('/sign-in')
+      setLocation('/auth/sign-in')
     } else if (index === 1) {
-      setLocation('/sign-up')
+      setLocation('/auth/sign-up')
     }
   }
 
@@ -119,30 +117,14 @@ const Navbar: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-4">
-            {isLoaded && isSignedIn ? (
-              <div className="flex items-center">
-                <Link href="/dashboard" className="mr-4 text-sm font-medium hover:text-primary text-gray-700">
-                  Dashboard
-                </Link>
-                <UserButton 
-                  afterSignOutUrl="/"
-                  appearance={{
-                    elements: {
-                      userButtonAvatarBox: "w-9 h-9"
-                    }
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="hidden md:block">
-                <ExpandableTabs 
-                  tabs={authItems} 
-                  activeColor="text-primary"
-                  onChange={handleAuthItemClick}
-                  className="border-gray-100"
-                />
-              </div>
-            )}
+            <div className="hidden md:block">
+              <ExpandableTabs 
+                tabs={authItems} 
+                activeColor="text-primary"
+                onChange={handleAuthItemClick}
+                className="border-gray-100"
+              />
+            </div>
             <button 
               className="md:hidden text-neutral-600"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -161,37 +143,14 @@ const Navbar: React.FC = () => {
               className="border-gray-100"
             />
             
-            {isLoaded && isSignedIn ? (
-              <div className="mt-4 flex flex-col space-y-4">
-                <Link 
-                  href="/dashboard" 
-                  className="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-gray-100"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <LayoutGrid className="mr-2 h-4 w-4" />
-                  Dashboard
-                </Link>
-                <div className="flex justify-center">
-                  <UserButton 
-                    afterSignOutUrl="/"
-                    appearance={{
-                      elements: {
-                        userButtonAvatarBox: "w-9 h-9"
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="mt-4">
-                <ExpandableTabs 
-                  tabs={authItems} 
-                  activeColor="text-primary"
-                  onChange={handleAuthItemClick}
-                  className="border-gray-100"
-                />
-              </div>
-            )}
+            <div className="mt-4">
+              <ExpandableTabs 
+                tabs={authItems} 
+                activeColor="text-primary"
+                onChange={handleAuthItemClick}
+                className="border-gray-100"
+              />
+            </div>
           </div>
         </div>
       </div>

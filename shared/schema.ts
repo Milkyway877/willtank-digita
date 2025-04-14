@@ -6,14 +6,6 @@ import { relations } from "drizzle-orm";
 // Users table
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  // Clerk integration fields
-  clerkId: text("clerk_id").unique(),
-  email: text("email").unique(),
-  firstName: text("first_name"),
-  lastName: text("last_name"),
-  lastLogin: timestamp("last_login"),
-  
-  // Legacy authentication fields
   username: text("username").notNull().unique(), // Using username as email
   password: text("password").notNull(),
   fullName: text("full_name"),
@@ -22,18 +14,14 @@ export const users = pgTable("users", {
   verificationCodeExpiry: timestamp("verification_code_expiry"),
   resetPasswordToken: text("reset_password_token"),
   resetPasswordExpiry: timestamp("reset_password_expiry"),
-  
-  // User profile and preferences
   hasCompletedOnboarding: boolean("has_completed_onboarding").default(false),
   preferences: json("preferences"), // Storing user preferences as JSON
   lastCheckIn: timestamp("last_check_in"),
   nextCheckInDue: timestamp("next_check_in_due"),
-  
   // 2FA fields
   twoFactorEnabled: boolean("twofa_enabled").default(false),
   twoFactorSecret: text("twofa_secret"),
   backupCodes: json("backup_codes"), // Storing backup codes as JSON array
-  
   // Stripe-related fields
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
@@ -41,8 +29,6 @@ export const users = pgTable("users", {
   planType: text("plan_type").default("free"),
   planInterval: text("plan_interval"),
   planExpiry: timestamp("plan_expiry"),
-  
-  // Timestamps
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -192,10 +178,6 @@ export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
   fullName: true,
-  clerkId: true,
-  email: true,
-  firstName: true,
-  lastName: true,
 });
 
 // Email validation for username field
@@ -203,10 +185,6 @@ export const extendedInsertUserSchema = insertUserSchema.extend({
   username: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters long"),
   fullName: z.string().optional(),
-  clerkId: z.string().optional(),
-  email: z.string().email("Please enter a valid email address").optional(),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
 });
 
 export const insertBeneficiarySchema = createInsertSchema(beneficiaries).pick({

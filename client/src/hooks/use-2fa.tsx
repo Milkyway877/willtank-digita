@@ -47,11 +47,6 @@ export function TwoFactorProvider({ children }: { children: ReactNode }) {
     queryKey: ['/api/2fa/status'],
     retry: false,
     refetchOnWindowFocus: false,
-    // ✅ FIXED: Better handling of 401 unauthorized responses
-    gcTime: 0, // Don't cache failed requests
-    // If user is not authenticated, return a default status instead of error
-    throwOnError: false,
-    staleTime: 30000, // 30 seconds
   });
   
   // Generate new secret

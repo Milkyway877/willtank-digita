@@ -1,6 +1,6 @@
+import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import { Redirect, Route } from "wouter";
-import { useUser, SignedIn, SignedOut, RedirectToSignIn } from "@clerk/clerk-react";
 
 interface ProtectedRouteProps {
   path: string;
@@ -11,10 +11,9 @@ export function ProtectedRoute({
   path,
   component: Component,
 }: ProtectedRouteProps) {
-  // Use only Clerk's authentication
-  const { isLoaded, isSignedIn, user } = useUser();
-  
-  if (!isLoaded) {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
     return (
       <Route path={path}>
         <div className="flex items-center justify-center min-h-screen">
@@ -24,31 +23,36 @@ export function ProtectedRoute({
     );
   }
 
-  // If not authenticated, redirect to sign-in
-  if (!isSignedIn) {
+  if (!user) {
     return (
       <Route path={path}>
-        <RedirectToSignIn />
+        <Redirect to="/auth/sign-in" />
+      </Route>
+    );
+  }
+
+  // If user exists but email is not verified, redirect to verification
+  if (user && !user.isEmailVerified) {
+    return (
+      <Route path={path}>
+        <Redirect to={`/auth/verify/${encodeURIComponent(user.username)}`} />
       </Route>
     );
   }
   
   // Only redirect NEW USERS to onboarding, not returning users
+  // Use createdAt timestamp to determine if this is a first-time login
   const isOnboardingPath = path === '/onboarding';
+  const isNewUser = user?.createdAt && (new Date().getTime() - new Date(user.createdAt).getTime() < 86400000); // Within 24 hours
   
-  // Check creation date to determine if this is a new user
-  const createdAt = user?.createdAt?.getTime();
-  const isNewUser = createdAt && (new Date().getTime() - createdAt < 86400000); // Within 24 hours
-  
-  // Check if onboarding has been completed through metadata
-  const hasCompletedOnboarding = user.publicMetadata?.hasCompletedOnboarding === true;
-  
-  // Redirect to onboarding if needed
   if (
-    !hasCompletedOnboarding && 
-    isNewUser && 
+    user && 
+    user.isEmailVerified && 
+    !user.hasCompletedOnboarding && 
+    isNewUser && // Only redirect if it's a new user
     !isOnboardingPath && 
-    // Don't redirect from these paths
+    // Don't redirect in specific paths that are okay to visit before onboarding
+    !/^\/auth/.test(path) && 
     path !== '/subscription' && 
     path !== '/pricing'
   ) {
@@ -59,7 +63,6 @@ export function ProtectedRoute({
     );
   }
 
-  // Show the protected component
   return (
     <Route path={path}>
       <Component />

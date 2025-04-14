@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
-import { setupAuth, comparePasswords, hashPassword } from "./auth";
+import { setupAuth, comparePasswords } from "./auth";
 import { initializeScheduler, triggerCheckInEmails } from "./scheduler";
 import { storage as dbStorage } from "./storage";
 import { db } from "./db";
@@ -43,153 +43,11 @@ import {
 } from "./stripe";
 
 import { getChatCompletion, getStreamingChatCompletion } from './openai';
-import jwt from 'jsonwebtoken';
 
-// Clerk auth verification middleware
-const clerkAuthSchema = z.object({
-  clerkId: z.string(),
-  email: z.string().email().optional(),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  username: z.string().optional(),
-  token: z.string(),
-});
-
-// Function to verify a Clerk JWT token
-async function verifyClerkJWT(token: string): Promise<boolean> {
-  try {
-    // We're in production mode for willtank.com
-    // Only use the production key
-    const secretKey = process.env.CLERK_SECRET_KEY;
-      
-    if (!secretKey) {
-      throw new Error("Missing Clerk secret key for production environment");
-    }
-
-    try {
-      // Basic JWT verification
-      const decoded = jwt.verify(token, secretKey);
-      
-      // Check if the token has the expected structure
-      return !!decoded && typeof decoded === 'object' && 'sub' in decoded;
-    } catch (verifyError) {
-      console.error('JWT verification failed:', verifyError);
-      return false;
-    }
-  } catch (error) {
-    console.error('Error verifying Clerk JWT:', error);
-    
-    // If we get a specific JWT verification error, log it
-    if (error instanceof jwt.JsonWebTokenError || 
-        error instanceof jwt.TokenExpiredError ||
-        error instanceof jwt.NotBeforeError) {
-      console.error('JWT verification failed:', error.message);
-    }
-    
-    return false;
-  }
-}
-
-// Helper function to check if a user is authenticated via multiple methods
-// For backward compatibility, returns boolean in development mode, but object in production mode
-function isUserAuthenticated(req: Request): boolean | { authenticated: boolean; userId?: number } {
-  // Always store the userId in the request object for convenience
-  if (req.user && req.user.id) {
-    (req as any).userId = req.user.id;
-  }
-  
-  // Check query string or body for userId and store it
-  if (!req.user) {
-    // Look in query parameters
-    if (req.query.userId) {
-      const queryUserId = parseInt(req.query.userId as string);
-      if (!isNaN(queryUserId)) {
-        (req as any).userId = queryUserId;
-      }
-    }
-    
-    // Look in request body
-    if (req.body && req.body.userId) {
-      const bodyUserId = parseInt(req.body.userId);
-      if (!isNaN(bodyUserId)) {
-        (req as any).userId = bodyUserId;
-      }
-    }
-  }
-  
-  // Standardized check for production mode
-  if (process.env.NODE_ENV === 'production') {
-    // Traditional authentication via session
-    if (req.user) {
-      return { 
-        authenticated: true,
-        userId: req.user.id 
-      };
-    }
-    
-    // Clerk JWT token authentication
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      // If we have a userId, include it in the result
-      if ((req as any).userId) {
-        return { 
-          authenticated: true,
-          userId: (req as any).userId
-        };
-      }
-      
-      // Token is present but we couldn't extract a user ID
-      return { authenticated: true };
-    }
-    
-    return { authenticated: false };
-  } 
-  // Simple boolean response for development mode for backward compatibility
-  else {
-    // Check traditional passport session first
-    if (req.user) {
-      return true;
-    }
-    
-    // Check for bearer token (Clerk)
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      return true;
-    }
-    
-    return false;
-  }
-}
-
-// Add a helper function to get authenticated user ID
-function getAuthUserId(req: Request): number | undefined {
-  // First check for userId added by isUserAuthenticated
-  if ((req as any).userId) {
-    return (req as any).userId;
-  }
-  
-  // Then check for traditional passport user
-  if (req.user && req.user.id) {
-    return req.user.id;
-  }
-  
-  // Check query params
-  if (req.query.userId) {
-    const userId = parseInt(req.query.userId as string);
-    if (!isNaN(userId)) {
-      return userId;
-    }
-  }
-  
-  // Check body
-  if (req.body && req.body.userId) {
-    const userId = parseInt(req.body.userId);
-    if (!isNaN(userId)) {
-      return userId;
-    }
-  }
-  
-  return undefined;
+// Helper function to check if a user is authenticated via session
+// Uses passport's req.isAuthenticated() method which is more reliable
+function isUserAuthenticated(req: Request): boolean {
+  return !!(req.user);
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -198,107 +56,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Initialize the scheduler for weekly check-ins
   initializeScheduler();
-  
-  // Clerk authentication sync endpoint
-  app.post("/api/auth/clerk-sync", async (req: Request, res: Response) => {
-    try {
-      const validationResult = clerkAuthSchema.safeParse(req.body);
-      
-      if (!validationResult.success) {
-        return res.status(400).json({
-          error: "Invalid request data",
-          details: validationResult.error.errors
-        });
-      }
-      
-      const { clerkId, email, firstName, lastName, username, token } = validationResult.data;
-      
-      // Verify the token
-      const isValidToken = await verifyClerkJWT(token);
-      if (!isValidToken) {
-        return res.status(401).json({ error: "Invalid authentication token" });
-      }
-      
-      // Check if a user with this clerkId already exists
-      const [existingUserByClerkId] = await db
-        .select()
-        .from(users)
-        .where(eq(users.clerkId, clerkId));
-      
-      if (existingUserByClerkId) {
-        // Update the existing user with the latest Clerk data
-        const [updatedUser] = await db
-          .update(users)
-          .set({
-            firstName: firstName || existingUserByClerkId.firstName,
-            lastName: lastName || existingUserByClerkId.lastName,
-            email: email || existingUserByClerkId.email,
-            lastLogin: new Date()
-          })
-          .where(eq(users.id, existingUserByClerkId.id))
-          .returning();
-        
-        return res.status(200).json({
-          message: "User updated successfully",
-          user: updatedUser
-        });
-      }
-      
-      // Check if a user with this email already exists
-      if (email) {
-        const [existingUserByEmail] = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, email));
-        
-        if (existingUserByEmail) {
-          // Link the existing user with Clerk
-          const [updatedUser] = await db
-            .update(users)
-            .set({
-              clerkId,
-              firstName: firstName || existingUserByEmail.firstName,
-              lastName: lastName || existingUserByEmail.lastName,
-              lastLogin: new Date()
-            })
-            .where(eq(users.id, existingUserByEmail.id))
-            .returning();
-          
-          return res.status(200).json({
-            message: "User linked with Clerk successfully",
-            user: updatedUser
-          });
-        }
-      }
-      
-      // Create new user if no existing user found
-      // Generate random password for compatibility with the existing auth system
-      const randomPassword = await hashPassword(Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
-      
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          clerkId,
-          username: username || (email ? email.split('@')[0] : `user_${Date.now()}`),
-          email: email || null,
-          password: randomPassword,
-          firstName: firstName || null,
-          lastName: lastName || null,
-          isEmailVerified: true, // Clerk verifies emails
-          createdAt: new Date(),
-          lastLogin: new Date()
-        })
-        .returning();
-      
-      return res.status(201).json({
-        message: "User created successfully",
-        user: newUser
-      });
-    } catch (error) {
-      console.error("Error in Clerk sync endpoint:", error);
-      return res.status(500).json({ error: "Internal server error during user synchronization" });
-    }
-  });
   
   // Set up static file serving for uploads
   const uploadDir = path.join(process.cwd(), 'uploads');
@@ -1377,19 +1134,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Two-Factor Authentication (2FA) API endpoints
   app.get("/api/2fa/status", async (req: Request, res: Response) => {
-    // Check authentication
-    const authCheck = isUserAuthenticated(req);
-    if (!authCheck) {
+    if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      // Get user ID using helper function
-      const userId = getAuthUserId(req);
-      if (!userId) {
-        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
-      }
-      
+      const userId = req.user!.id;
       const status = await get2FAStatus(userId);
       
       return res.status(200).json({
@@ -1404,30 +1154,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post("/api/2fa/generate", async (req: Request, res: Response) => {
-    // Check authentication
-    const authCheck = isUserAuthenticated(req);
-    if (!authCheck) {
+    if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      // Get user ID using helper function
-      const userId = getAuthUserId(req);
-      if (!userId) {
-        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
-      }
-      
-      // Get username from user record
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, userId));
-        
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      
-      const username = user.username;
+      const userId = req.user!.id;
+      const username = req.user!.username;
       
       // Check if 2FA is already enabled
       const status = await get2FAStatus(userId);
@@ -1458,19 +1191,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post("/api/2fa/verify", async (req: Request, res: Response) => {
-    // Check authentication with updated helper
-    const authCheck = isUserAuthenticated(req);
-    if (!authCheck) {
+    if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      // Get user ID using helper function
-      const userId = getAuthUserId(req);
-      if (!userId) {
-        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
-      }
-      
+      const userId = req.user!.id;
       const { token } = req.body;
       
       if (!token) {
@@ -1528,19 +1254,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post("/api/2fa/disable", async (req: Request, res: Response) => {
-    // Check authentication with updated helper
-    const authCheck = isUserAuthenticated(req);
-    if (!authCheck) {
+    if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      // Get user ID using helper function
-      const userId = getAuthUserId(req);
-      if (!userId) {
-        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
-      }
-      
+      const userId = req.user!.id;
       const { password, token } = req.body;
       
       // Get current user record to verify password
@@ -1598,19 +1317,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post("/api/2fa/verify-token", async (req: Request, res: Response) => {
-    // Check authentication with updated helper
-    const authCheck = isUserAuthenticated(req);
-    if (!authCheck) {
+    if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      // Get user ID using helper function
-      const userId = getAuthUserId(req);
-      if (!userId) {
-        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
-      }
-      
+      const userId = req.user!.id;
       const { token } = req.body;
       
       if (!token) {
@@ -1638,19 +1350,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Notification API endpoints
   app.get("/api/notifications", async (req: Request, res: Response) => {
-    // Check authentication with updated helper
-    const authCheck = isUserAuthenticated(req);
-    if (!authCheck) {
+    if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      // Get user ID using helper function
-      const userId = getAuthUserId(req);
-      if (!userId) {
-        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
-      }
-      
+      const userId = req.user!.id;
       const notifications = await dbStorage.getUserNotifications(userId);
       return res.status(200).json(notifications);
     } catch (error) {
@@ -1660,19 +1365,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/notifications/unread-count", async (req: Request, res: Response) => {
-    // Check authentication with updated helper
-    const authCheck = isUserAuthenticated(req);
-    if (!authCheck) {
+    if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      // Get user ID using helper function
-      const userId = getAuthUserId(req);
-      if (!userId) {
-        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
-      }
-      
+      const userId = req.user!.id;
       const count = await dbStorage.getUserUnreadNotificationCount(userId);
       return res.status(200).json({ count });
     } catch (error) {
@@ -1811,19 +1509,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/delivery-settings", async (req: Request, res: Response) => {
-    // Check authentication with updated helper
-    const authCheck = isUserAuthenticated(req);
-    if (!authCheck) {
+    if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
     try {
-      // Get user ID using helper function
-      const userId = getAuthUserId(req);
-      if (!userId) {
-        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
-      }
-      
+      const userId = req.user.id;
       const { method, contacts, message, attorneyContact } = req.body;
       
       // Check if delivery settings already exist for this user

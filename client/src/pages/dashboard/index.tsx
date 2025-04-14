@@ -11,8 +11,6 @@ import { Calendar, Video, UploadCloud, MessageSquare, FilePlus, AlertCircle, Loa
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-// ✅ FIXED: Import Clerk components for protected routes
-import { SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react';
 
 interface Will {
   id: number;
@@ -400,5 +398,4 @@ const DashboardPage: React.FC = () => {
   );
 };
 
-// The dashboard is already protected by the ProtectedRoute component in App.tsx
 export default DashboardPage;

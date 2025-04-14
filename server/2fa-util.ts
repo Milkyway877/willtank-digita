@@ -96,57 +96,14 @@ export async function enable2FA(userId: number, secret: string): Promise<void> {
   // Properly format and sanitize backup codes for JSON storage
   const backupCodesJson = JSON.stringify(backupCodes);
   
-  try {
-    // Update user record
-    await db.update(users)
-      .set({
-        twoFactorEnabled: true,
-        twoFactorSecret: secret,
-        backupCodes: backupCodesJson,
-        updatedAt: new Date()
-      })
-      .where(eq(users.id, userId));
-    
-    // Send security notification in production mode
-    if (process.env.NODE_ENV === 'production') {
-      try {
-        // Get user details for notification
-        const [user] = await db
-          .select()
-          .from(users)
-          .where(eq(users.id, userId));
-        
-        if (user && user.email) {
-          // Import the email service here to avoid circular dependencies
-          const { sendEmail } = await import('./email');
-          
-          // Production security notification
-          // Fix email sending to match signature
-          const htmlContent = `
-            <h2>WillTank Security Notification</h2>
-            <p>Two-factor authentication has been successfully enabled for your WillTank account.</p>
-            <p>If you did not make this change, please contact support immediately at <a href="mailto:support@willtank.com">support@willtank.com</a>.</p>
-            <p>For security purposes, please keep your backup codes in a safe place.</p>
-            <p>Thank you for enhancing the security of your WillTank account.</p>
-          `;
-          
-          await sendEmail(
-            user.email, 
-            "Security Alert: Two-Factor Authentication Enabled",
-            htmlContent
-          );
-          
-          console.log(`[PRODUCTION] 2FA security notification sent to user ${userId} (${user.email})`);
-        }
-      } catch (notificationError) {
-        // Log but don't fail the entire operation if notification fails
-        console.error("Error sending 2FA security notification:", notificationError);
-      }
-    }
-  } catch (error) {
-    console.error("Error enabling 2FA:", error);
-    throw new Error("Failed to enable 2FA for your account. Please try again.");
-  }
+  // Update user record
+  await db.update(users)
+    .set({
+      twoFactorEnabled: true,
+      twoFactorSecret: secret,
+      backupCodes: backupCodesJson
+    })
+    .where(eq(users.id, userId));
 }
 
 /**

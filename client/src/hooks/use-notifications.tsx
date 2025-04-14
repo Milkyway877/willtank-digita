@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useContext, useState, useEffect } from "react";
 import {
   useQuery,
   useMutation,
@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { Notification } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
-import { useUser, useAuth } from "@clerk/clerk-react"; // Use Clerk's hooks
+import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 
 type NotificationsContextType = {
@@ -70,8 +70,7 @@ function useDeleteNotificationMutation() {
 }
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
-  // Use Clerk's useUser hook
-  const { isSignedIn, user } = useUser();
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -83,7 +82,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   } = useQuery<Notification[], Error>({
     queryKey: ["/api/notifications"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    enabled: !!isSignedIn, // Use isSignedIn from Clerk
+    enabled: !!user,
   });
 
   // Fetch unread count
@@ -93,7 +92,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   } = useQuery<{ count: number }, Error>({
     queryKey: ["/api/notifications/unread-count"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    enabled: !!isSignedIn, // Use isSignedIn from Clerk
+    enabled: !!user,
   });
 
   const unreadCount = unreadCountData?.count || 0;
