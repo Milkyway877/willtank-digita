@@ -123,11 +123,8 @@ export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  // Callback handler for Clerk navigation
-  const handleNavigate = (to: string) => {
-    console.log(`Clerk navigation: ${to}`);
-    navigate(to);
-  };
+  // Navigation handler is no longer needed with newer Clerk version
+  // Custom routing is handled at the component level instead
   
   // For public pages, we don't need to check authentication
   if (isPublicPage) {
@@ -156,8 +153,7 @@ export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
   return (
     <BaseClerkProvider 
       publishableKey={ACTIVE_CLERK_KEY}
-      // FIXED: Add navigation handler and proper redirects
-      navigate={handleNavigate}
+      // Set all the redirect URLs without passing navigate prop
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
       afterSignInUrl="/dashboard"
