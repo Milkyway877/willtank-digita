@@ -3,11 +3,14 @@ import OpenAI from "openai";
 // Create OpenAI client with API key from environment variables
 if (!process.env.OPENAI_API_KEY) {
   console.error("OPENAI_API_KEY is not set in environment variables!");
+  throw new Error("Missing OpenAI API key in production environment!");
 }
 
-console.log("Initializing OpenAI client with API key present:", !!process.env.OPENAI_API_KEY);
+console.log("Initializing OpenAI client for production environment");
 const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY 
+  apiKey: process.env.OPENAI_API_KEY,
+  organization: "willtank",
+  maxRetries: 3 // Higher retries in production for reliability
 });
 
 // Handle chat completions with GPT-4o Mini

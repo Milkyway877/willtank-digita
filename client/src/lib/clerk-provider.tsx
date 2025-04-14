@@ -13,16 +13,13 @@ import { apiRequest } from '@/lib/queryClient';
 // Get the Clerk publishable key from environment variables
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-// Determine if we're in development mode
-const isDevelopment = window.location.hostname === 'localhost' || 
-                      window.location.hostname.includes('replit.dev') ||
-                      window.location.hostname.includes('repl.co');
+// In production mode, we want to always use the production keys
+// since we're deployed to willtank.com
+const isDevelopment = false;
 
-// Set development keys if needed
-const DEV_CLERK_PUBLISHABLE_KEY = 'pk_test_cG9zaXRpdmUtbWlubm93LTQyLmNsZXJrLmFjY291bnRzLmRldiQ';
-
-// Use development key in development environments, production key otherwise
-const ACTIVE_CLERK_KEY = isDevelopment ? DEV_CLERK_PUBLISHABLE_KEY : CLERK_PUBLISHABLE_KEY;
+// Always use the production key in production mode
+// This ensures we're always using the proper environment for willtank.com
+const ACTIVE_CLERK_KEY = CLERK_PUBLISHABLE_KEY;
 
 if (!ACTIVE_CLERK_KEY) {
   console.error('Missing Clerk publishable key for the current environment');
