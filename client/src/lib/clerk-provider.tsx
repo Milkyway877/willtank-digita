@@ -13,8 +13,19 @@ import { apiRequest } from '@/lib/queryClient';
 // Get the Clerk publishable key from environment variables
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-if (!CLERK_PUBLISHABLE_KEY) {
-  console.error('Missing VITE_CLERK_PUBLISHABLE_KEY environment variable');
+// Determine if we're in development mode
+const isDevelopment = window.location.hostname === 'localhost' || 
+                      window.location.hostname.includes('replit.dev') ||
+                      window.location.hostname.includes('repl.co');
+
+// Set development keys if needed
+const DEV_CLERK_PUBLISHABLE_KEY = 'pk_test_cG9zaXRpdmUtbWlubm93LTQyLmNsZXJrLmFjY291bnRzLmRldiQ';
+
+// Use development key in development environments, production key otherwise
+const ACTIVE_CLERK_KEY = isDevelopment ? DEV_CLERK_PUBLISHABLE_KEY : CLERK_PUBLISHABLE_KEY;
+
+if (!ACTIVE_CLERK_KEY) {
+  console.error('Missing Clerk publishable key for the current environment');
 }
 
 // Pages that don't require authentication
@@ -64,13 +75,22 @@ export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   // If we don't have a publishable key, just render the children
-  if (!CLERK_PUBLISHABLE_KEY) {
+  if (!ACTIVE_CLERK_KEY) {
     console.error('Clerk publishable key is missing. Authentication is disabled.');
     return <>{children}</>;
   }
 
   return (
-    <BaseClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+    <BaseClerkProvider 
+      publishableKey={ACTIVE_CLERK_KEY}
+      // Configure for development vs production environments
+      appearance={{
+        elements: {
+          rootBox: isDevelopment ? "max-w-md mx-auto" : undefined,
+          card: isDevelopment ? "shadow-none rounded-lg" : undefined,
+        }
+      }}
+    >
       <ClerkUserSync />
       {isPublicPage ? (
         children
