@@ -58,19 +58,35 @@ export default function SignUpPage() {
         
         {isClerkConfigured && !useAlternateAuth ? (
           // Production mode with Clerk configured - show Clerk auth UI
-          <ClerkSignUp 
-            path="/sign-up"
-            signInUrl="/sign-in"
-            afterSignUpUrl="/onboarding"
-            routing="path"
-            appearance={{
-              elements: {
-                formButtonPrimary: 'bg-blue-600 hover:bg-blue-700 text-white',
-                footerActionLink: 'text-blue-600 hover:text-blue-800',
-                card: 'shadow-none',
-              },
-            }}
-          />
+          <div>
+            {/* Add clear instructions for Google sign-up */}
+            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md text-left">
+              <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">Using Google Sign-Up</h3>
+              <ol className="list-decimal ml-5 mt-1 text-xs text-blue-700 dark:text-blue-400">
+                <li>Click "Continue with Google" below</li>
+                <li>Select your Google account</li>
+                <li>Accept the terms if prompted</li>
+                <li>You'll be automatically redirected to the onboarding process</li>
+              </ol>
+            </div>
+            
+            <ClerkSignUp 
+              path="/sign-up"
+              signInUrl="/sign-in"
+              afterSignUpUrl="/onboarding"
+              routing="path"
+              appearance={{
+                elements: {
+                  formButtonPrimary: 'bg-blue-600 hover:bg-blue-700 text-white',
+                  footerActionLink: 'text-blue-600 hover:text-blue-800',
+                  card: 'shadow-none',
+                  socialButtonsBlockButton: 'border-2 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all',
+                  socialButtonsBlockButtonText: 'font-medium',
+                  socialButtonsProviderIcon__google: 'w-5 h-5',
+                },
+              }}
+            />
+          </div>
         ) : (
           // Development mode or Clerk not configured - show legacy auth options
           <div className="space-y-4 p-6 text-center">
