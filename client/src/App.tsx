@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from "react";
+import React, { Suspense, lazy, useEffect } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -9,6 +9,21 @@ import Home from "@/pages/Home";
 import AuthRouter from "@/pages/auth";
 import SignIn from "@/pages/auth/SignIn";
 import SignUp from "@/pages/auth/SignUp";
+
+// Log critical environment information for debugging
+console.log(`WillTank starting up on: ${window.location.hostname}`);
+console.log(`VITE_CLERK_PUBLISHABLE_KEY present: ${!!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}`);
+console.log(`Environment: ${import.meta.env.DEV ? 'development' : 'production'}`);
+console.log(`Base URL: ${import.meta.env.BASE_URL}`);
+
+// Add a global error handler to catch Clerk errors
+window.addEventListener('error', function(event) {
+  console.error('Global error caught:', event.error);
+  // If it's a Clerk error, show a more helpful message
+  if (event.error?.message?.includes('Clerk') || event.message?.includes('Clerk')) {
+    console.warn('Detected Clerk error. Authentication may fall back to legacy mode.');
+  }
+});
 import OnboardingContainer from "@/components/onboarding/OnboardingContainer";
 import Dashboard from "@/pages/Dashboard";
 import DashboardIndex from "@/pages/dashboard";

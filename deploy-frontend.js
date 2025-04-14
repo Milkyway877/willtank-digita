@@ -17,11 +17,31 @@ console.log('🔒 Backend code will not be exposed in this deployment');
 // Set environment to production
 process.env.NODE_ENV = 'production';
 
+// Create .env file in client directory with required env variables
+console.log('📋 Setting up required environment variables...');
+if (process.env.CLERK_PUBLISHABLE_KEY) {
+  const envContent = `VITE_CLERK_PUBLISHABLE_KEY=${process.env.CLERK_PUBLISHABLE_KEY}\n`;
+  fs.writeFileSync(path.join(__dirname, 'client/.env'), envContent);
+  console.log('✅ Created client/.env file with Clerk publishable key');
+} else {
+  console.warn('⚠️ CLERK_PUBLISHABLE_KEY environment variable is missing!');
+  console.warn('   Authentication with Clerk may not work properly.');
+}
+
 try {
-  // Step 1: Build the frontend
+  // Step 1: Build the frontend with environment variables
   console.log('📦 Building frontend assets...');
+  // Pass the environment variables to the build process
+  const buildEnv = {
+    ...process.env,
+    VITE_CLERK_PUBLISHABLE_KEY: process.env.CLERK_PUBLISHABLE_KEY || '',
+  };
+  
+  console.log(`🔑 Using Clerk key: ${buildEnv.VITE_CLERK_PUBLISHABLE_KEY ? 'Found (masked for security)' : 'MISSING'}`);
+  
   execSync('npx vite build', {
     stdio: 'inherit',
+    env: buildEnv
   });
   
   const app = express();

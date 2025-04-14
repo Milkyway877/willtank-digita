@@ -27,8 +27,14 @@ const isDevelopment = !isProduction;
 // For development - use the development key that works in local/Replit environment
 const ACTIVE_CLERK_KEY = CLERK_PUBLISHABLE_KEY;
 
+// Always log the environment for debugging
+console.log(`Running in ${isDevelopment ? 'development' : 'production'} mode`);
+console.log(`Host: ${typeof window !== 'undefined' ? window.location.hostname : 'unknown'}`);
+
+// Handle missing key case
 if (!ACTIVE_CLERK_KEY) {
   console.error('Missing Clerk publishable key for the current environment');
+  console.error('Falling back to legacy authentication.');
 }
 
 // Pages that don't require authentication
