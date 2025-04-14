@@ -45,8 +45,8 @@ import {
 import { getChatCompletion, getStreamingChatCompletion } from './openai';
 
 // Helper function to check if a user is authenticated via session
-// Uses passport's req.isAuthenticated() method which is more reliable
-function isUserAuthenticated(req: Request): boolean {
+// This is a TypeScript type guard that ensures req.user exists after this check
+function isUserAuthenticated(req: Request): req is Request & { user: Express.User } {
   return !!(req.user);
 }
 
@@ -1514,7 +1514,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const userId = req.user.id;
+      // Type assertion to ensure req.user is not undefined after authentication check
+      const userId = req.user!.id;
       const { method, contacts, message, attorneyContact } = req.body;
       
       // Check if delivery settings already exist for this user
