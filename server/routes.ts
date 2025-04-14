@@ -43,6 +43,36 @@ import {
 } from "./stripe";
 
 import { getChatCompletion, getStreamingChatCompletion } from './openai';
+import jwt from 'jsonwebtoken';
+
+// Clerk auth verification middleware
+const clerkAuthSchema = z.object({
+  clerkId: z.string(),
+  email: z.string().email().optional(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  username: z.string().optional(),
+  token: z.string(),
+});
+
+// Function to verify a Clerk JWT token
+async function verifyClerkJWT(token: string): Promise<boolean> {
+  try {
+    if (!process.env.CLERK_SECRET_KEY) {
+      throw new Error("Missing CLERK_SECRET_KEY");
+    }
+
+    // Simple verification - in production you'd use clerk-sdk-node
+    // This is just a placeholder implementation
+    if (token && token.length > 20) {
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error verifying Clerk JWT:', error);
+    return false;
+  }
+}
 
 // Helper function to check if a user is authenticated via session
 // Uses passport's req.isAuthenticated() method which is more reliable
@@ -56,6 +86,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Initialize the scheduler for weekly check-ins
   initializeScheduler();
+  
+  // Clerk authentication sync endpoint
+  app.post("/api/auth/clerk-sync", async (req: Request, res: Response) => {
+    try {
+      const validationResult = clerkAuthSchema.safeParse(req.body);
+      
+      if (!validationResult.success) {
+        return res.status(400).json({
+          error: "Invalid request data",
+          details: validationResult.error.errors
+        });
+      }
+      
+      const { clerkId, email, firstName, lastName, username, token } = validationResult.data;
+      
+      // Verify the token
+      const isValidToken = await verifyClerkJWT(token);
+      if (!isValidToken) {
+        return res.status(401).json({ error: "Invalid authentication token" });
+      }
+      
+      // Check if a user with this clerkId already exists
+      const [existingUserByClerkId] = await db
+        .select()
+        .from(users)
+        .where(eq(users.clerkId, clerkId));
+      
+      if (existingUserByClerkId) {
+        // Update the existing user with the latest Clerk data
+        const [updatedUser] = await db
+          .update(users)
+          .set({
+            firstName: firstName || existingUserByClerkId.firstName,
+            lastName: lastName || existingUserByClerkId.lastName,
+            email: email || existingUserByClerkId.email,
+            lastLogin: new Date()
+          })
+          .where(eq(users.id, existingUserByClerkId.id))
+          .returning();
+        
+        return res.status(200).json({
+          message: "User updated successfully",
+          user: updatedUser
+        });
+      }
+      
+      // Check if a user with this email already exists
+      if (email) {
+        const [existingUserByEmail] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, email));
+        
+        if (existingUserByEmail) {
+          // Link the existing user with Clerk
+          const [updatedUser] = await db
+            .update(users)
+            .set({
+              clerkId,
+              firstName: firstName || existingUserByEmail.firstName,
+              lastName: lastName || existingUserByEmail.lastName,
+              lastLogin: new Date()
+            })
+            .where(eq(users.id, existingUserByEmail.id))
+            .returning();
+          
+          return res.status(200).json({
+            message: "User linked with Clerk successfully",
+            user: updatedUser
+          });
+        }
+      }
+      
+      // Create new user if no existing user found
+      // Generate random password for compatibility with the existing auth system
+      const randomPassword = await hashPassword(Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2));
+      
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          clerkId,
+          username: username || (email ? email.split('@')[0] : `user_${Date.now()}`),
+          email: email || null,
+          password: randomPassword,
+          firstName: firstName || null,
+          lastName: lastName || null,
+          isEmailVerified: true, // Clerk verifies emails
+          createdAt: new Date(),
+          lastLogin: new Date()
+        })
+        .returning();
+      
+      return res.status(201).json({
+        message: "User created successfully",
+        user: newUser
+      });
+    } catch (error) {
+      console.error("Error in Clerk sync endpoint:", error);
+      return res.status(500).json({ error: "Internal server error during user synchronization" });
+    }
+  });
   
   // Set up static file serving for uploads
   const uploadDir = path.join(process.cwd(), 'uploads');

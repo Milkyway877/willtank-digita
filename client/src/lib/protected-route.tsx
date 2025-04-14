@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import { Redirect, Route } from "wouter";
+import { useUser, useClerk } from "@clerk/clerk-react";
 
 interface ProtectedRouteProps {
   path: string;
@@ -11,8 +12,14 @@ export function ProtectedRoute({
   path,
   component: Component,
 }: ProtectedRouteProps) {
-  const { user, isLoading } = useAuth();
+  // Use both our existing auth and Clerk's authentication during transition
+  const { user: legacyUser, isLoading: legacyLoading } = useAuth();
+  const { isLoaded: clerkLoaded, isSignedIn, user: clerkUser } = useUser();
 
+  // During migration, check both auth systems
+  const isLoading = legacyLoading || !clerkLoaded;
+  const user = isSignedIn ? clerkUser : legacyUser;
+  
   if (isLoading) {
     return (
       <Route path={path}>
@@ -26,29 +33,43 @@ export function ProtectedRoute({
   if (!user) {
     return (
       <Route path={path}>
-        <Redirect to="/auth/sign-in" />
+        <Redirect to="/sign-in" />
       </Route>
     );
   }
 
-  // If user exists but email is not verified, redirect to verification
-  if (user && !user.isEmailVerified) {
+  // If using Clerk, email verification is handled automatically
+  const isEmailVerified = isSignedIn ? true : (legacyUser?.isEmailVerified || false);
+
+  // If user exists but email is not verified, redirect to verification (legacy only)
+  if (!isEmailVerified) {
     return (
       <Route path={path}>
-        <Redirect to={`/auth/verify/${encodeURIComponent(user.username)}`} />
+        <Redirect to={`/auth/verify/${encodeURIComponent(legacyUser?.username || '')}`} />
       </Route>
     );
   }
   
   // Only redirect NEW USERS to onboarding, not returning users
-  // Use createdAt timestamp to determine if this is a first-time login
+  // Using either Clerk or legacy system to determine new user status
   const isOnboardingPath = path === '/onboarding';
-  const isNewUser = user?.createdAt && (new Date().getTime() - new Date(user.createdAt).getTime() < 86400000); // Within 24 hours
+  
+  // For Clerk users, check creation date
+  const clerkCreatedAt = clerkUser?.createdAt?.getTime();
+  const legacyCreatedAt = legacyUser?.createdAt ? new Date(legacyUser.createdAt).getTime() : null;
+  const createdAt = clerkCreatedAt || legacyCreatedAt;
+  
+  const isNewUser = createdAt && (new Date().getTime() - createdAt < 86400000); // Within 24 hours
+  
+  // Check if onboarding has been completed
+  const hasCompletedOnboarding = isSignedIn 
+    ? clerkUser.publicMetadata?.hasCompletedOnboarding === true
+    : legacyUser?.hasCompletedOnboarding;
   
   if (
     user && 
-    user.isEmailVerified && 
-    !user.hasCompletedOnboarding && 
+    isEmailVerified && 
+    !hasCompletedOnboarding && 
     isNewUser && // Only redirect if it's a new user
     !isOnboardingPath && 
     // Don't redirect in specific paths that are okay to visit before onboarding
