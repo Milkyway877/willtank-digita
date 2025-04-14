@@ -32,6 +32,9 @@ function ClerkUserSync() {
       try {
         const token = await getToken();
         
+        // Store token in window object for use by API client
+        window.__clerk_token = token;
+        
         // Call our backend API to sync the user data
         await apiRequest('POST', '/api/auth/clerk-sync', {
           clerkId: user.id,
@@ -49,6 +52,11 @@ function ClerkUserSync() {
     };
     
     syncUserWithBackend();
+    
+    // Clean up token when component unmounts or user signs out
+    return () => {
+      window.__clerk_token = undefined;
+    };
   }, [isLoaded, isSignedIn, user, getToken]);
   
   return null;

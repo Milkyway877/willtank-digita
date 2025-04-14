@@ -1,5 +1,12 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Extend the Window interface for the Clerk token
+declare global {
+  interface Window {
+    __clerk_token?: string;
+  }
+}
+
 // ✅ FIXED: Enhanced error handling for better auth experience
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -47,9 +54,21 @@ export async function apiRequest(
   data?: unknown | undefined,
   options?: { noJsonTransform?: boolean }
 ): Promise<Response> {
+  // Get Clerk token if available
+  let headers: Record<string, string> = {};
+  
+  if (data) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  // Try to add Clerk token from window object (set by ClerkProvider)
+  if (window.__clerk_token) {
+    headers["Authorization"] = `Bearer ${window.__clerk_token}`;
+  }
+  
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -71,8 +90,17 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior, defaultValue }) =>
   async ({ queryKey }) => {
     try {
+      // Add Clerk token to request headers if available
+      const headers: Record<string, string> = {};
+      
+      // Try to add Clerk token from window object (set by ClerkProvider)
+      if (window.__clerk_token) {
+        headers["Authorization"] = `Bearer ${window.__clerk_token}`;
+      }
+      
       const res = await fetch(queryKey[0] as string, {
         credentials: "include",
+        headers
       });
       
       // Handle authentication errors according to specified behavior
