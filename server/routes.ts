@@ -62,14 +62,21 @@ async function verifyClerkJWT(token: string): Promise<boolean> {
       throw new Error("Missing CLERK_SECRET_KEY");
     }
 
-    // Simple verification - in production you'd use clerk-sdk-node
-    // This is just a placeholder implementation
-    if (token && token.length > 20) {
-      return true;
-    }
-    return false;
+    // Basic JWT verification
+    const decoded = jwt.verify(token, process.env.CLERK_SECRET_KEY);
+    
+    // Check if the token has the expected structure
+    return !!decoded && typeof decoded === 'object' && 'sub' in decoded;
   } catch (error) {
     console.error('Error verifying Clerk JWT:', error);
+    
+    // If we get a specific JWT verification error, log it
+    if (error instanceof jwt.JsonWebTokenError || 
+        error instanceof jwt.TokenExpiredError ||
+        error instanceof jwt.NotBeforeError) {
+      console.error('JWT verification failed:', error.message);
+    }
+    
     return false;
   }
 }
