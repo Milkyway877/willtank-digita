@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useState, useEffect } from "react";
+import { createContext, ReactNode, useContext } from "react";
 import {
   useQuery,
   useMutation,
@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { Notification } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
-import { useUser } from "@clerk/clerk-react"; // Use Clerk's useUser hook instead of legacy auth
+import { useUser, useAuth } from "@clerk/clerk-react"; // Use Clerk's hooks
 import { useToast } from "@/hooks/use-toast";
 
 type NotificationsContextType = {
