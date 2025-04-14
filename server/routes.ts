@@ -91,22 +91,105 @@ async function verifyClerkJWT(token: string): Promise<boolean> {
 }
 
 // Helper function to check if a user is authenticated via multiple methods
-function isUserAuthenticated(req: Request): boolean {
-  // Check for traditional session authentication (passport)
-  if (req.user) {
-    return true;
+// For backward compatibility, returns boolean in development mode, but object in production mode
+function isUserAuthenticated(req: Request): boolean | { authenticated: boolean; userId?: number } {
+  // Always store the userId in the request object for convenience
+  if (req.user && req.user.id) {
+    (req as any).userId = req.user.id;
   }
   
-  // Check for Clerk authentication
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    // We have a token, but we'd need to verify it properly
-    // For now, just assume presence of a bearer token means authenticated
-    // In production, use a proper token verification middleware
-    return true;
+  // Check query string or body for userId and store it
+  if (!req.user) {
+    // Look in query parameters
+    if (req.query.userId) {
+      const queryUserId = parseInt(req.query.userId as string);
+      if (!isNaN(queryUserId)) {
+        (req as any).userId = queryUserId;
+      }
+    }
+    
+    // Look in request body
+    if (req.body && req.body.userId) {
+      const bodyUserId = parseInt(req.body.userId);
+      if (!isNaN(bodyUserId)) {
+        (req as any).userId = bodyUserId;
+      }
+    }
   }
   
-  return false;
+  // Standardized check for production mode
+  if (process.env.NODE_ENV === 'production') {
+    // Traditional authentication via session
+    if (req.user) {
+      return { 
+        authenticated: true,
+        userId: req.user.id 
+      };
+    }
+    
+    // Clerk JWT token authentication
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      // If we have a userId, include it in the result
+      if ((req as any).userId) {
+        return { 
+          authenticated: true,
+          userId: (req as any).userId
+        };
+      }
+      
+      // Token is present but we couldn't extract a user ID
+      return { authenticated: true };
+    }
+    
+    return { authenticated: false };
+  } 
+  // Simple boolean response for development mode for backward compatibility
+  else {
+    // Check traditional passport session first
+    if (req.user) {
+      return true;
+    }
+    
+    // Check for bearer token (Clerk)
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return true;
+    }
+    
+    return false;
+  }
+}
+
+// Add a helper function to get authenticated user ID
+function getAuthUserId(req: Request): number | undefined {
+  // First check for userId added by isUserAuthenticated
+  if ((req as any).userId) {
+    return (req as any).userId;
+  }
+  
+  // Then check for traditional passport user
+  if (req.user && req.user.id) {
+    return req.user.id;
+  }
+  
+  // Check query params
+  if (req.query.userId) {
+    const userId = parseInt(req.query.userId as string);
+    if (!isNaN(userId)) {
+      return userId;
+    }
+  }
+  
+  // Check body
+  if (req.body && req.body.userId) {
+    const userId = parseInt(req.body.userId);
+    if (!isNaN(userId)) {
+      return userId;
+    }
+  }
+  
+  return undefined;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1294,12 +1377,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Two-Factor Authentication (2FA) API endpoints
   app.get("/api/2fa/status", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
+    // Check authentication
+    const authCheck = isUserAuthenticated(req);
+    if (!authCheck) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      const userId = req.user!.id;
+      // Get user ID using helper function
+      const userId = getAuthUserId(req);
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
+      }
+      
       const status = await get2FAStatus(userId);
       
       return res.status(200).json({
@@ -1314,13 +1404,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post("/api/2fa/generate", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
+    // Check authentication
+    const authCheck = isUserAuthenticated(req);
+    if (!authCheck) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      const userId = req.user!.id;
-      const username = req.user!.username;
+      // Get user ID using helper function
+      const userId = getAuthUserId(req);
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
+      }
+      
+      // Get username from user record
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId));
+        
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      const username = user.username;
       
       // Check if 2FA is already enabled
       const status = await get2FAStatus(userId);
