@@ -93,9 +93,9 @@ const Navbar: React.FC = () => {
 
   const handleAuthItemClick = (index: number | null) => {
     if (index === 0) {
-      setLocation('/auth/sign-in')
+      setLocation('/sign-in')
     } else if (index === 1) {
-      setLocation('/auth/sign-up')
+      setLocation('/sign-up')
     }
   }
 

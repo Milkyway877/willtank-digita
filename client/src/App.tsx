@@ -39,6 +39,11 @@ import { NotificationsProvider } from "@/hooks/use-notifications";
 import { TwoFactorProvider } from "@/hooks/use-2fa";
 import { SkylerProvider } from "@/hooks/use-skyler";
 import { ProtectedRoute } from "./lib/protected-route";
+import { ClerkProvider } from "./lib/clerk-provider";
+
+// Import Clerk-based sign-in and sign-up pages
+import SignInPage from "@/pages/sign-in";
+import SignUpPage from "@/pages/sign-up";
 
 function Router() {
   return (
@@ -46,7 +51,10 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/auth" component={AuthRouter} />
       <Route path="/auth/*" component={AuthRouter} />
-      {/* Direct routes to auth components for easier testing */}
+      {/* Clerk authentication routes */}
+      <Route path="/sign-up" component={SignUpPage} />
+      <Route path="/sign-in" component={SignInPage} />
+      {/* Legacy auth components for backwards compatibility */}
       <Route path="/signup">
         <SignUp />
       </Route>
@@ -87,17 +95,19 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <NotificationsProvider>
-          <TwoFactorProvider>
-            <SkylerProvider>
-              <Router />
-              <UnfinishedWillNotification />
-              <Toaster />
-            </SkylerProvider>
-          </TwoFactorProvider>
-        </NotificationsProvider>
-      </AuthProvider>
+      <ClerkProvider>
+        <AuthProvider>
+          <NotificationsProvider>
+            <TwoFactorProvider>
+              <SkylerProvider>
+                <Router />
+                <UnfinishedWillNotification />
+                <Toaster />
+              </SkylerProvider>
+            </TwoFactorProvider>
+          </NotificationsProvider>
+        </AuthProvider>
+      </ClerkProvider>
     </QueryClientProvider>
   );
 }
