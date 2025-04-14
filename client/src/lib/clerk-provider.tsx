@@ -1,4 +1,6 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+// Import is kept for compatibility but we're not using these components yet
+// Will re-enable when we have valid Clerk keys
 import { 
   ClerkProvider as BaseClerkProvider, 
   RedirectToSignIn, 
@@ -7,85 +9,24 @@ import {
   useUser,
   useAuth as useClerkAuth
 } from '@clerk/clerk-react';
-import { useLocation, Route } from 'wouter';
-import { apiRequest } from '@/lib/queryClient';
+import { useLocation } from 'wouter';
 
-// Get the Clerk publishable key from environment variables
-const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-
-if (!CLERK_PUBLISHABLE_KEY) {
-  console.error('Missing VITE_CLERK_PUBLISHABLE_KEY environment variable');
-}
+// TEMPORARY DISABLED CLERK INTEGRATION
+// This will be re-enabled when proper Clerk API keys are provided
+// The file structure is kept intact for easy re-enabling later
 
 const publicPages = ['/sign-in', '/sign-up', '/auth', '/', '/privacy', '/terms'];
 
-// This component syncs Clerk user data with our backend
-function ClerkUserSync() {
-  const { isLoaded, isSignedIn, user } = useUser();
-  const { getToken } = useClerkAuth();
-  
-  useEffect(() => {
-    // Only proceed if the user is signed in and loaded
-    if (!isLoaded || !isSignedIn || !user) return;
-    
-    // Get JWT token
-    const syncUserWithBackend = async () => {
-      try {
-        const token = await getToken();
-        
-        // Call our backend API to sync the user data
-        await apiRequest('POST', '/api/auth/clerk-sync', {
-          clerkId: user.id,
-          email: user.primaryEmailAddress?.emailAddress,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          username: user.username || user.emailAddresses[0]?.emailAddress?.split('@')[0],
-          token
-        });
-        
-        console.log('User data synced with backend');
-      } catch (error) {
-        console.error('Failed to sync user data with backend:', error);
-      }
-    };
-    
-    syncUserWithBackend();
-  }, [isLoaded, isSignedIn, user, getToken]);
-  
-  return null;
-}
-
+// Temporary mock function until Clerk is properly integrated
 export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
-  const [location] = useLocation();
-  const isPublicPage = publicPages.some(page => 
-    page === location || 
-    (page.endsWith('*') && location.startsWith(page.slice(0, -1)))
-  );
-
-  return (
-    <BaseClerkProvider publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}>
-      <ClerkUserSync />
-      {isPublicPage ? (
-        children
-      ) : (
-        <>
-          <SignedIn>{children}</SignedIn>
-          <SignedOut>
-            <RedirectToSignIn />
-          </SignedOut>
-        </>
-      )}
-    </BaseClerkProvider>
-  );
+  // Just pass the children through without Clerk wrapping
+  return <>{children}</>;
 };
 
-// Higher-order component to protect routes
+// Temporary mock HOC that just returns the component
+// Will be replaced with real Clerk auth when properly configured
 export const withAuth = (Component: React.ComponentType) => {
   return function ProtectedRoute(props: any) {
-    return (
-      <SignedIn>
-        <Component {...props} />
-      </SignedIn>
-    );
+    return <Component {...props} />;
   };
 };
