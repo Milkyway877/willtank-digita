@@ -235,3 +235,99 @@ export async function getUserData(userId: string) {
     return { success: false, error };
   }
 }
+
+/**
+ * Upload a file to Supabase Storage
+ * @param file The file to upload
+ * @param userId The user ID
+ * @param willId The will ID (optional)
+ * @param bucket The storage bucket name (defaults to 'will-documents')
+ */
+export async function uploadFile(
+  file: File,
+  userId: string,
+  willId?: string,
+  bucket: string = 'will-documents'
+) {
+  try {
+    // Create the bucket if it doesn't exist
+    const { data: bucketData, error: bucketError } = await supabase.storage.createBucket(bucket, {
+      public: false,
+      fileSizeLimit: 100 * 1024 * 1024, // 100MB limit
+    });
+
+    if (bucketError && bucketError.message !== 'Bucket already exists') {
+      console.error('Error creating bucket:', bucketError);
+      return { success: false, error: bucketError };
+    }
+    
+    // Create a folder path including the userId and willId if provided
+    const folderPath = willId ? `${userId}/${willId}` : userId;
+    
+    // Get the file extension
+    const fileExtension = file.name.split('.').pop();
+    
+    // Create a unique filename
+    const timestamp = new Date().getTime();
+    const uniqueFileName = `${timestamp}-${Math.random().toString(36).substring(2, 15)}.${fileExtension}`;
+    
+    // Full path for the file
+    const filePath = `${folderPath}/${uniqueFileName}`;
+    
+    // Upload the file
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) {
+      console.error('Error uploading file to Supabase Storage:', error);
+      return { success: false, error };
+    }
+    
+    // Get the public URL for the file
+    const { data: { publicUrl } } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath);
+    
+    return { 
+      success: true, 
+      data: { 
+        path: filePath,
+        url: publicUrl,
+        bucket
+      } 
+    };
+  } catch (error) {
+    console.error('Unexpected error in uploadFile:', error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Delete a file from Supabase Storage
+ * @param filePath The path to the file in storage
+ * @param bucket The storage bucket name (defaults to 'will-documents')
+ */
+export async function deleteFile(
+  filePath: string,
+  bucket: string = 'will-documents'
+) {
+  try {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .remove([filePath]);
+
+    if (error) {
+      console.error('Error deleting file from Supabase Storage:', error);
+      return { success: false, error };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Unexpected error in deleteFile:', error);
+    return { success: false, error };
+  }
+}

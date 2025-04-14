@@ -5,7 +5,7 @@ import { setupAuth, comparePasswords } from "./auth";
 import { initializeScheduler, triggerCheckInEmails } from "./scheduler";
 import { storage as dbStorage } from "./storage";
 import { db } from "./db";
-import { updateUserWillStatus } from "./supabase-connector";
+import { updateUserWillStatus, uploadFile, deleteFile } from "./supabase-connector";
 import { 
   checkInResponses, 
   users, 
@@ -340,21 +340,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const will = await dbStorage.getWillById(willId);
       
       if (!will) {
-        // Remove uploaded file if will doesn't exist
+        // Remove uploaded temporary file if will doesn't exist
         fs.unlinkSync(req.file.path);
         return res.status(404).json({ error: "Will not found" });
       }
       
       if (will.userId !== userId) {
-        // Remove uploaded file if user doesn't own the will
+        // Remove uploaded temporary file if user doesn't own the will
         fs.unlinkSync(req.file.path);
         return res.status(403).json({ error: "Unauthorized access to will" });
       }
       
-      // Calculate relative file URL path
-      const fileUrl = `/uploads/${path.basename(req.file.path)}`;
+      // Read the file content
+      const fileContent = fs.readFileSync(req.file.path);
       
-      // Add document to database
+      // Create a File object from the file content
+      const documentFile = new File(
+        [fileContent], 
+        req.file.originalname, 
+        { type: req.file.mimetype }
+      );
+      
+      // Upload to Supabase storage
+      const uploadResult = await uploadFile(
+        documentFile, 
+        userId.toString(), 
+        willId.toString()
+      );
+      
+      // Clean up local temporary file after upload
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.error ? uploadResult.error.toString() : "Failed to upload to Supabase storage");
+      }
+      
+      // Get the URL from Supabase upload
+      const fileUrl = uploadResult.data?.url || "";
+      
+      // Add document to database with Supabase URL
       const newDocument = await dbStorage.addWillDocument({
         willId,
         fileName: req.file.originalname,
@@ -371,14 +397,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Continue with response even if notification creation fails
       }
       
-      return res.status(201).json(newDocument);
+      return res.status(201).json({
+        ...newDocument,
+        cloudStorage: true,
+        message: "Document uploaded successfully to cloud storage"
+      });
     } catch (error) {
-      console.error("Error uploading document:", error);
-      // Clean up file if it was uploaded
+      console.error("Error uploading document to Supabase:", error);
+      // Clean up temporary file if it was uploaded
       if (req.file && fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
       }
-      return res.status(500).json({ error: "Failed to upload document" });
+      return res.status(500).json({ error: "Failed to upload document to cloud storage" });
     }
   });
   
@@ -495,10 +525,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Unauthorized access to document" });
       }
       
-      // Delete file from filesystem
-      const filePath = path.join(process.cwd(), document.fileUrl);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+      // Check if this is a cloud storage URL (Supabase)
+      if (document.fileUrl.includes('supabase')) {
+        // Extract path from URL or handle cloud storage deletion
+        try {
+          // Get the path from the URL
+          const url = new URL(document.fileUrl);
+          const pathParts = url.pathname.split('/');
+          const filename = pathParts[pathParts.length - 1];
+          const storagePath = `${userId}/${will.id}/${filename}`;
+          
+          // Delete from Supabase storage
+          await deleteFile(storagePath);
+          console.log('Deleted file from Supabase storage:', storagePath);
+        } catch (deleteError) {
+          console.error('Error deleting from cloud storage:', deleteError);
+          // Continue with database deletion even if storage deletion fails
+        }
+      } else {
+        // If it's a local file, delete from filesystem
+        const filePath = path.join(process.cwd(), document.fileUrl);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
       }
       
       // Delete from database
@@ -512,7 +561,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Continue with response even if notification creation fails
       }
       
-      return res.status(200).json({ message: "Document deleted successfully" });
+      return res.status(200).json({ 
+        message: "Document deleted successfully",
+        cloudStorage: document.fileUrl.includes('supabase')
+      });
     } catch (error) {
       console.error("Error deleting document:", error);
       return res.status(500).json({ error: "Failed to delete document" });
