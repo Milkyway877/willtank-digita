@@ -254,6 +254,9 @@ Date                               Date`;
       // This will prevent the unfinished will notification from appearing
       saveWillProgress(WillCreationStep.COMPLETED);
       
+      // Reset the will progress tracker to prevent any stale data
+      resetWillProgress();
+      
       // Update the user profile to mark the will as completed
       const response = await apiRequest('POST', '/api/user/update-profile', {
         willInProgress: false,

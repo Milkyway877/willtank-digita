@@ -28,7 +28,8 @@ import SubscriptionPage from "@/pages/subscription";
 import PricingPage from "@/pages/PricingPage";
 import SubscriptionSuccessPage from "@/pages/SubscriptionSuccessPage";
 import TemplateSelection from "@/pages/TemplateSelection";
-import AiChat from "@/pages/AiChat";
+// Use the new AiChat component with streamlined interface
+import AiChat from "@/pages/AiChat.new";
 import DocumentUpload from "@/pages/DocumentUpload";
 import VideoRecording from "@/pages/VideoRecording";
 import FinalReview from "@/pages/FinalReview";
