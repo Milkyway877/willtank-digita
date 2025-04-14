@@ -2,7 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import dotenv from "dotenv";
-import { syncUserWithSupabase } from "./supabase-connector";
+import { syncUserWithSupabase, initializeSupabaseTables } from "./supabase-connector";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -45,6 +45,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize Supabase tables
+  await initializeSupabaseTables();
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

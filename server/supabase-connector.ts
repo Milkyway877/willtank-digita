@@ -8,6 +8,47 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 // Create the Supabase server client
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Initialize Supabase tables if they don't exist
+export async function initializeSupabaseTables() {
+  try {
+    // Check if the users table exists by attempting to query it
+    const { error } = await supabase.from('users').select('id').limit(1);
+
+    // If we get a specific error about the table not existing, create it
+    if (error && error.code === '42P01') {
+      console.log('Creating Supabase users table...');
+      
+      // Use Supabase's SQL executor to create the table
+      const { error: createError } = await supabase.rpc('create_users_table', {});
+      
+      if (createError) {
+        // If the RPC doesn't exist, use raw SQL
+        const { error: sqlError } = await supabase.rpc('execute_sql', {
+          sql_query: `
+            CREATE TABLE IF NOT EXISTS public.users (
+              id TEXT PRIMARY KEY,
+              email TEXT UNIQUE NOT NULL,
+              name TEXT,
+              created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+              last_login TIMESTAMP WITH TIME ZONE,
+              will_in_progress BOOLEAN DEFAULT FALSE,
+              will_completed BOOLEAN DEFAULT FALSE
+            );
+          `
+        });
+        
+        if (sqlError) {
+          console.error('Error creating users table:', sqlError);
+        } else {
+          console.log('Users table created successfully');
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error initializing Supabase tables:', error);
+  }
+}
+
 /**
  * Middleware to sync user data with Supabase after successful authentication
  * This maintains user data in Supabase without changing your auth flow
