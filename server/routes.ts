@@ -1638,12 +1638,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Notification API endpoints
   app.get("/api/notifications", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
+    // Check authentication with updated helper
+    const authCheck = isUserAuthenticated(req);
+    if (!authCheck) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      const userId = req.user!.id;
+      // Get user ID using helper function
+      const userId = getAuthUserId(req);
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
+      }
+      
       const notifications = await dbStorage.getUserNotifications(userId);
       return res.status(200).json(notifications);
     } catch (error) {
@@ -1653,12 +1660,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/notifications/unread-count", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
+    // Check authentication with updated helper
+    const authCheck = isUserAuthenticated(req);
+    if (!authCheck) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      const userId = req.user!.id;
+      // Get user ID using helper function
+      const userId = getAuthUserId(req);
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
+      }
+      
       const count = await dbStorage.getUserUnreadNotificationCount(userId);
       return res.status(200).json({ count });
     } catch (error) {

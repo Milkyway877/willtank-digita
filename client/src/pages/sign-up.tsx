@@ -7,6 +7,17 @@ import { Link } from 'wouter';
 // Check if Clerk is configured
 const isClerkConfigured = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
+// Determine if we're in development vs production mode
+// For development environment, show alternate auth options
+const isProduction = typeof window !== 'undefined' && 
+  (window.location.hostname === 'willtank.com' || 
+   window.location.hostname.endsWith('.willtank.com'));
+
+const isDevelopment = !isProduction;
+
+// In development, we might need to use the legacy auth if Clerk is configured for production
+const useAlternateAuth = isDevelopment;
+
 export default function SignUpPage() {
   const [, navigate] = useLocation();
   
@@ -18,7 +29,8 @@ export default function SignUpPage() {
           <p className="mt-2 text-gray-600 dark:text-gray-400">Create your account</p>
         </div>
         
-        {isClerkConfigured ? (
+        {isClerkConfigured && !useAlternateAuth ? (
+          // Production mode with Clerk configured - show Clerk auth UI
           <ClerkSignUp 
             path="/sign-up"
             signInUrl="/sign-in"
@@ -33,10 +45,19 @@ export default function SignUpPage() {
             }}
           />
         ) : (
+          // Development mode or Clerk not configured - show legacy auth options
           <div className="space-y-4 p-6 text-center">
-            <p className="text-amber-600 dark:text-amber-400">
-              Clerk authentication is not configured yet.
-            </p>
+            {isDevelopment && (
+              <div className="bg-amber-100 dark:bg-amber-900 p-3 rounded-md mb-4">
+                <p className="text-amber-800 dark:text-amber-200 text-sm font-medium">
+                  Development Environment Detected
+                </p>
+                <p className="text-amber-700 dark:text-amber-300 text-xs mt-1">
+                  Using legacy authentication for development since Clerk production keys are restricted to willtank.com domain.
+                </p>
+              </div>
+            )}
+            
             <div className="flex flex-col gap-3">
               <Button asChild variant="default">
                 <Link href="/signup">Sign up with Legacy Auth</Link>
