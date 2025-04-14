@@ -119,14 +119,30 @@ const Navbar: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-4">
-            <div className="hidden md:block">
-              <ExpandableTabs 
-                tabs={authItems} 
-                activeColor="text-primary"
-                onChange={handleAuthItemClick}
-                className="border-gray-100"
-              />
-            </div>
+            {isLoaded && isSignedIn ? (
+              <div className="flex items-center">
+                <Link href="/dashboard" className="mr-4 text-sm font-medium hover:text-primary text-gray-700">
+                  Dashboard
+                </Link>
+                <UserButton 
+                  afterSignOutUrl="/"
+                  appearance={{
+                    elements: {
+                      userButtonAvatarBox: "w-9 h-9"
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="hidden md:block">
+                <ExpandableTabs 
+                  tabs={authItems} 
+                  activeColor="text-primary"
+                  onChange={handleAuthItemClick}
+                  className="border-gray-100"
+                />
+              </div>
+            )}
             <button 
               className="md:hidden text-neutral-600"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -145,14 +161,37 @@ const Navbar: React.FC = () => {
               className="border-gray-100"
             />
             
-            <div className="mt-4">
-              <ExpandableTabs 
-                tabs={authItems} 
-                activeColor="text-primary"
-                onChange={handleAuthItemClick}
-                className="border-gray-100"
-              />
-            </div>
+            {isLoaded && isSignedIn ? (
+              <div className="mt-4 flex flex-col space-y-4">
+                <Link 
+                  href="/dashboard" 
+                  className="flex items-center px-3 py-2 text-sm font-medium rounded-md hover:bg-gray-100"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <LayoutGrid className="mr-2 h-4 w-4" />
+                  Dashboard
+                </Link>
+                <div className="flex justify-center">
+                  <UserButton 
+                    afterSignOutUrl="/"
+                    appearance={{
+                      elements: {
+                        userButtonAvatarBox: "w-9 h-9"
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4">
+                <ExpandableTabs 
+                  tabs={authItems} 
+                  activeColor="text-primary"
+                  onChange={handleAuthItemClick}
+                  className="border-gray-100"
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
