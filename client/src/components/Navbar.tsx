@@ -15,12 +15,14 @@ import {
 import { Link, useLocation } from 'wouter'
 import { ExpandableTabs } from '@/components/ui/expandable-tabs'
 import Logo from '@/components/ui/Logo'
+import { useUser, UserButton } from '@clerk/clerk-react'
 
 const Navbar: React.FC = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [selectedTab, setSelectedTab] = useState<number | null>(null)
   const [currentLocation, setLocation] = useLocation()
+  const { isSignedIn, isLoaded } = useUser()
 
   // Don't show the navbar on auth or dashboard pages
   if (currentLocation.startsWith('/auth') || currentLocation.startsWith('/dashboard')) {

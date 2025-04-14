@@ -1,8 +1,7 @@
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 import { Redirect, Route } from "wouter";
-// Import commented out until Clerk is properly configured
-// import { useUser, useClerk } from "@clerk/clerk-react";
+import { useUser } from "@clerk/clerk-react";
 
 interface ProtectedRouteProps {
   path: string;
@@ -13,12 +12,14 @@ export function ProtectedRoute({
   path,
   component: Component,
 }: ProtectedRouteProps) {
-  // Temporarily only use our existing auth system until Clerk is properly configured
+  // Use both our existing auth and Clerk's authentication during transition
   const { user: legacyUser, isLoading: legacyLoading } = useAuth();
+  const { isLoaded: clerkLoaded, isSignedIn, user: clerkUser } = useUser();
 
-  // Only use legacy auth for now
-  const isLoading = legacyLoading;
-  const user = legacyUser;
+  // During migration, check both auth systems
+  const isLoading = legacyLoading || !clerkLoaded;
+  // Prioritize Clerk user if available
+  const user = isSignedIn ? clerkUser : legacyUser;
   
   if (isLoading) {
     return (
@@ -30,22 +31,23 @@ export function ProtectedRoute({
     );
   }
 
+  // If no user is authenticated in either system, redirect to sign-in
   if (!user) {
     return (
       <Route path={path}>
-        <Redirect to="/login" />
+        <Redirect to="/sign-in" />
       </Route>
     );
   }
 
-  // Check if email is verified
-  const isEmailVerified = user?.isEmailVerified || false;
+  // If using Clerk, email verification is handled automatically
+  const isEmailVerified = isSignedIn ? true : (legacyUser?.isEmailVerified || false);
 
-  // If user exists but email is not verified, redirect to verification
+  // If user exists but email is not verified, redirect to verification (legacy only)
   if (!isEmailVerified) {
     return (
       <Route path={path}>
-        <Redirect to={`/auth/verify/${encodeURIComponent(user?.username || '')}`} />
+        <Redirect to={`/auth/verify/${encodeURIComponent(legacyUser?.username || '')}`} />
       </Route>
     );
   }
@@ -53,12 +55,17 @@ export function ProtectedRoute({
   // Only redirect NEW USERS to onboarding, not returning users
   const isOnboardingPath = path === '/onboarding';
   
-  // Check creation date for new user
-  const createdAt = user?.createdAt ? new Date(user.createdAt).getTime() : null;
+  // For Clerk users, check creation date
+  const clerkCreatedAt = clerkUser?.createdAt?.getTime();
+  const legacyCreatedAt = legacyUser?.createdAt ? new Date(legacyUser.createdAt).getTime() : null;
+  const createdAt = clerkCreatedAt || legacyCreatedAt;
+  
   const isNewUser = createdAt && (new Date().getTime() - createdAt < 86400000); // Within 24 hours
   
   // Check if onboarding has been completed
-  const hasCompletedOnboarding = user?.hasCompletedOnboarding;
+  const hasCompletedOnboarding = isSignedIn 
+    ? clerkUser.publicMetadata?.hasCompletedOnboarding === true
+    : legacyUser?.hasCompletedOnboarding;
   
   if (
     user && 
