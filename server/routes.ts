@@ -1458,12 +1458,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post("/api/2fa/verify", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
+    // Check authentication with updated helper
+    const authCheck = isUserAuthenticated(req);
+    if (!authCheck) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      const userId = req.user!.id;
+      // Get user ID using helper function
+      const userId = getAuthUserId(req);
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
+      }
+      
       const { token } = req.body;
       
       if (!token) {
@@ -1776,12 +1783,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/delivery-settings", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
+    // Check authentication with updated helper
+    const authCheck = isUserAuthenticated(req);
+    if (!authCheck) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
     try {
-      const userId = req.user.id;
+      // Get user ID using helper function
+      const userId = getAuthUserId(req);
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
+      }
+      
       const { method, contacts, message, attorneyContact } = req.body;
       
       // Check if delivery settings already exist for this user
