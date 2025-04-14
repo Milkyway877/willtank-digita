@@ -192,6 +192,10 @@ export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
   fullName: true,
+  clerkId: true,
+  email: true,
+  firstName: true,
+  lastName: true,
 });
 
 // Email validation for username field
@@ -199,6 +203,10 @@ export const extendedInsertUserSchema = insertUserSchema.extend({
   username: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters long"),
   fullName: z.string().optional(),
+  clerkId: z.string().optional(),
+  email: z.string().email("Please enter a valid email address").optional(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
 });
 
 export const insertBeneficiarySchema = createInsertSchema(beneficiaries).pick({
