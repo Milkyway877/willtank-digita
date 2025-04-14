@@ -150,13 +150,12 @@ const SignUp: React.FC = () => {
       
       setAuthStatus({
         type: 'success',
-        message: 'Email verified successfully! Redirecting...'
+        message: 'Email verified successfully! You can now sign in to your account.'
       });
       
-      // Redirect after a short delay
-      setTimeout(() => {
-        navigate('/');
-      }, 1500);
+      // ✓ FIXED: Removed automatic redirect, letting the user navigate explicitly
+      // Now the user will see the success message and have time to understand what happened
+      // They can click "Sign In" when ready
       
     } catch (error) {
       setAuthStatus({

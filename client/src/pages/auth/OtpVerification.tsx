@@ -157,13 +157,10 @@ const OtpVerification: React.FC = () => {
         message: 'Email verified successfully!'
       });
       
-      // For new users coming from registration, always go to onboarding
-      // This ensures they don't skip the onboarding flow
-      setTimeout(() => {
-        // Always direct to onboarding for new users after verification
-        // The onboarding will then direct to template selection
-        setLocation('/onboarding');
-      }, 2000);
+      // ✓ FIXED: Removed auto-redirect timer
+      // Now the user must manually click the "Continue to Onboarding" button
+      // This gives them time to see the success message and enter their code
+      
     } catch (error) {
       setAuthStatus({
         type: 'error',
@@ -268,7 +265,7 @@ const OtpVerification: React.FC = () => {
             </div>
             <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-2">Verification Complete</h3>
             <p className="text-neutral-600 dark:text-neutral-400 mb-4">
-              Your account has been successfully verified. You will be redirected shortly.
+              Your account has been successfully verified. Please click the button below to continue to the onboarding process.
             </p>
             <AuthButton 
               type="button" 
