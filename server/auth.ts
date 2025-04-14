@@ -10,6 +10,7 @@ import { z } from "zod";
 import { sendEmail, createVerificationEmailTemplate, createPasswordResetEmailTemplate } from "./email";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
+import { syncUserData } from "./supabase-connector";
 
 declare global {
   namespace Express {
@@ -170,6 +171,18 @@ export function setupAuth(app: Express) {
         username: username.toLowerCase(), // Store email in lowercase
         password: await hashPassword(password),
       });
+      
+      // Sync user with Supabase in the background
+      try {
+        await syncUserData({
+          id: user.id.toString(),
+          email: user.username,
+          name: undefined // No name provided during registration
+        });
+      } catch (syncError) {
+        console.error('Error syncing user with Supabase during registration:', syncError);
+        // Continue with registration even if Supabase sync fails
+      }
 
       // Generate verification code
       const verificationCode = generateVerificationCode();
