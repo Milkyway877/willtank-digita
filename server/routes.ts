@@ -5,6 +5,7 @@ import { setupAuth, comparePasswords } from "./auth";
 import { initializeScheduler, triggerCheckInEmails } from "./scheduler";
 import { storage as dbStorage } from "./storage";
 import { db } from "./db";
+import { updateUserWillStatus } from "./supabase-connector";
 import { 
   checkInResponses, 
   users, 
@@ -1983,6 +1984,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting reminder:", error);
       return res.status(500).json({ error: "Server error" });
+    }
+  });
+
+  // Update user will status endpoint (syncs with Supabase)
+  app.post("/api/user/will-status", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const { willInProgress, willCompleted } = req.body;
+      
+      if (willInProgress === undefined && willCompleted === undefined) {
+        return res.status(400).json({ error: "At least one status field must be provided" });
+      }
+      
+      // Update in primary database
+      const updateData: any = {};
+      if (willInProgress !== undefined) updateData.willInProgress = willInProgress;
+      if (willCompleted !== undefined) updateData.willCompleted = willCompleted;
+      
+      await db.update(users)
+        .set(updateData)
+        .where(eq(users.id, userId))
+        .execute();
+      
+      // Sync with Supabase
+      const supabaseData: any = {};
+      if (willInProgress !== undefined) supabaseData.will_in_progress = willInProgress;
+      if (willCompleted !== undefined) supabaseData.will_completed = willCompleted;
+      
+      const supabaseResult = await updateUserWillStatus(userId.toString(), supabaseData);
+      
+      if (!supabaseResult.success) {
+        console.warn("Supabase sync warning:", supabaseResult.error);
+      }
+      
+      return res.status(200).json({ 
+        success: true, 
+        message: "Will status updated successfully",
+        willInProgress: willInProgress !== undefined ? willInProgress : req.user.willInProgress,
+        willCompleted: willCompleted !== undefined ? willCompleted : req.user.willCompleted
+      });
+    } catch (error) {
+      console.error("Error updating will status:", error);
+      return res.status(500).json({ error: "Failed to update will status" });
     }
   });
 
