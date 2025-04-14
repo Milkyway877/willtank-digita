@@ -42,7 +42,7 @@ interface WillData {
 }
 
 const FinalReview: React.FC = () => {
-  const { user, isLoading, refetchUser } = useAuth();
+  const { user, isLoading, refetchUser, updateWillStatusMutation } = useAuth();
   const [, navigate] = useLocation();
   const [willData, setWillData] = useState<WillData | null>(null);
   const [editableContent, setEditableContent] = useState<string>('');
@@ -257,20 +257,21 @@ Date                               Date`;
       // Reset the will progress tracker to prevent any stale data
       resetWillProgress();
       
-      // Update the user profile to mark the will as completed
-      const response = await apiRequest('POST', '/api/user/update-profile', {
-        willInProgress: false,
-        willCompleted: true
-      });
-      
-      if (!response.ok) {
-        console.error("Failed to update user profile");
-      } else {
-        // Refetch user to update auth context
-        if (refetchUser) {
-          await refetchUser();
+      // Update the will status using the mutation
+      updateWillStatusMutation.mutate(
+        { 
+          willInProgress: false,
+          willCompleted: true
+        },
+        {
+          onSuccess: () => {
+            console.log("Will status updated successfully in database");
+          },
+          onError: (error) => {
+            console.error("Error updating will status:", error);
+          }
         }
-      }
+      );
       
       console.log("Will progress tracker updated successfully");
     } catch (error) {
