@@ -464,11 +464,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       if (!uploadResult.success) {
-        throw new Error(uploadResult.error || "Failed to upload to Supabase storage");
+        throw new Error(uploadResult.error ? uploadResult.error.toString() : "Failed to upload to Supabase storage");
       }
       
       // Get the URL from Supabase upload
-      const videoUrl = uploadResult.data.url;
+      const videoUrl = uploadResult.data?.url || "";
       
       // Update will with Supabase video URL
       const updatedWill = await dbStorage.updateWill(willId, {
