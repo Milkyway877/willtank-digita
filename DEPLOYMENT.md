@@ -1,22 +1,31 @@
 # WillTank Production Deployment Guide
 
-## Replit Deployment Instructions 
+## Replit Deployment Instructions
 
-### 1. Frontend-Only Deployment
+### 1. Safe Deployment (Recommended)
 
-We've created a special script that builds and serves just the frontend part of WillTank, making sure backend code isn't exposed to the public.
+We've created a special "safe mode" deployment script that works on any domain (including Replit). This approach removes Clerk domain restrictions and uses the legacy authentication system.
 
-To deploy the frontend:
+To deploy WillTank in safe mode:
+
+```bash
+node safe-deploy.js
+```
+
+This will:
+1. Create a domain-agnostic version of the authentication system
+2. Build the frontend with Vite in safe mode
+3. Serve the compiled assets with Express on port 3000
+4. Provide a public URL you can share with anyone
+5. Use the legacy authentication system from the backend
+
+### 2. Alternative: Standard Frontend Deployment
+
+If you prefer the standard deployment (which might show Clerk errors on non-willtank.com domains):
 
 ```bash
 node deploy-frontend.js
 ```
-
-This will:
-1. Build the frontend with Vite
-2. Serve the compiled assets with Express on port 3000
-3. Configure proper SPA routing for client-side navigation
-4. Provide a public URL you can share with others
 
 ### 2. Environment Variables
 

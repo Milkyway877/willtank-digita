@@ -13,28 +13,31 @@ import { apiRequest } from '@/lib/queryClient';
 // Get the Clerk publishable key from environment variables
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-// Determine if we're in development vs production mode
-// We check window.location to see if we're on willtank.com
-// This ensures we properly handle both environments
-const isProduction = typeof window !== 'undefined' && 
-  (window.location.hostname === 'willtank.com' || 
-   window.location.hostname.endsWith('.willtank.com'));
+// Determine hostname for domain-based decisions
+const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
 
+// Check if we're on willtank.com or a subdomain
+const isWillTankDomain = currentHostname === 'willtank.com' || 
+                         currentHostname.endsWith('.willtank.com');
+
+// Determine if we're in development vs production mode
+const isProduction = isWillTankDomain;
 const isDevelopment = !isProduction;
 
-// Configure the proper key based on environment
-// For production (willtank.com) - use the production key
-// For development - use the development key that works in local/Replit environment
-const ACTIVE_CLERK_KEY = CLERK_PUBLISHABLE_KEY;
+// Configure the proper key - only use Clerk on willtank.com domains
+// This prevents domain restriction errors
+const ACTIVE_CLERK_KEY = isWillTankDomain ? CLERK_PUBLISHABLE_KEY : null;
 
 // Always log the environment for debugging
 console.log(`Running in ${isDevelopment ? 'development' : 'production'} mode`);
-console.log(`Host: ${typeof window !== 'undefined' ? window.location.hostname : 'unknown'}`);
+console.log(`Host: ${currentHostname}`);
+console.log(`Using WillTank domain: ${isWillTankDomain}`);
+console.log(`Clerk enabled: ${!!ACTIVE_CLERK_KEY}`);
 
 // Handle missing key case
 if (!ACTIVE_CLERK_KEY) {
-  console.error('Missing Clerk publishable key for the current environment');
-  console.error('Falling back to legacy authentication.');
+  console.warn('Clerk is disabled for this domain or missing publishable key');
+  console.warn('Using legacy authentication instead');
 }
 
 // Pages that don't require authentication
@@ -76,6 +79,20 @@ function ClerkUserSync() {
   return null;
 }
 
+// Create a mock Clerk context to use when we don't have access to real Clerk
+// This is necessary to prevent errors with hooks like useUser() in components
+const createMockClerkContext = () => {
+  return {
+    user: null,
+    isSignedIn: false,
+    isLoaded: true,
+    getToken: async () => null,
+    session: null,
+    signOut: async () => {},
+  };
+};
+
+// This is our custom ClerkProvider that handles multiple authentication scenarios
 export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
   const [location] = useLocation();
   const isPublicPage = publicPages.some(page => 
@@ -83,25 +100,27 @@ export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
     (page.endsWith('*') && location.startsWith(page.slice(0, -1)))
   );
 
-  // Clerk configuration checks and fallbacks
+  // Detect environments that can't use Clerk (non-willtank.com or missing key)
+  const shouldUseLegacyAuth = !ACTIVE_CLERK_KEY || !isWillTankDomain;
   
-  // If we don't have a publishable key, always fall back to legacy auth
-  if (!ACTIVE_CLERK_KEY) {
-    console.error('Clerk publishable key is missing. Falling back to legacy authentication.');
-    // Just render the children directly without Clerk's authentication
-    // The server-side auth will handle the authentication
-    return <>{children}</>;
-  }
-  
-  // In development environments (not on willtank.com domain)
-  // Automatically bypass Clerk authentication to avoid domain restriction errors
-  if (isDevelopment) {
-    console.log('Development environment detected. Using alternative authentication.');
-    // Use window.location.pathname here to get users straight to where they need to go
-    if (typeof window !== 'undefined' && !isPublicPage) {
-      // For protected pages in development, use legacy auth flow
-      return <>{children}</>;
-    }
+  // If we need to use legacy auth, provide a simplified mock of the Clerk context
+  if (shouldUseLegacyAuth) {
+    const reason = !ACTIVE_CLERK_KEY 
+      ? 'Missing Clerk publishable key' 
+      : 'Non-willtank.com domain';
+      
+    console.log(`${reason}. Using legacy authentication.`);
+    
+    // Create a basic mock of ClerkProvider to allow useUser() hooks to work
+    // This prevents component errors while still using legacy auth
+    return (
+      <BaseClerkProvider
+        publishableKey="pk_test_mock_key_for_legacy_auth"
+        __unstable_mockClerk={createMockClerkContext()}
+      >
+        {children}
+      </BaseClerkProvider>
+    );
   }
   
   // For public pages, we don't need to check authentication
