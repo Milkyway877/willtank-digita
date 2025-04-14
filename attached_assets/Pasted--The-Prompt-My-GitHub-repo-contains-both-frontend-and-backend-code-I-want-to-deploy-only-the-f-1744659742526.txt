@@ -1,0 +1,87 @@
+
+🧾 The Prompt:
+“My GitHub repo contains both frontend and backend code. I want to deploy only the frontend (the user-facing app). Please ensure:
+
+The correct root directory is selected (e.g. apps/web, frontend, client, or wherever index.html or index.tsx/index.js is located).
+
+Vercel uses the correct framework preset (Next.js, React, Vite, etc.).
+
+The build command is correct:
+
+For Vite: vite build
+
+For Next.js: next build
+
+The output directory is correct:
+
+For Vite: dist
+
+For Next.js: .next
+
+Environment variables like VITE_CLERK_PUBLISHABLE_KEY and VITE_CLERK_SECRET_KEY are set.
+
+Do not deploy any backend code like schema.ts, Drizzle configs, or Node-only files unless they are part of Vercel Functions.
+
+I need this to run in Production mode at willtank.com, and it must correctly serve the frontend UI, not raw backend code.”
+
+🔧 What to Check Right Now in Vercel Dashboard:
+Project Settings > Root Directory:
+
+Set it to the folder that contains your frontend app (not the repo root, unless it's a pure frontend project).
+
+Build Settings:
+
+Framework Preset: Select your actual frontend stack (Next.js, React, Vite, etc.)
+
+Build Command:
+
+npm run build or yarn build (depending on your setup)
+
+Output Directory:
+
+dist for Vite/React
+
+.next for Next.js
+
+Environment Variables:
+
+Under Project Settings > Environment Variables (add for both Production and Preview):
+
+ini
+Copy
+Edit
+VITE_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsud2lsbHRhbmsuY29tJA
+VITE_CLERK_SECRET_KEY=sk_live_jVSOIePTefpxUcaR8A1aNFJ5hfuXuGC5feZcR5nNBf
+✅ Bonus: Frontend Structure Checklist
+Make sure:
+
+Your frontend has an entry file (index.html, main.tsx, or pages/index.tsx)
+
+Your package.json has:
+
+json
+Copy
+Edit
+{
+  "scripts": {
+    "dev": "vite", // or next dev
+    "build": "vite build", // or next build
+    "preview": "vite preview" // optional
+  }
+}
+💣 If It's a Monorepo
+If you're using a monorepo (like apps/web, packages/backend, shared/, etc.):
+
+Go to: Vercel > Settings > General > Root Directory
+
+Set it to the frontend folder: apps/web, frontend, or whatever folder contains your package.json and frontend entry point
+
+🛠 Final Tip: Clean Redeploy
+Go to Vercel > Project > Deployments
+
+Delete all old/broken deployments
+
+Click “Redeploy”
+
+Vercel will now use the new root directory, env vars, and build settings
+
