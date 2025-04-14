@@ -1,50 +1,66 @@
 # WillTank Production Deployment Guide
 
-## Vercel Deployment Configuration
+## Replit Deployment Instructions 
 
-### 1. Environment Variables
+### 1. Frontend-Only Deployment
 
-Make sure to set these environment variables in your Vercel project settings:
+We've created a special script that builds and serves just the frontend part of WillTank, making sure backend code isn't exposed to the public.
+
+To deploy the frontend:
+
+```bash
+node deploy-frontend.js
+```
+
+This will:
+1. Build the frontend with Vite
+2. Serve the compiled assets with Express on port 3000
+3. Configure proper SPA routing for client-side navigation
+4. Provide a public URL you can share with others
+
+### 2. Environment Variables
+
+Make sure these environment variables are set in your Replit:
 
 ```
 VITE_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsud2lsbHRhbmsuY29tJA
 VITE_STRIPE_PUBLIC_KEY=pk_live_xxxxx
 ```
 
-### 2. Build Settings
+You can add them in the Replit interface under "Secrets" in the Tools panel.
 
-The `vercel.json` file in this repository should handle most configuration automatically, but verify these settings in your Vercel dashboard:
+### 3. Custom Domain Configuration (Optional)
 
-- **Framework Preset:** Vite
-- **Build Command:** `npm run build`
-- **Output Directory:** `dist/public`
-- **Root Directory:** `/` (repository root)
+If you want to use a custom domain (like willtank.com):
 
-### 3. Domain Configuration
+1. Go to your Replit project's "Deployments" tab
+2. Click on "Domains" 
+3. Add your custom domain
+4. Update your DNS settings as instructed by Replit
+5. For Clerk, make sure the domain is properly configured in Clerk dashboard
 
-1. Add your custom domain `willtank.com` in Vercel
-2. Verify DNS is properly configured
-3. This is critical for Clerk authentication which only works on the `willtank.com` domain
+### 4. Authentication in Production
 
-### 4. Handling Authentication
+- Clerk authentication is restricted to approved domains (like willtank.com)
+- Our code includes environment detection to handle both development and production:
+  - For development (Replit preview URLs), legacy authentication will be used
+  - For production on willtank.com, Clerk authentication will be used
 
-- Clerk production keys are restricted to `willtank.com`
-- The code includes environment detection to handle both development and production
-- For development environments, legacy authentication will be used
-- For production on willtank.com, Clerk authentication will be used
+### 5. Full Stack Deployment
 
-### 5. Deployment Troubleshooting
+If you need full API access (backend + frontend), you can still use the default:
 
-If you encounter a black screen with Clerk errors:
+```bash
+npm run dev
+```
 
-1. Verify your domain is correctly set to `willtank.com`
-2. Check that environment variables are correctly set
-3. Try clearing browser cache or testing in an incognito window
-4. Review Vercel deployment logs for any build errors
-5. Ensure the "Root Directory" is set to use the frontend code
+This runs both frontend and backend together, but may expose schema files.
 
-### 6. Cleaning Up Old Deployments
+### 6. Troubleshooting
 
-1. Go to Vercel > Project > Deployments
-2. Delete all previous failed deployments
-3. Redeploy with the new configuration
+If you encounter issues:
+
+1. Check console logs for errors
+2. Verify environment variables are correctly set
+3. Try clearing browser cache
+4. Ensure the correct environment variables are set
