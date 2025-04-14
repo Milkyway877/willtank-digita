@@ -49,7 +49,7 @@ import VideoRecording from "@/pages/VideoRecording";
 import FinalReview from "@/pages/FinalReview";
 import Completion from "@/pages/Completion";
 import EmailTest from "@/pages/EmailTest";
-import { AuthProvider } from "@/hooks/use-auth";
+// Removed legacy AuthProvider - using only Clerk for authentication
 import { NotificationsProvider } from "@/hooks/use-notifications";
 import { TwoFactorProvider } from "@/hooks/use-2fa";
 import { SkylerProvider } from "@/hooks/use-skyler";
@@ -64,18 +64,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/auth" component={AuthRouter} />
-      <Route path="/auth/*" component={AuthRouter} />
       {/* Clerk authentication routes */}
       <Route path="/sign-up" component={SignUpPage} />
       <Route path="/sign-in" component={SignInPage} />
-      {/* Legacy auth components for backwards compatibility */}
-      <Route path="/signup">
-        <SignUp />
-      </Route>
-      <Route path="/login">
-        <SignIn />
-      </Route>
       <ProtectedRoute path="/onboarding" component={OnboardingContainer} />
       <ProtectedRoute path="/pricing" component={PricingPage} />
       <ProtectedRoute path="/subscription" component={SubscriptionPage} />
@@ -111,17 +102,15 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ClerkProvider>
-        <AuthProvider>
-          <NotificationsProvider>
-            <TwoFactorProvider>
-              <SkylerProvider>
-                <Router />
-                <UnfinishedWillNotification />
-                <Toaster />
-              </SkylerProvider>
-            </TwoFactorProvider>
-          </NotificationsProvider>
-        </AuthProvider>
+        <NotificationsProvider>
+          <TwoFactorProvider>
+            <SkylerProvider>
+              <Router />
+              <UnfinishedWillNotification />
+              <Toaster />
+            </SkylerProvider>
+          </TwoFactorProvider>
+        </NotificationsProvider>
       </ClerkProvider>
     </QueryClientProvider>
   );

@@ -59,61 +59,35 @@ export default function SignInPage() {
           <p className="mt-2 text-gray-600 dark:text-gray-400">Sign in to your account</p>
         </div>
         
-        {isClerkConfigured && !useAlternateAuth ? (
-          // Production mode with Clerk configured - show Clerk auth UI
-          <div>
-            {/* Add clear instructions for Google sign-in */}
-            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md text-left">
-              <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">Using Google Sign-In</h3>
-              <ol className="list-decimal ml-5 mt-1 text-xs text-blue-700 dark:text-blue-400">
-                <li>Click "Continue with Google" below</li>
-                <li>Select your Google account</li>
-                <li>Accept the terms if prompted</li>
-                <li>You'll be automatically redirected to the onboarding process (for new users) or dashboard (for returning users)</li>
-              </ol>
-            </div>
-            
-            <ClerkSignIn 
-              path="/sign-in"
-              signUpUrl="/sign-up"
-              afterSignInUrl="/dashboard"
-              routing="path"
-              appearance={{
-                elements: {
-                  formButtonPrimary: 'bg-blue-600 hover:bg-blue-700 text-white',
-                  footerActionLink: 'text-blue-600 hover:text-blue-800',
-                  card: 'shadow-none',
-                  socialButtonsBlockButton: 'border-2 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all',
-                  socialButtonsBlockButtonText: 'font-medium',
-                  socialButtonsProviderIcon__google: 'w-5 h-5',
-                },
-              }}
-            />
+        <div>
+          {/* Add clear instructions for Google sign-in */}
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md text-left">
+            <h3 className="text-sm font-medium text-blue-800 dark:text-blue-300">Using Google Sign-In</h3>
+            <ol className="list-decimal ml-5 mt-1 text-xs text-blue-700 dark:text-blue-400">
+              <li>Click "Continue with Google" below</li>
+              <li>Select your Google account</li>
+              <li>Accept the terms if prompted</li>
+              <li>You'll be automatically redirected to the dashboard (or onboarding for new users)</li>
+            </ol>
           </div>
-        ) : (
-          // Development mode or Clerk not configured - show legacy auth options
-          <div className="space-y-4 p-6 text-center">
-            {isDevelopment && (
-              <div className="bg-amber-100 dark:bg-amber-900 p-3 rounded-md mb-4">
-                <p className="text-amber-800 dark:text-amber-200 text-sm font-medium">
-                  Development Environment Detected
-                </p>
-                <p className="text-amber-700 dark:text-amber-300 text-xs mt-1">
-                  Using legacy authentication for development since Clerk production keys are restricted to willtank.com domain.
-                </p>
-              </div>
-            )}
-            
-            <div className="flex flex-col gap-3">
-              <Button asChild variant="default">
-                <Link href="/login">Sign in with Legacy Auth</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/signup">Create an Account</Link>
-              </Button>
-            </div>
-          </div>
-        )}
+          
+          <ClerkSignIn 
+            path="/sign-in"
+            signUpUrl="/sign-up"
+            redirectUrl="/dashboard"
+            routing="path"
+            appearance={{
+              elements: {
+                formButtonPrimary: 'bg-blue-600 hover:bg-blue-700 text-white',
+                footerActionLink: 'text-blue-600 hover:text-blue-800',
+                card: 'shadow-none',
+                socialButtonsBlockButton: 'border-2 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all',
+                socialButtonsBlockButtonText: 'font-medium',
+                socialButtonsProviderIcon__google: 'w-5 h-5',
+              },
+            }}
+          />
+        </div>
       </div>
     </div>
   );

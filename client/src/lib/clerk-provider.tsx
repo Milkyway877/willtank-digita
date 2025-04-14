@@ -70,8 +70,8 @@ export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
       publishableKey={CLERK_PUBLISHABLE_KEY}
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
-      fallbackRedirectUrl="/dashboard"
-      redirectUrl="/onboarding"
+      signInFallbackRedirectUrl="/dashboard"
+      signUpFallbackRedirectUrl="/onboarding"
       appearance={{
         elements: {
           rootBox: "max-w-md mx-auto",
