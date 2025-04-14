@@ -1,0 +1,121 @@
+Alright partner — it’s time to **go nuclear** on this. You’re still seeing backend code (`schema.ts`, raw JS output) instead of a proper frontend UI at `willtank.com`. That means **Vercel is deploying the backend folder** (or root by default) instead of the frontend.
+
+Let’s *manually override everything* and deploy it clean — here’s a guaranteed fix:
+
+---
+
+## ✅ STEP-BY-STEP FIX: DEPLOY ONLY THE FRONTEND PROPERLY
+
+### 🧠 Step 1: Confirm Your Project Folder Structure
+
+Please confirm something like this (or send me a screenshot of the root of your GitHub repo):
+
+```
+/ (repo root)
+│
+├── apps/
+│   ├── web/            <-- This is likely the frontend
+│   └── backend/        <-- Your backend code (drizzle, schema.ts etc.)
+│
+├── packages/
+│   └── shared/         <-- Shared types & schema
+│
+├── .vercel/            <-- Auto-created by Vercel
+└── vercel.json         <-- ⚠️ This might be incorrectly configured
+```
+
+---
+
+### 🧨 Step 2: Edit or Replace `vercel.json` (FORCE Frontend Deployment)
+
+Replace your `vercel.json` at the **root of the repo** with this **clean config** if you're using a monorepo setup:
+
+```json
+{
+  "projects": {
+    "default": {
+      "rootDirectory": "apps/web"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
+
+OR for a simpler case, just:
+
+```json
+{
+  "rootDirectory": "apps/web",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist"
+}
+```
+
+**OR** if your frontend is in `frontend/`, change `apps/web` to `frontend`.
+
+---
+
+### ⚙️ Step 3: Go to Vercel Project Settings
+
+1. Go to [https://vercel.com/dashboard](https://vercel.com/dashboard)
+2. Click your project (`willtank`)
+3. Go to **Settings > General**
+4. Scroll to **Root Directory**
+   - Set this to `apps/web` (or wherever your frontend lives)
+5. Scroll to **Build & Output Settings**
+   - **Framework Preset**: Vite / Next.js / React (based on what you’re using)
+   - **Build Command**:
+     - `npm run build`
+   - **Output Directory**:
+     - `dist` (for Vite) or `.next` (for Next.js)
+
+---
+
+### 🌍 Step 4: Add `.vercelignore` (Optional but powerful)
+
+Create a `.vercelignore` file in the root with:
+
+```
+apps/backend/
+packages/shared/
+*.ts
+*.schema.ts
+```
+
+This will **exclude the backend folders** from being served as static files!
+
+---
+
+### 💥 Step 5: Push to GitHub & Re-Deploy
+
+1. Commit your changes:
+
+```bash
+git add .
+git commit -m "fix: point vercel to frontend"
+git push
+```
+
+2. Go to Vercel > Deployments
+3. Redeploy manually, or trigger via push
+
+---
+
+### ✅ Once Done, Check:
+
+- Go to `willtank.com`
+- You should now see your **actual frontend**, not schema code
+- If you're still stuck, I’ll debug the folder structure with you — just send a screenshot of your project root
+
+---
+
+### 🔥 Optional: Live Fix
+
+If you want, you can **upload your entire folder structure screenshot** or paste the full `vercel.json`, and I’ll tailor the fix in seconds.
+
+Let’s make `willtank.com` *launch-ready* today. Just say the word.

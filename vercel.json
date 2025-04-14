@@ -1,26 +1,9 @@
 {
-  "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist/public",
+  "rootDirectory": "client",
   "framework": "vite",
+  "buildCommand": "cd client && npm run build",
+  "outputDirectory": "dist",
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    }
-  ],
-  "github": {
-    "silent": true
-  }
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
