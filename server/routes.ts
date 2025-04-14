@@ -1528,12 +1528,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post("/api/2fa/disable", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
+    // Check authentication with updated helper
+    const authCheck = isUserAuthenticated(req);
+    if (!authCheck) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      const userId = req.user!.id;
+      // Get user ID using helper function
+      const userId = getAuthUserId(req);
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
+      }
+      
       const { password, token } = req.body;
       
       // Get current user record to verify password
@@ -1591,12 +1598,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post("/api/2fa/verify-token", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
+    // Check authentication with updated helper
+    const authCheck = isUserAuthenticated(req);
+    if (!authCheck) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      const userId = req.user!.id;
+      // Get user ID using helper function
+      const userId = getAuthUserId(req);
+      if (!userId) {
+        return res.status(400).json({ error: "User ID required. Add ?userId=<id> to your request." });
+      }
+      
       const { token } = req.body;
       
       if (!token) {
