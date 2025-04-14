@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { apiRequest } from '@/lib/queryClient';
 import { Card } from '@/components/ui/card';
 import AnimatedAurora from '@/components/ui/AnimatedAurora';
+import { saveWillProgress, WillCreationStep } from '@/lib/will-progress-tracker';
 
 // Message interface
 interface Message {
@@ -78,6 +79,9 @@ const AiChat: React.FC = () => {
     if (template) {
       setSelectedTemplate(template);
     }
+    
+    // Update the progress tracker
+    saveWillProgress(WillCreationStep.AI_CHAT);
   }, []);
   
   // Mark user as having a will in progress when they start the AI chat
