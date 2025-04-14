@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
 import { ArrowRight, Sparkles, Shield, FileText } from 'lucide-react';
@@ -9,9 +9,27 @@ import { useAuth } from '@/hooks/use-auth';
 
 const Welcome: React.FC = () => {
   const [, navigate] = useLocation();
-  const { user } = useAuth();
+  const { user, updateWillStatusMutation } = useAuth();
+  
+  // Redirect based on user's will status
+  useEffect(() => {
+    if (user) {
+      // If user has a completed will, redirect to dashboard
+      if (user.willCompleted) {
+        navigate('/dashboard');
+      } 
+      // If user has a will in progress but not on welcome page yet, redirect to template selection
+      else if (user.willInProgress && window.location.pathname === '/welcome') {
+        navigate('/template-selection');
+      }
+    }
+  }, [user, navigate]);
   
   const handleGetStarted = () => {
+    // Update the will in progress status if needed
+    if (user && !user.willInProgress) {
+      updateWillStatusMutation.mutate({ willInProgress: true });
+    }
     navigate('/template-selection');
   };
   

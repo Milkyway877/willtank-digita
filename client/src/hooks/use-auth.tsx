@@ -41,6 +41,7 @@ type AuthContextType = {
   resendVerificationMutation: ReturnType<typeof useResendVerificationMutation>;
   forgotPasswordMutation: ReturnType<typeof useForgotPasswordMutation>;
   resetPasswordMutation: ReturnType<typeof useResetPasswordMutation>;
+  updateWillStatusMutation: ReturnType<typeof useUpdateWillStatusMutation>;
 };
 
 type LoginData = Pick<InsertUser, "username" | "password">;
@@ -50,6 +51,7 @@ type VerifyEmailData = { email: string; code: string };
 type ResendVerificationData = { email: string };
 type ForgotPasswordData = { email: string };
 type ResetPasswordData = { token: string; password: string };
+type UpdateWillStatusData = { willInProgress?: boolean; willCompleted?: boolean };
 
 // Custom hooks for auth operations
 
@@ -280,6 +282,42 @@ function useLogoutMutation() {
   });
 }
 
+function useUpdateWillStatusMutation() {
+  const { toast } = useToast();
+  
+  return useMutation({
+    mutationFn: async (data: UpdateWillStatusData) => {
+      const res = await apiRequest("POST", "/api/user/will-status", data);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to update will status");
+      }
+      return await res.json();
+    },
+    onSuccess: (response) => {
+      // Update the cached user data with the new status
+      queryClient.setQueryData(["/api/user"], (oldData: ExtendedUser | null) => {
+        if (!oldData) return null;
+        
+        return {
+          ...oldData,
+          willInProgress: response.willInProgress !== undefined ? response.willInProgress : oldData.willInProgress,
+          willCompleted: response.willCompleted !== undefined ? response.willCompleted : oldData.willCompleted
+        };
+      });
+    },
+    onError: (error: Error) => {
+      console.error("Failed to update will status:", error);
+      // Only show toast for user-facing errors
+      toast({
+        title: "Status update failed",
+        description: "Failed to update your will creation status",
+        variant: "destructive",
+      });
+    },
+  });
+}
+
 export const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -304,6 +342,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const resendVerificationMutation = useResendVerificationMutation();
   const forgotPasswordMutation = useForgotPasswordMutation();
   const resetPasswordMutation = useResetPasswordMutation();
+  const updateWillStatusMutation = useUpdateWillStatusMutation();
 
   // Function to manually fetch user data
   const refetchUser = async () => {
@@ -325,6 +364,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resendVerificationMutation,
         forgotPasswordMutation,
         resetPasswordMutation,
+        updateWillStatusMutation,
       }}
     >
       {children}
