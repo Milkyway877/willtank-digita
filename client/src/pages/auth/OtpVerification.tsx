@@ -267,15 +267,27 @@ const OtpVerification: React.FC = () => {
             <p className="text-neutral-600 dark:text-neutral-400 mb-4">
               Your account has been successfully verified. Please click the button below to continue to the onboarding process.
             </p>
-            <AuthButton 
-              type="button" 
-              onClick={() => {
-                // New users coming from verification should always go to onboarding
-                setLocation('/onboarding');
-              }}
-            >
-              Continue to Onboarding
-            </AuthButton>
+            <div className="space-y-3">
+              <AuthButton 
+                type="button" 
+                onClick={() => {
+                  // New users coming from verification should always go to onboarding
+                  setLocation('/onboarding');
+                }}
+              >
+                Continue to Onboarding
+              </AuthButton>
+              <button 
+                type="button"
+                className="w-full flex items-center justify-center px-4 py-2 border border-primary text-primary hover:bg-primary/10 font-medium rounded-md transition-colors"
+                onClick={() => {
+                  // Option to go to dashboard for returning users
+                  setLocation('/dashboard');
+                }}
+              >
+                Go to Dashboard
+              </button>
+            </div>
           </motion.div>
         )}
         

@@ -39,15 +39,16 @@ const SignUp: React.FC = () => {
   const { user, registerMutation, verifyEmailMutation, resendVerificationMutation } = useAuth();
   const [, navigate] = useLocation();
   
-  // Redirect if user is already logged in and verified
+  // FIXED: Only redirect if user is already logged in and verified
   useEffect(() => {
     if (user) {
+      // Only take action if user is already verified
       if (user.isEmailVerified) {
-        navigate('/'); // Navigate to dashboard or onboarding
-      } else {
-        // If user has registered but not verified, show verification page
-        navigate(`/auth/verify/${encodeURIComponent(user.username)}`);
-      }
+        // If already verified, go to dashboard or onboarding
+        navigate('/'); 
+      } 
+      // FIXED: Removed the auto-redirect to verification page
+      // This allows users to stay on the current form and enter codes
     }
   }, [user, navigate]);
   
@@ -124,8 +125,13 @@ const SignUp: React.FC = () => {
         password
       });
       
-      // Redirect to OTP verification page
-      navigate(`/auth/verify/${encodeURIComponent(email.toLowerCase())}`);
+      // FIXED: Stay on this page but change to verification step instead of redirecting
+      setCurrentStep(SignUpStep.VERIFY_EMAIL);
+      
+      setAuthStatus({
+        type: 'success',
+        message: 'Account created! Please check your email for verification code.'
+      });
       
     } catch (error) {
       setAuthStatus({
@@ -148,14 +154,42 @@ const SignUp: React.FC = () => {
         code: verificationCode
       });
       
+      // FIXED: Show verification success UI with clear next steps
       setAuthStatus({
         type: 'success',
-        message: 'Email verified successfully! You can now sign in to your account.'
+        message: 'Your account has been successfully verified!'
       });
       
-      // ✓ FIXED: Removed automatic redirect, letting the user navigate explicitly
-      // Now the user will see the success message and have time to understand what happened
-      // They can click "Sign In" when ready
+      // Add a button to proceed to login or onboarding
+      // Use a slight delay to ensure the user sees the success message
+      setTimeout(() => {
+        // Create a complete UI replacement for the verification form
+        const successDiv = document.createElement('div');
+        successDiv.className = 'text-center p-6 bg-green-50 dark:bg-green-900/20 rounded-lg my-4';
+        successDiv.innerHTML = `
+          <div class="w-16 h-16 bg-green-100 dark:bg-green-800/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-green-600 dark:text-green-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          </div>
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Verification Complete</h3>
+          <p class="text-gray-600 dark:text-gray-400 mb-6">
+            Your email has been successfully verified. You can now sign in to your account or proceed to onboarding.
+          </p>
+          <div class="space-y-3">
+            <a href="/auth/sign-in" class="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+              Sign In to Your Account
+            </a>
+            <a href="/onboarding" class="inline-flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-blue-600 bg-white border border-blue-600 rounded-lg hover:bg-blue-50">
+              Proceed to Onboarding
+            </a>
+          </div>
+        `;
+        
+        // Replace the form with our success message
+        const form = document.querySelector('form');
+        if (form && form.parentNode) {
+          form.parentNode.replaceChild(successDiv, form);
+        }
+      }, 500);
       
     } catch (error) {
       setAuthStatus({
