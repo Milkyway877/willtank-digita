@@ -18,7 +18,7 @@ import {
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
-import { NotificationEvents } from "./notification-util";
+import { NotificationEvents, createNotification } from "./notification-util";
 import { sendEmail, createVerificationEmailTemplate } from "./email";
 import multer from "multer";
 import path from "path";
@@ -1712,8 +1712,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Onboarding routes
-  app.get("/api/onboarding/status", async (req: Request, res: Response) => {
+  // User profile and will status management routes
+  app.get("/api/user/will-status", async (req: Request, res: Response) => {
     if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -1727,7 +1727,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       return res.status(200).json({
-        hasCompletedOnboarding: user.hasCompletedOnboarding || false
+        willInProgress: user.willInProgress || false,
+        willCompleted: user.willCompleted || false
+      });
+    } catch (error) {
+      console.error("Error fetching will status:", error);
+      return res.status(500).json({ error: "Failed to fetch will status" });
+    }
+  });
+  
+  app.post("/api/user/update-profile", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const updates = req.body;
+      
+      // Update user profile with provided data
+      const user = await dbStorage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Update user in database
+      const [updatedUser] = await db.update(users)
+        .set(updates)
+        .where(eq(users.id, userId))
+        .returning();
+      
+      // Create notification for will progress if will status changed
+      if (updates.willInProgress === true && !user.willInProgress) {
+        try {
+          await NotificationEvents.CUSTOM(userId, 
+            "Will creation started",
+            "You've started creating your will. Return anytime to continue where you left off.",
+            "info"
+          );
+        } catch (notificationError) {
+          console.error("Failed to create notification:", notificationError);
+          // Continue with response even if notification creation fails
+        }
+      }
+      
+      if (updates.willCompleted === true && !user.willCompleted) {
+        try {
+          await NotificationEvents.CUSTOM(userId,
+            "Will completed",
+            "Congratulations! You've completed your will. You can now manage it from your dashboard.",
+            "success"
+          );
+        } catch (notificationError) {
+          console.error("Failed to create notification:", notificationError);
+          // Continue with response even if notification creation fails
+        }
+      }
+      
+      // For backward compatibility, also maintain onboarding endpoints
+      return res.status(200).json({ 
+        message: "Profile updated successfully",
+        user: updatedUser,
+        success: true
+      });
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      return res.status(500).json({ error: "Failed to update user profile" });
+    }
+  });
+  
+  // Keep endpoints for backward compatibility but route to new functionality
+  app.get("/api/onboarding/status", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const user = await dbStorage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Map new fields to old fields for backward compatibility
+      return res.status(200).json({
+        hasCompletedOnboarding: user.willCompleted || false
       });
     } catch (error) {
       console.error("Error fetching onboarding status:", error);
@@ -1744,30 +1829,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const { profile } = req.body;
       
-      // Update user profile if provided
+      // Map to new fields
+      const updates: any = {
+        willCompleted: true
+      };
+      
       if (profile) {
-        await dbStorage.saveUserProfile(userId, profile);
+        updates.preferences = profile;
       }
       
-      // Mark onboarding as completed
-      const updatedUser = await dbStorage.updateOnboardingStatus(userId, true);
-      
-      // Create notification for onboarding completion
-      try {
-        await NotificationEvents.ONBOARDING_COMPLETED(userId);
-      } catch (notificationError) {
-        console.error("Failed to create notification for onboarding completion:", notificationError);
-        // Continue with response even if notification creation fails
-      }
+      // Update user in database
+      const [updatedUser] = await db.update(users)
+        .set(updates)
+        .where(eq(users.id, userId))
+        .returning();
       
       return res.status(200).json({
-        message: "Onboarding completed successfully",
+        message: "Profile updated successfully",
         hasCompletedOnboarding: true,
         fullName: updatedUser.fullName
       });
     } catch (error) {
-      console.error("Error completing onboarding:", error);
-      return res.status(500).json({ error: "Failed to complete onboarding" });
+      console.error("Error updating user profile:", error);
+      return res.status(500).json({ error: "Failed to update user profile" });
     }
   });
 

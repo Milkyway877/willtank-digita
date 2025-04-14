@@ -1,15 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
-import { useSkyler, SkylerMessage } from '@/hooks/use-skyler';
-import { Send, User, PenSquare, Loader2, ChevronDown, ChevronUp, FileText } from 'lucide-react';
-import Logo from '@/components/ui/Logo';
-import AnimatedAurora from '@/components/ui/AnimatedAurora';
+import { useSkyler } from '@/hooks/use-skyler';
 import { useToast } from '@/hooks/use-toast';
+import { ArrowRight, Send, CheckCircle2, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Avatar } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
 import { apiRequest } from '@/lib/queryClient';
+import { Card } from '@/components/ui/card';
+import AnimatedAurora from '@/components/ui/AnimatedAurora';
 
-// Will document data structure
+// Message interface
+interface Message {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+}
+
+// Will data structure that we're collecting
 interface WillData {
   personalInfo: {
     fullName?: string;
@@ -34,7 +44,7 @@ interface WillData {
     estimatedValue?: string;
     beneficiary?: string;
   }>;
-  guardianships?: Array<{
+  guardians?: Array<{
     name: string;
     relationship: string;
     contact?: string;
@@ -43,123 +53,174 @@ interface WillData {
 }
 
 const AiChat: React.FC = () => {
-  const { user, isLoading: isLoadingAuth } = useAuth();
   const [, navigate] = useLocation();
+  const { user, refetchUser } = useAuth();
   const { toast } = useToast();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessingWill, setIsProcessingWill] = useState(false);
   const [willData, setWillData] = useState<WillData>({
     personalInfo: {},
     beneficiaries: [],
     assets: []
   });
-  const [previewExpanded, setPreviewExpanded] = useState(true);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const endOfMessagesRef = useRef<HTMLDivElement>(null);
-  const [input, setInput] = useState('');
-  const [currentStage, setCurrentStage] = useState('introduction');
-  const [isWillComplete, setIsWillComplete] = useState(false);
-  const [isProcessingWill, setIsProcessingWill] = useState(false);
-  
-  // Template information
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-
-  // Get Skyler AI state
-  const {
-    messages,
-    isLoading,
-    isStreaming,
-    streamingContent,
-    sendStreamingMessage,
-    error
-  } = useSkyler();
-
-  // Redirect to auth if not logged in
-  useEffect(() => {
-    if (!isLoadingAuth && !user) {
-      navigate('/auth/sign-in');
-    }
-  }, [user, isLoadingAuth, navigate]);
-
-  // Get selected template from localStorage
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Skyler client
+  const { sendStreamingMessage, streamingMessage, isLoading } = useSkyler();
+  
+  // Load selected template from localStorage
   useEffect(() => {
     const template = localStorage.getItem('selectedWillTemplate');
     if (template) {
       setSelectedTemplate(template);
-    } else {
-      // If no template is selected, redirect back to template selection
-      navigate('/template-selection');
     }
-  }, [navigate]);
-
-  // Auto scroll to the latest message
+  }, []);
+  
+  // Mark user as having a will in progress when they start the AI chat
   useEffect(() => {
-    if (endOfMessagesRef.current) {
-      endOfMessagesRef.current.scrollIntoView({ behavior: 'smooth' });
+    const updateWillStatus = async () => {
+      try {
+        // Mark will as in progress
+        const response = await apiRequest('POST', '/api/user/update-profile', {
+          willInProgress: true
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to update will progress');
+        } else {
+          // Refetch user to update state
+          await refetchUser();
+        }
+      } catch (error) {
+        console.error('Error updating will progress:', error);
+      }
+    };
+    
+    // Check if this is the first message 
+    if (messages.length === 1 && messages[0].role === 'system') {
+      updateWillStatus();
     }
-  }, [messages, isStreaming, streamingContent]);
-
-  // Focus on input after loading
+  }, [messages, refetchUser]);
+  
+  // Set initial system message
   useEffect(() => {
-    if (inputRef.current && !isLoading && !isStreaming) {
-      inputRef.current.focus();
-    }
-  }, [isLoading, isStreaming]);
-
-  // Initialize Skyler with context when first loading
-  useEffect(() => {
+    // Only initialize once and only if we have a template selected
     if (messages.length === 0 && selectedTemplate) {
-      // Set initial system message based on template
-      sendStreamingMessage(
-        `I'm creating a will using the "${selectedTemplate}" template. I need you to guide me through creating a complete will document step by step, starting with my personal information, then beneficiaries, assets, and so on. Please start by introducing yourself as Skyler and asking for my full legal name to begin.`
-      );
-    }
-  }, [messages.length, selectedTemplate]);
+      // Create a system message to set up Skyler's role
+      const templateNames: Record<string, string> = {
+        'standard': 'Standard Will',
+        'family': 'Family Protection Will',
+        'business': 'Business Owner Will',
+        'property': 'Real Estate Focused Will'
+      };
+      
+      const templateName = templateNames[selectedTemplate] || 'Standard Will';
+      
+      const systemMessage: Message = {
+        role: 'system',
+        content: `You are Skyler, an AI assistant specializing in ${templateName} creation. Guide the user through creating their will in a conversational manner.
+        
+Your task is to extract the following information:
+1. Personal details (name, date of birth, address, marital status)
+2. Beneficiaries (name, relationship, share of estate)
+3. Executor information
+4. Assets and their distribution
+5. Guardian information (if applicable)
+6. Special instructions
 
-  // Handle user's message submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!input.trim() || isStreaming) return;
-    
-    // Save the input and clear the field
-    const userInput = input.trim();
-    setInput('');
-    
-    // Extract information from conversation
+Be friendly, compassionate, and patient. Ask one question at a time. When the user has provided sufficient information, let them know they can proceed to document upload.`
+      };
+      
+      setMessages([systemMessage]);
+      
+      // Add first assistant message
+      setTimeout(() => {
+        const welcomeMessage: Message = {
+          role: 'assistant',
+          content: `Hi there! I'm Skyler, your personal will creation assistant. I'll help you create a ${templateName} by asking you some questions about your personal information, beneficiaries, assets, and other important details.
+
+Let's get started! First, could you please tell me your full legal name?`
+        };
+        
+        setMessages(prevMessages => [...prevMessages, welcomeMessage]);
+      }, 500);
+    }
+  }, [messages, selectedTemplate]);
+  
+  // Auto scroll to bottom of messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, streamingMessage]);
+  
+  // Update will data based on assistant's analysis
+  const updateWillData = (content: string) => {
     try {
-      if (userInput.toLowerCase().includes('done') || 
-          userInput.toLowerCase().includes('complete') || 
-          userInput.toLowerCase().includes('finish')) {
+      // Look for JSON in the message
+      const jsonMatch = content.match(/```json([\s\S]*?)```/);
+      
+      if (jsonMatch && jsonMatch[1]) {
+        const extractedJson = jsonMatch[1].trim();
+        const parsedData = JSON.parse(extractedJson);
         
-        if (currentStage === 'confirmation') {
-          setIsWillComplete(true);
+        if (parsedData) {
+          setWillData(prevData => ({
+            ...prevData,
+            ...parsedData
+          }));
+          
+          // Store in localStorage for use in other steps
+          localStorage.setItem('willData', JSON.stringify({
+            ...willData,
+            ...parsedData
+          }));
+          
+          return true;
         }
       }
       
-      // Send the message to Skyler
-      await sendStreamingMessage(userInput);
-      
-      // Try to detect will completion from AI response
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage && lastMessage.role === 'assistant') {
-        const content = lastMessage.content.toLowerCase();
-        
-        if (content.includes('all the information') && 
-            content.includes('will') && 
-            (content.includes('complete') || content.includes('finish'))) {
-          setCurrentStage('confirmation');
-        }
-      }
+      return false;
     } catch (error) {
-      console.error('Error processing message:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to process your message. Please try again.',
-        variant: 'destructive'
-      });
+      console.error('Error parsing will data:', error);
+      return false;
     }
   };
-
+  
+  // Send message to Skyler
+  const handleSendMessage = async () => {
+    if (!input.trim() || isProcessing) return;
+    
+    const userMessage: Message = { role: 'user', content: input.trim() };
+    setMessages(prevMessages => [...prevMessages, userMessage]);
+    setInput('');
+    setIsProcessing(true);
+    
+    try {
+      await sendStreamingMessage(input.trim());
+      
+      // After streaming is complete, add the full response to messages
+      setMessages(prevMessages => [
+        ...prevMessages, 
+        { role: 'assistant', content: streamingMessage }
+      ]);
+      
+      // Try to extract will data from assistant's response
+      updateWillData(streamingMessage);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to communicate with Skyler. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
   // Handle completion of will creation
   const handleCompleteWill = async () => {
     setIsProcessingWill(true);
@@ -200,288 +261,176 @@ const AiChat: React.FC = () => {
       setIsProcessingWill(false);
     }
   };
-
-  // Format date for the document preview
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
-
-  // Loading state
-  if (isLoadingAuth) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
+  
+  // Filter out system messages for display
+  const displayMessages = messages.filter(message => message.role !== 'system');
+  
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Background */}
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative">
+      {/* Background effect */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
         <AnimatedAurora />
       </div>
       
-      {/* Chat Area */}
-      <div 
-        className="flex-1 flex flex-col h-screen border-r border-gray-200 dark:border-gray-700"
-        ref={chatContainerRef}
-      >
-        {/* Chat Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white bg-opacity-90 dark:bg-gray-800 dark:bg-opacity-90 backdrop-blur-sm z-10">
-          <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-blue-500 flex items-center justify-center mr-3">
-              <span className="text-white font-bold">S</span>
-            </div>
-            <div>
-              <h2 className="font-semibold">Skyler</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">AI Assistant</p>
-            </div>
-          </div>
-          <div className="flex items-center">
-            <div className="hidden sm:block">
-              <a href="/dashboard" className="text-sm text-primary hover:underline mr-4">Dashboard</a>
-            </div>
-            <a href="/" className="flex items-center">
-              <Logo size="md" withText={false} />
-            </a>
-          </div>
-        </div>
-        
-        {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900 relative">
-          <AnimatePresence>
-            {messages.map((message) => (
-              <motion.div
-                key={message.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className={`mb-4 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {message.role === 'assistant' ? (
-                  <div className="flex">
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center mr-2 mt-1 flex-shrink-0">
-                      <span className="text-white font-bold text-sm">S</span>
-                    </div>
-                    <div className="bg-white dark:bg-gray-800 rounded-lg py-2 px-4 max-w-[85%] shadow-sm">
-                      <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{message.content}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-row-reverse">
-                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center ml-2 mt-1 flex-shrink-0">
-                      <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                    </div>
-                    <div className="bg-blue-500 rounded-lg py-2 px-4 max-w-[85%] shadow-sm">
-                      <p className="text-white whitespace-pre-wrap">{message.content}</p>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            ))}
-            
-            {/* Streaming message */}
-            {isStreaming && streamingContent && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="mb-4 flex justify-start"
-              >
-                <div className="flex">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center mr-2 mt-1 flex-shrink-0">
-                    <span className="text-white font-bold text-sm">S</span>
-                  </div>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg py-2 px-4 max-w-[85%] shadow-sm">
-                    <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-                      {streamingContent}
-                      <span className="inline-block w-2 h-4 bg-blue-500 ml-1 animate-pulse"></span>
-                    </p>
+      <div className="container mx-auto px-4 py-8 relative z-10">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-8"
+          >
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              Create Your Will with Skyler
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Chat with Skyler, your AI assistant, to complete your will information step by step.
+            </p>
+          </motion.div>
+          
+          {/* Chat container */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden flex flex-col h-[70vh]"
+          >
+            {/* Messages area */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {displayMessages.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center text-gray-500 dark:text-gray-400">
+                    <p>Loading conversation with Skyler...</p>
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mt-2" />
                   </div>
                 </div>
-              </motion.div>
-            )}
+              ) : (
+                displayMessages.map((message, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    className={`flex items-start mb-4 ${
+                      message.role === 'user' ? 'justify-end' : 'justify-start'
+                    }`}
+                  >
+                    {message.role === 'assistant' && (
+                      <Avatar className="h-10 w-10 mr-3 bg-primary text-white flex items-center justify-center">
+                        <span className="text-sm font-semibold">AI</span>
+                      </Avatar>
+                    )}
+                    
+                    <div className={`max-w-[80%] ${
+                      message.role === 'user'
+                        ? 'bg-primary text-white rounded-2xl rounded-tr-sm py-2 px-4'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm py-2 px-4'
+                    }`}>
+                      <div className="whitespace-pre-wrap">{message.content}</div>
+                    </div>
+                    
+                    {message.role === 'user' && (
+                      <Avatar className="h-10 w-10 ml-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 flex items-center justify-center">
+                        <span className="text-sm font-semibold">You</span>
+                      </Avatar>
+                    )}
+                  </motion.div>
+                ))
+              )}
+              
+              {/* Current streaming message from assistant */}
+              {isProcessing && streamingMessage && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start mb-4 justify-start"
+                >
+                  <Avatar className="h-10 w-10 mr-3 bg-primary text-white flex items-center justify-center">
+                    <span className="text-sm font-semibold">AI</span>
+                  </Avatar>
+                  
+                  <div className="max-w-[80%] bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm py-2 px-4">
+                    <div className="whitespace-pre-wrap">{streamingMessage || 'Thinking...'}</div>
+                  </div>
+                </motion.div>
+              )}
+              
+              <div ref={messagesEndRef} />
+            </div>
             
-            {/* Will completion button */}
-            {isWillComplete && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="mt-6 mb-10 w-full flex justify-center"
-              >
-                <button
+            <Separator />
+            
+            {/* Input area */}
+            <div className="p-4 bg-gray-50 dark:bg-gray-800">
+              <div className="flex">
+                <Input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="Type your message to Skyler..."
+                  className="flex-1 mr-2"
+                  disabled={isProcessing || isProcessingWill}
+                />
+                <Button 
+                  onClick={handleSendMessage} 
+                  disabled={!input.trim() || isProcessing || isProcessingWill}
+                  className="bg-primary hover:bg-primary-dark"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
+                </Button>
+              </div>
+              
+              {/* Progress buttons */}
+              <div className="flex justify-between mt-4">
+                <p className="text-sm text-gray-500 dark:text-gray-400 italic self-center">
+                  Your responses are saved automatically
+                </p>
+                <Button
                   onClick={handleCompleteWill}
-                  disabled={isProcessingWill}
-                  className="px-6 py-3 bg-gradient-to-r from-primary to-blue-500 text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1"
+                  disabled={isProcessingWill || messages.length < 5}
+                  className="bg-green-600 hover:bg-green-700 text-white flex items-center"
                 >
                   {isProcessingWill ? (
-                    <div className="flex items-center">
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
                       Processing...
-                    </div>
+                    </>
                   ) : (
-                    "Complete Will & Continue to Documents"
+                    <>
+                      <CheckCircle2 className="h-5 w-5 mr-2" />
+                      Complete & Continue
+                    </>
                   )}
-                </button>
-              </motion.div>
-            )}
-            
-            <div ref={endOfMessagesRef} />
-          </AnimatePresence>
-        </div>
-        
-        {/* Chat Input */}
-        <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-          <div className="flex items-end">
-            <div className="flex-1 relative">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Type your message..."
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 py-3 px-4 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-gray-800 dark:text-gray-200"
-                rows={1}
-                style={{
-                  minHeight: '50px',
-                  maxHeight: '120px',
-                  height: 'auto'
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit(e);
-                  }
-                }}
-              />
-              <button
-                type="submit"
-                disabled={!input.trim() || isStreaming}
-                className={`absolute right-2 bottom-2 p-2 rounded-full ${
-                  !input.trim() || isStreaming
-                    ? 'text-gray-400 cursor-not-allowed'
-                    : 'text-primary hover:bg-primary/10'
-                }`}
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-      
-      {/* Preview Panel */}
-      <div className="w-full md:w-1/3 lg:w-2/5 h-screen bg-white dark:bg-gray-800 overflow-y-auto relative hidden md:block">
-        <div className="sticky top-0 bg-white dark:bg-gray-800 z-10 border-b border-gray-200 dark:border-gray-700 p-4 flex justify-between items-center">
-          <div className="flex items-center">
-            <FileText className="w-5 h-5 text-primary mr-2" />
-            <h3 className="font-semibold text-gray-800 dark:text-white">Will Preview</h3>
-          </div>
-          <button
-            onClick={() => setPreviewExpanded(!previewExpanded)}
-            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            {previewExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-          </button>
-        </div>
-        
-        <AnimatePresence>
-          {previewExpanded && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="p-6"
-            >
-              <div className="prose prose-sm dark:prose-invert mx-auto">
-                <h1 className="text-center text-2xl mb-8">Last Will and Testament</h1>
-                
-                <section className="mb-6">
-                  <h2 className="text-lg font-semibold border-b pb-2 mb-3">Personal Information</h2>
-                  <p>
-                    <strong>Full Name:</strong> {willData.personalInfo.fullName || 'Not specified'}
-                  </p>
-                  <p>
-                    <strong>Date of Birth:</strong> {formatDate(willData.personalInfo.dateOfBirth) || 'Not specified'}
-                  </p>
-                  <p>
-                    <strong>Address:</strong> {willData.personalInfo.address || 'Not specified'}
-                  </p>
-                  <p>
-                    <strong>Marital Status:</strong> {willData.personalInfo.maritalStatus || 'Not specified'}
-                  </p>
-                </section>
-                
-                <section className="mb-6">
-                  <h2 className="text-lg font-semibold border-b pb-2 mb-3">Beneficiaries</h2>
-                  {willData.beneficiaries.length > 0 ? (
-                    <ul>
-                      {willData.beneficiaries.map((beneficiary, index) => (
-                        <li key={index} className="mb-2">
-                          <strong>{beneficiary.name}</strong> - {beneficiary.relationship}
-                          {beneficiary.share && ` (${beneficiary.share})`}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-500 dark:text-gray-400 italic">No beneficiaries specified</p>
-                  )}
-                </section>
-                
-                <section className="mb-6">
-                  <h2 className="text-lg font-semibold border-b pb-2 mb-3">Assets</h2>
-                  {willData.assets.length > 0 ? (
-                    <ul>
-                      {willData.assets.map((asset, index) => (
-                        <li key={index} className="mb-2">
-                          <strong>{asset.type}</strong>: {asset.description}
-                          {asset.estimatedValue && ` (Est. Value: ${asset.estimatedValue})`}
-                          {asset.beneficiary && ` - To: ${asset.beneficiary}`}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-500 dark:text-gray-400 italic">No assets specified</p>
-                  )}
-                </section>
-                
-                <section className="mb-6">
-                  <h2 className="text-lg font-semibold border-b pb-2 mb-3">Executor</h2>
-                  {willData.executor ? (
-                    <p>
-                      <strong>{willData.executor.name}</strong> - {willData.executor.relationship}
-                      {willData.executor.contact && ` (${willData.executor.contact})`}
-                    </p>
-                  ) : (
-                    <p className="text-gray-500 dark:text-gray-400 italic">No executor specified</p>
-                  )}
-                </section>
-                
-                {willData.specialInstructions && (
-                  <section className="mb-6">
-                    <h2 className="text-lg font-semibold border-b pb-2 mb-3">Special Instructions</h2>
-                    <p>{willData.specialInstructions}</p>
-                  </section>
-                )}
-                
-                <div className="text-center mt-8 text-sm text-gray-500 dark:text-gray-400">
-                  <p>This is a preview. The final document will be generated after completion.</p>
-                </div>
+                  <ArrowRight className="h-5 w-5 ml-2" />
+                </Button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </motion.div>
+          
+          {/* Help card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="mt-8"
+          >
+            <Card className="p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+              <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-300 mb-2">Tips for Creating Your Will</h3>
+              <ul className="text-blue-700 dark:text-blue-300 text-sm space-y-1">
+                <li>• Be as specific as possible when describing assets and beneficiaries</li>
+                <li>• Consider any special circumstances or conditions for inheritance</li>
+                <li>• Think about who you would trust to be your executor</li>
+                <li>• If you have dependents, think about guardianship arrangements</li>
+                <li>• You'll have a chance to review and edit the will later</li>
+              </ul>
+            </Card>
+          </motion.div>
+        </div>
       </div>
     </div>
   );

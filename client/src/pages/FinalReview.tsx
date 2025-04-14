@@ -5,6 +5,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { Check, Edit, FileText, AlertCircle, Save, ArrowRight, CheckCircle, Download } from 'lucide-react';
 import AnimatedAurora from '@/components/ui/AnimatedAurora';
 import { saveWillProgress, WillCreationStep, clearWillProgress } from '@/lib/will-progress-tracker';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 // Will document data structure
 interface WillData {
@@ -40,7 +42,7 @@ interface WillData {
 }
 
 const FinalReview: React.FC = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, refetchUser } = useAuth();
   const [, navigate] = useLocation();
   const [willData, setWillData] = useState<WillData | null>(null);
   const [editableContent, setEditableContent] = useState<string>('');
@@ -229,7 +231,7 @@ Date                               Date`;
   };
   
   // Finalize and save will
-  const handleFinalize = () => {
+  const handleFinalize = async () => {
     // Save final document
     if (hasUnsavedChanges) {
       handleSave();
@@ -251,6 +253,21 @@ Date                               Date`;
       // Then mark the entire will as completed
       // This will prevent the unfinished will notification from appearing
       saveWillProgress(WillCreationStep.COMPLETED);
+      
+      // Update the user profile to mark the will as completed
+      const response = await apiRequest('POST', '/api/user/update-profile', {
+        willInProgress: false,
+        willCompleted: true
+      });
+      
+      if (!response.ok) {
+        console.error("Failed to update user profile");
+      } else {
+        // Refetch user to update auth context
+        if (refetchUser) {
+          await refetchUser();
+        }
+      }
       
       console.log("Will progress tracker updated successfully");
     } catch (error) {
