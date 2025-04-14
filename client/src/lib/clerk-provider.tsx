@@ -10,8 +10,11 @@ import {
 import { useLocation, Route } from 'wouter';
 import { apiRequest } from '@/lib/queryClient';
 
-if (!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) {
-  throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY');
+// Get the Clerk publishable key from environment variables
+const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+if (!CLERK_PUBLISHABLE_KEY) {
+  console.error('Missing VITE_CLERK_PUBLISHABLE_KEY environment variable');
 }
 
 const publicPages = ['/sign-in', '/sign-up', '/auth', '/', '/privacy', '/terms'];
