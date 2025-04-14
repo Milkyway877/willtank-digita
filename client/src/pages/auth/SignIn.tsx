@@ -12,7 +12,8 @@ import { use2FA } from '@/hooks/use-2fa';
 import { 
   hasUnfinishedWill, 
   getWillProgress, 
-  WillCreationStep 
+  WillCreationStep,
+  getResumeUrl
 } from '@/lib/will-progress-tracker';
 
 enum LoginStep {
@@ -61,15 +62,17 @@ const SignIn: React.FC = () => {
   useEffect(() => {
     if (user) {
       if (user.isEmailVerified) {
-        // Check if the user has a completed will
-        const progress = getWillProgress();
-        
-        if (progress && progress.completed) {
+        // First check user object flags from database
+        if (user.willCompleted) {
           // If will is completed, go to dashboard
           navigate('/dashboard');
+        } else if (user.willInProgress) {
+          // If will is in progress, go back to where they left off
+          const resumeUrl = getResumeUrl();
+          navigate(resumeUrl);
         } else {
-          // If no completed will, go to onboarding or template selection
-          navigate('/onboarding');
+          // If no will yet, go to welcome page
+          navigate('/welcome');
         }
       } else {
         // If user is logged in but not verified, redirect to verification page
