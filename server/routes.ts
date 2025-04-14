@@ -382,7 +382,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Video recording upload endpoint
+  // Video recording upload endpoint using Supabase storage
   app.post("/api/wills/:willId/video", upload.single('video'), async (req: Request, res: Response) => {
     if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -400,21 +400,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const will = await dbStorage.getWillById(willId);
       
       if (!will) {
-        // Remove uploaded file if will doesn't exist
+        // Remove uploaded temporary file if will doesn't exist
         fs.unlinkSync(req.file.path);
         return res.status(404).json({ error: "Will not found" });
       }
       
       if (will.userId !== userId) {
-        // Remove uploaded file if user doesn't own the will
+        // Remove uploaded temporary file if user doesn't own the will
         fs.unlinkSync(req.file.path);
         return res.status(403).json({ error: "Unauthorized access to will" });
       }
       
-      // Calculate relative file URL path
-      const videoUrl = `/uploads/${path.basename(req.file.path)}`;
+      // Read the file content
+      const fileContent = fs.readFileSync(req.file.path);
       
-      // Update will with video recording URL
+      // Create a File object from the file content
+      const videoFile = new File(
+        [fileContent], 
+        path.basename(req.file.path), 
+        { type: req.file.mimetype }
+      );
+      
+      // Upload to Supabase storage
+      const uploadResult = await uploadFile(
+        videoFile, 
+        userId.toString(), 
+        willId.toString()
+      );
+      
+      // Clean up local temporary file after upload
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.error || "Failed to upload to Supabase storage");
+      }
+      
+      // Get the URL from Supabase upload
+      const videoUrl = uploadResult.data.url;
+      
+      // Update will with Supabase video URL
       const updatedWill = await dbStorage.updateWill(willId, {
         videoRecordingUrl: videoUrl,
         lastUpdated: new Date()
@@ -430,16 +456,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       return res.status(200).json({
         success: true,
-        message: "Video uploaded successfully",
+        message: "Video uploaded successfully to cloud storage",
         videoUrl: videoUrl
       });
     } catch (error) {
-      console.error("Error uploading video:", error);
-      // Clean up file if it was uploaded
+      console.error("Error uploading video to Supabase:", error);
+      // Clean up temporary file if it was uploaded
       if (req.file && fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
       }
-      return res.status(500).json({ error: "Failed to upload video" });
+      return res.status(500).json({ error: "Failed to upload video to cloud storage" });
     }
   });
   

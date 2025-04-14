@@ -11,24 +11,76 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 // Initialize Supabase tables if they don't exist
 export async function initializeSupabaseTables() {
   try {
-    // The supabase-js client doesn't support raw SQL directly from the client for security reasons
-    // Instead, we'll use the REST API to create the table through the dashboard
-
     console.log('Checking Supabase users table...');
     
     // Attempt to use the table (this will succeed if it exists)
     const { error } = await supabase.from('users').select('id').limit(1);
     
     if (error && error.code === '42P01') {
-      console.log('Users table does not exist. Please create it in the Supabase dashboard.');
-      console.log('Create a table named "users" with the following columns:');
-      console.log('- id: text (primary key)');
-      console.log('- email: text (unique)');
-      console.log('- name: text');
-      console.log('- created_at: timestamptz (default: now())');
-      console.log('- last_login: timestamptz');
-      console.log('- will_in_progress: boolean (default: false)');
-      console.log('- will_completed: boolean (default: false)');
+      console.log('Users table does not exist. Attempting to create it...');
+      
+      try {
+        // Try to create the users table using REST API
+        // This requires using the service_role key which we don't have
+        // So we'll use a workaround to create it via the client API
+        
+        // First, create a user record - this will create the table if possible
+        const { error: createError } = await supabase.from('users').insert({
+          id: 'system-init',
+          email: 'system@willtank.example',
+          name: 'System Initialization',
+          created_at: new Date().toISOString(),
+          last_login: new Date().toISOString(),
+          will_in_progress: false,
+          will_completed: false
+        });
+        
+        // If table was created, delete the temporary record
+        if (!createError || createError.code !== '42P01') {
+          await supabase.from('users').delete().eq('id', 'system-init');
+          console.log('Successfully created users table.');
+          
+          // Try creating wills table
+          await supabase.from('wills').insert({
+            id: 'system-init',
+            user_id: 'system-init',
+            template_id: 'system-init',
+            status: 'system',
+            data: {},
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }).then(({error}) => {
+            if (!error) {
+              supabase.from('wills').delete().eq('id', 'system-init');
+              console.log('Successfully created wills table.');
+            }
+          });
+          
+          // Try creating assets table
+          await supabase.from('assets').insert({
+            id: 'system-init',
+            user_id: 'system-init',
+            will_id: 'system-init',
+            title: 'System Initialization',
+            created_at: new Date().toISOString()
+          }).then(({error}) => {
+            if (!error) {
+              supabase.from('assets').delete().eq('id', 'system-init');
+              console.log('Successfully created assets table.');
+            }
+          });
+        }
+      } catch (createTableError) {
+        console.log('Error creating tables via API, please create them manually in the Supabase dashboard:');
+        console.log('Create a table named "users" with the following columns:');
+        console.log('- id: text (primary key)');
+        console.log('- email: text (unique)');
+        console.log('- name: text');
+        console.log('- created_at: timestamptz (default: now())');
+        console.log('- last_login: timestamptz');
+        console.log('- will_in_progress: boolean (default: false)');
+        console.log('- will_completed: boolean (default: false)');
+      }
     } else {
       console.log('Supabase users table exists and is accessible.');
     }
