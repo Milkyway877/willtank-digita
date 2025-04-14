@@ -90,11 +90,9 @@ function ClerkUserSync() {
   return null;
 }
 
-// FIXED: This is our custom ClerkProvider that intelligently handles:
-// 1. Production domain (willtank.com) - Use full Clerk authentication
-// 2. Development environments (localhost, Replit, etc) - Use legacy auth
+// PRODUCTION-READY ClerkProvider with proper routing and auth flow
 export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   
   // Check if we're on a public page that doesn't need auth
   const isPublicPage = publicPages.some(page => 
@@ -102,11 +100,10 @@ export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
     (page.endsWith('*') && location.startsWith(page.slice(0, -1)))
   );
 
-  // FIXED: Better determination of which auth system to use
-  // We should always use legacy auth in development
+  // For development or non-willtank.com domains, use legacy auth
   if (shouldUseLegacyAuth) {
-    // FIXED: Create a mock Clerk provider with a non-triggering key
-    // This prevents Clerk API calls while still letting components render
+    console.log('Using legacy authentication for non-willtank.com domain or development environment');
+    // Mock Clerk provider with a non-triggering key
     return (
       <BaseClerkProvider
         publishableKey="pk_test_mock_key_for_legacy_auth"
@@ -116,62 +113,57 @@ export const ClerkProvider = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  // We're on willtank.com and have a valid key - use full Clerk auth
-  // Different configuration for public vs protected pages
-  if (isPublicPage) {
-    return (
-      <BaseClerkProvider 
-        publishableKey={ACTIVE_CLERK_KEY as string}
-        signInUrl="/sign-in"
-        signUpUrl="/sign-up"
-        afterSignInUrl="/dashboard"
-        afterSignUpUrl="/onboarding"
-        appearance={{
-          elements: {
-            rootBox: "max-w-md mx-auto",
-            card: "shadow-none rounded-lg",
-            socialButtonsBlockButton: "border-2 hover:border-blue-500 transition-all",
-          }
-        }}
-      >
-        {children}
-      </BaseClerkProvider>
-    );
-  }
-
-  // Protected pages with Clerk authentication
+  // Configuration for all pages when using Clerk authentication
+  // ✅ CRITICAL FIX: Use consistent paths and routes for Clerk
   return (
     <BaseClerkProvider 
       publishableKey={ACTIVE_CLERK_KEY as string}
+      // ✅ FIXED: Removed navigate prop as it's incompatible with this version
+      // Instead using the proper routing configuration
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
-      afterSignInUrl="/dashboard"
+      afterSignInUrl="/dashboard" 
       afterSignUpUrl="/onboarding"
       appearance={{
         elements: {
           rootBox: "max-w-md mx-auto",
-          card: "shadow-none rounded-lg"
+          card: "shadow-none rounded-lg",
+          socialButtonsBlockButton: "border-2 hover:border-blue-500 transition-all",
+          socialButtonsProviderIcon__google: "w-5 h-5",
         }
       }}
     >
+      {/* Always sync user data with our backend */}
       <ClerkUserSync />
-      <>
-        <SignedIn>{children}</SignedIn>
-        <SignedOut>
-          <RedirectToSignIn />
-        </SignedOut>
-      </>
+      
+      {/* Public pages don't need auth guards */}
+      {isPublicPage ? (
+        children
+      ) : (
+        /* Protected pages get proper auth guards */
+        <>
+          <SignedIn>{children}</SignedIn>
+          <SignedOut>
+            <RedirectToSignIn />
+          </SignedOut>
+        </>
+      )}
     </BaseClerkProvider>
   );
 };
 
-// Higher-order component to protect routes
-export const withAuth = (Component: React.ComponentType) => {
-  return function ProtectedRoute(props: any) {
+// ✅ FIXED: Function component to improve Fast Refresh compatibility
+export function withAuth(Component: React.ComponentType): React.FC<any> {
+  const ProtectedRoute: React.FC<any> = (props) => {
     return (
       <SignedIn>
         <Component {...props} />
       </SignedIn>
     );
   };
+  
+  // Maintain the same name as the wrapped component for better debugging
+  ProtectedRoute.displayName = `withAuth(${Component.displayName || Component.name || 'Component'})`;
+  
+  return ProtectedRoute;
 };

@@ -8,16 +8,19 @@ import { Loader2 } from 'lucide-react';
 // Check if Clerk is configured
 const isClerkConfigured = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
-// Determine if we're in development vs production mode
-// For development environment, show alternate auth options
-const isProduction = typeof window !== 'undefined' && 
-  (window.location.hostname === 'willtank.com' || 
-   window.location.hostname.endsWith('.willtank.com'));
+// ✅ FIXED: Improved environment detection for proper behavior
+const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
+const isLocalhost = currentHostname === 'localhost' || currentHostname === '127.0.0.1';
+const isReplit = currentHostname.includes('.replit.dev') || currentHostname.includes('.repl.co');
+const isVercel = currentHostname.includes('.vercel.app');
+const isWillTankDomain = currentHostname === 'willtank.com' || currentHostname.endsWith('.willtank.com');
 
-const isDevelopment = !isProduction;
+// Production is specifically on willtank.com domains
+const isProduction = isWillTankDomain;
+const isDevelopment = isLocalhost || isReplit || isVercel || !isProduction;
 
-// In development, we might need to use the legacy auth if Clerk is configured for production
-const useAlternateAuth = isDevelopment;
+// ✅ FIXED: Use legacy auth if not on willtank.com domain
+const useAlternateAuth = !isWillTankDomain;
 
 export default function SignUpPage() {
   const [, navigate] = useLocation();
