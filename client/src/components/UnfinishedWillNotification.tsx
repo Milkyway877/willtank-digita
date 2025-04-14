@@ -49,7 +49,14 @@ const UnfinishedWillNotification: React.FC = () => {
       if (!user) return;
       
       const path = window.location.pathname;
-      const isExcludedPath = excludedPaths.some(excludedPath => path.startsWith(excludedPath));
+      // Use a simple array check rather than a .some() call to prevent unnecessary re-renders
+      let isExcludedPath = false;
+      for (let i = 0; i < excludedPaths.length; i++) {
+        if (path.startsWith(excludedPaths[i])) {
+          isExcludedPath = true;
+          break;
+        }
+      }
       
       // If user is on a will creation page, don't show notification
       if (isExcludedPath) {
@@ -84,7 +91,9 @@ const UnfinishedWillNotification: React.FC = () => {
     return () => {
       window.removeEventListener('popstate', handlePathChange);
     };
-  }, [user, excludedPaths]);
+    // Important: Remove excludedPaths from the dependency array to prevent infinite re-renders
+    // It's a constant array so it never changes anyway
+  }, [user]);
   
   const formatTimeAgo = (date: Date): string => {
     if (!date) return '';
@@ -170,4 +179,5 @@ const UnfinishedWillNotification: React.FC = () => {
   );
 };
 
-export default UnfinishedWillNotification;
+// Export a memoized version to prevent unnecessary re-renders
+export default React.memo(UnfinishedWillNotification);
