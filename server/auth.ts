@@ -247,6 +247,18 @@ export function setupAuth(app: Express) {
         console.error("Failed to create notification for email verification:", notificationError);
         // Continue with login even if notification fails
       }
+      
+      // Sync with Supabase in the background
+      try {
+        await syncUserData({
+          id: updatedUser.id.toString(),
+          email: updatedUser.username,
+          name: updatedUser.fullName || undefined // Use undefined instead of null
+        });
+      } catch (syncError) {
+        console.error('Error syncing user with Supabase after email verification:', syncError);
+        // Continue with login even if Supabase sync fails
+      }
 
       // Auto-login the user
       req.login(updatedUser, (err) => {
@@ -423,6 +435,18 @@ export function setupAuth(app: Express) {
           console.error("Failed to create notification for login:", notificationError);
           // Continue with response even if notification creation fails
         }
+        
+        // Sync login with Supabase in the background
+        try {
+          await syncUserData({
+            id: user.id.toString(),
+            email: user.username,
+            name: user.fullName || undefined // Pass the full name if it exists, use undefined instead of null
+          });
+        } catch (syncError) {
+          console.error('Error syncing user with Supabase during login:', syncError);
+          // Continue with login even if Supabase sync fails
+        }
 
         return res.status(200).json({
           id: user.id,
@@ -522,11 +546,14 @@ export function setupAuth(app: Express) {
       id: user.id,
       username: user.username,
       isEmailVerified: user.isEmailVerified,
-      hasCompletedOnboarding: user.hasCompletedOnboarding || false,
+      willInProgress: user.willInProgress || false,
+      willCompleted: user.willCompleted || false,
       fullName: user.fullName || '',
       planType: user.planType || 'free',
       planInterval: user.planInterval || null,
-      subscriptionStatus: user.subscriptionStatus || null
+      subscriptionStatus: user.subscriptionStatus || null,
+      stripeCustomerId: user.stripeCustomerId || null,
+      stripeSubscriptionId: user.stripeSubscriptionId || null
     });
   });
   
@@ -544,23 +571,16 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Full name is required" });
       }
       
-      // Update user profile using direct SQL for better compatibility
-      await db.execute({
-        text: `
-          UPDATE users 
-          SET 
-            full_name = $1, 
-            preferences = $2, 
-            has_completed_onboarding = true, 
-            updated_at = NOW() 
-          WHERE id = $3
-        `,
-        values: [
-          fullName, 
-          preferences ? JSON.stringify(preferences) : null, 
-          userId
-        ]
-      });
+      // Update user profile 
+      await db.update(users)
+        .set({
+          fullName: fullName,
+          preferences: preferences ? JSON.stringify(preferences) : null,
+          willInProgress: true, 
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId))
+        .execute();
       
       // Create notification for onboarding completion
       try {
