@@ -104,10 +104,11 @@ export async function processAndSaveContacts(willId: number, userId: number, con
           name: contact.name,
           relationship: contact.relationship || "",
           role: contact.role || "beneficiary",
-          email: contact.email || null,
-          phone: contact.phone || null,
-          address: contact.address || null,
-          notes: contact.notes || null,
+          email: contact.email || "",
+          phone: contact.phone || "",
+          address: contact.address || "",
+          country: "",
+          notes: contact.notes || "",
         }).returning({ id: willContacts.id });
 
         // Add ID to saved contacts array if insert was successful

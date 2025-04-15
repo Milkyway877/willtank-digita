@@ -318,11 +318,16 @@ export const wills = pgTable("wills", {
 export const willDocuments = pgTable("will_documents", {
   id: serial("id").primaryKey(),
   willId: integer("will_id").notNull().references(() => wills.id),
+  userId: integer("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
-  path: text("path").notNull(),
-  type: text("type").notNull(),
+  fileName: text("file_name").notNull(),
+  fileType: text("file_type").notNull(),
+  fileSize: integer("file_size").notNull(),
+  fileUrl: text("file_url").notNull(),
+  description: text("description"),
+  category: text("category").default("general"),
   uploadDate: timestamp("upload_date").defaultNow(),
-  size: integer("size").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 // Will contact table
@@ -386,10 +391,14 @@ export const insertWillSchema = createInsertSchema(wills).pick({
 
 export const insertWillDocumentSchema = createInsertSchema(willDocuments).pick({
   willId: true,
+  userId: true,
   name: true,
-  path: true,
-  type: true,
-  size: true,
+  fileName: true,
+  fileType: true,
+  fileSize: true,
+  fileUrl: true,
+  description: true,
+  category: true,
 });
 
 export const insertWillContactSchema = createInsertSchema(willContacts).pick({

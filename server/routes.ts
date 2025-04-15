@@ -123,12 +123,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const { messages } = req.body;
+      const { messages, willId, processingOptions } = req.body;
       
       if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ error: "Messages must be an array" });
       }
 
+      // Extract options
+      const extractContacts = processingOptions?.extractContacts || false;
+      const extractDocuments = processingOptions?.extractDocuments || false;
+
+      // Get streaming chat completion
       const result = await getStreamingChatCompletion(messages);
       
       if (!result.success) {
@@ -151,6 +156,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       } else {
         return res.status(500).json({ error: "Stream not available" });
+      }
+
+      // Process will-related data after streaming (asynchronously)
+      if (willId && (extractContacts || extractDocuments)) {
+        try {
+          // Get will data to ensure it exists and belongs to the user
+          const will = await dbStorage.getWillById(Number(willId));
+          if (will && will.userId === req.user.id) {
+            // Extract contacts from conversation
+            if (extractContacts) {
+              const contacts = await extractContactsFromConversation(messages);
+              if (contacts && contacts.length > 0) {
+                await processAndSaveContacts(Number(willId), req.user.id, contacts);
+              }
+            }
+
+            // Extract document suggestions from will content
+            if (extractDocuments && will.content) {
+              const documentSuggestions = await extractDocumentSuggestions(will.content);
+              // We don't save these to the database, but we could log them or process them further
+              console.log(`Generated ${documentSuggestions.length} document suggestions for will ${willId}`);
+            }
+          }
+        } catch (err) {
+          console.error("Error processing will data after chat:", err);
+          // We don't want to fail the request if post-processing fails
+        }
       }
 
       // End the stream
@@ -564,13 +596,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the URL from upload
       const fileUrl = uploadResult.data?.url || "";
       
+      // Extract document metadata from request body
+      const category = req.body.category || 'general';
+      const description = req.body.description || '';
+      const documentName = req.body.name || req.file.originalname;
+
       // Store document in database
       const document = await dbStorage.addWillDocument({
         willId,
-        name: req.file.originalname,
-        path: fileUrl,
-        type: req.file.mimetype,
-        size: req.file.size
+        userId: req.user.id,
+        name: documentName,
+        fileName: req.file.originalname,
+        fileType: req.file.mimetype,
+        fileSize: req.file.size,
+        fileUrl: fileUrl,
+        description: description,
+        category: category
       });
       
       return res.status(201).json(document);
@@ -661,7 +702,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const contactData = {
         ...req.body,
-        willId
+        willId,
+        userId: req.user.id
       };
       
       // Validate with schema
