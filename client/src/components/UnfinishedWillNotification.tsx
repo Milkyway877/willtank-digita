@@ -28,15 +28,18 @@ const UnfinishedWillNotification: React.FC = () => {
   // Paths where notification should not appear
   const excludedPaths = [
     '/welcome',
-    '/template-selection',
+    '/will-selection',
     '/create-will',
     '/document-upload',
     '/video-recording',
     '/finalize',
+    // New structured flow paths
+    '/will-creation',
     // Legacy paths
     '/ai-chat',
     '/final-review',
-    '/completion'
+    '/completion',
+    '/template-selection' // Keep for backward compatibility
   ];
   
   useEffect(() => {

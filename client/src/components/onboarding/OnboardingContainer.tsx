@@ -42,8 +42,8 @@ const OnboardingContainer: React.FC = () => {
   // Check if onboarding is already completed from the user object
   useEffect(() => {
     if (user?.hasCompletedOnboarding) {
-      // Navigate to template selection if onboarding was already completed
-      navigate('/template-selection');
+      // Navigate to will selection if onboarding was already completed
+      navigate('/will-selection');
     }
   }, [navigate, user]);
   
@@ -64,7 +64,7 @@ const OnboardingContainer: React.FC = () => {
       });
       // Refetch user data to update the hasCompletedOnboarding flag
       await refetchUser();
-      navigate('/template-selection');
+      navigate('/will-selection');
     },
     onError: (error: Error) => {
       toast({
