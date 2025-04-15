@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, ArrowLeft, Save, Loader2, Upload, UserPlus, File, Send, VideoIcon, CheckCircle, Info, Sparkles, MessageSquare, Camera } from "lucide-react";
+import { AlertCircle, ArrowLeft, Save, Loader2, Upload, UserPlus, File, Send, VideoIcon, CheckCircle, Info, Sparkles, MessageSquare, Camera, Square } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -41,6 +41,15 @@ export default function CreateWillPage() {
   const [skylerPrompt, setSkylerPrompt] = useState("");
   const [generatingWithAI, setGeneratingWithAI] = useState(false);
   const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Video testament state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const will = getWill(willId);
 
@@ -116,6 +125,108 @@ export default function CreateWillPage() {
       title: "Generating will content",
       description: "Skyler is drafting your will document based on your template choice...",
     });
+  };
+  
+  // Video recording functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: "user" 
+        }, 
+        audio: true 
+      });
+      
+      streamRef.current = stream;
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      mediaRecorderRef.current = mediaRecorder;
+      
+      const chunks: BlobPart[] = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+      
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        setVideoBlob(blob);
+        setVideoUrl(url);
+        
+        // Stop all tracks
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+        }
+      };
+      
+      // Start recording
+      mediaRecorder.start(1000);
+      setIsRecording(true);
+      setRecordingTime(0);
+      
+      // Start timer
+      const timer = setInterval(() => {
+        setRecordingTime(prev => {
+          // Auto-stop after 3 minutes (180 seconds)
+          if (prev >= 180) {
+            clearInterval(timer);
+            stopRecording();
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+      
+      // Store the timer reference to clear on stop
+      (window as any).recordingTimer = timer;
+      
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      toast({
+        title: "Camera access failed",
+        description: "Please make sure you have a camera connected and have granted permission to use it.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      
+      // Clear timer
+      clearInterval((window as any).recordingTimer);
+      
+      toast({
+        title: "Recording saved",
+        description: "Your video testament has been recorded successfully."
+      });
+    }
+  };
+  
+  const resetRecording = () => {
+    if (videoUrl) {
+      URL.revokeObjectURL(videoUrl);
+    }
+    setVideoBlob(null);
+    setVideoUrl(null);
+    setRecordingTime(0);
+  };
+  
+  // Format recording time as mm:ss
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   // Show loading state while will data is being fetched
@@ -194,10 +305,16 @@ export default function CreateWillPage() {
 
         {/* Main content with tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid grid-cols-4 lg:w-full md:w-2/3 sm:w-full">
+          <TabsList className="grid grid-cols-5 lg:w-full md:w-2/3 sm:w-full">
             <TabsTrigger value="content">Content</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="contacts">Contacts</TabsTrigger>
+            <TabsTrigger value="video">
+              <div className="flex items-center">
+                <VideoIcon className="h-4 w-4 mr-2" />
+                <span>Video</span>
+              </div>
+            </TabsTrigger>
             <TabsTrigger value="finalize">Finalize</TabsTrigger>
           </TabsList>
 
@@ -403,6 +520,153 @@ export default function CreateWillPage() {
               </CardContent>
             </Card>
           </TabsContent>
+          
+          {/* Video Testament Tab */}
+          <TabsContent value="video" className="space-y-4">
+            <Card className="overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-purple-500/10 to-transparent">
+                <div className="flex items-center justify-between">
+                  <CardTitle>Video Testament</CardTitle>
+                  <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 bg-primary/5">
+                    <Camera className="h-3.5 w-3.5 text-primary" /> 
+                    <span>Record</span>
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="space-y-6">
+                  <p className="text-muted-foreground">
+                    Create a video testament to accompany your written will. This can help clarify your intentions
+                    and provide a personal message to your loved ones.
+                  </p>
+                  
+                  <div className="rounded-lg overflow-hidden border bg-card shadow-sm">
+                    <div className="relative aspect-video bg-black flex items-center justify-center">
+                      {videoUrl ? (
+                        <video 
+                          ref={videoRef}
+                          src={videoUrl}
+                          controls
+                          className="absolute inset-0 w-full h-full"
+                        />
+                      ) : (
+                        <>
+                          <video 
+                            ref={videoRef}
+                            autoPlay 
+                            muted
+                            playsInline
+                            className={`absolute inset-0 w-full h-full object-cover ${isRecording ? 'block' : 'hidden'}`}
+                          />
+                          
+                          {!isRecording && !videoUrl && (
+                            <div className="flex flex-col items-center justify-center">
+                              <VideoIcon className="h-16 w-16 text-muted-foreground opacity-40 mb-4" />
+                              <p className="text-muted-foreground text-sm">
+                                No video recorded. Click the button below to start recording.
+                              </p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      
+                      {/* Recording indicator */}
+                      {isRecording && (
+                        <motion.div 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="absolute top-4 left-4 flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1"
+                        >
+                          <motion.div 
+                            animate={{ scale: [1, 1.2, 1] }} 
+                            transition={{ repeat: Infinity, duration: 1.5 }}  
+                            className="h-3 w-3 rounded-full bg-red-500"
+                          />
+                          <span className="text-white text-sm font-medium">{formatTime(recordingTime)}</span>
+                        </motion.div>
+                      )}
+                    </div>
+                    
+                    <div className="p-4 flex justify-between items-center">
+                      <div>
+                        {videoUrl && !isRecording && (
+                          <p className="text-sm text-muted-foreground">
+                            Video testament recorded successfully
+                          </p>
+                        )}
+                        {isRecording && (
+                          <p className="text-sm text-muted-foreground animate-pulse">
+                            Recording in progress...
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        {!isRecording && !videoUrl && (
+                          <Button 
+                            onClick={startRecording}
+                            variant="default"
+                          >
+                            <Camera className="mr-2 h-4 w-4" />
+                            Start Recording
+                          </Button>
+                        )}
+                        
+                        {isRecording && (
+                          <Button 
+                            onClick={stopRecording} 
+                            variant="destructive"
+                          >
+                            <Square className="mr-2 h-4 w-4" />
+                            Stop Recording
+                          </Button>
+                        )}
+                        
+                        {videoUrl && !isRecording && (
+                          <>
+                            <Button 
+                              onClick={resetRecording} 
+                              variant="outline"
+                            >
+                              <ArrowLeft className="mr-2 h-4 w-4" />
+                              Record New Video
+                            </Button>
+                            
+                            <Button 
+                              onClick={() => {
+                                // In a real app, we would upload the video here
+                                toast({
+                                  title: "Video Testament Saved",
+                                  description: "Your video testament has been attached to your will."
+                                });
+                              }}
+                            >
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Use This Video
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertTitle>Tips for recording your video testament</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc list-inside space-y-1 mt-2">
+                        <li>Find a quiet, well-lit space with minimal background noise</li>
+                        <li>Speak clearly and at a normal pace</li>
+                        <li>State your full name, the date, and that this is your video testament</li>
+                        <li>Briefly explain your wishes regarding your estate and belongings</li>
+                        <li>Consider adding a personal message to your loved ones</li>
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Finalize Tab */}
           <TabsContent value="finalize" className="space-y-4">
@@ -471,7 +735,7 @@ export default function CreateWillPage() {
                       <div>
                         <h3 className="font-medium">Video Testament</h3>
                         <p className="text-sm text-muted-foreground">
-                          No video testament recorded (optional)
+                          {videoUrl ? "Video testament recorded" : "No video testament recorded (optional)"}
                         </p>
                       </div>
                     </div>
