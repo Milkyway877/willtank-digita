@@ -265,7 +265,15 @@ export class DatabaseStorage implements IStorage {
 
   // Will template methods implementation
   async getWillTemplates(): Promise<WillTemplate[]> {
-    return db.select().from(willTemplates);
+    const templates = await db.select().from(willTemplates);
+    
+    // If no templates exist, seed the database with default templates
+    if (templates.length === 0) {
+      await this.seedWillTemplates();
+      return db.select().from(willTemplates);
+    }
+    
+    return templates;
   }
 
   async getWillTemplateById(templateId: number): Promise<WillTemplate | undefined> {
@@ -273,7 +281,100 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(willTemplates)
       .where(eq(willTemplates.id, templateId));
+      
+    // If no template exists, try seeding and fetching again
+    if (!template) {
+      await this.seedWillTemplates();
+      const [newTemplate] = await db
+        .select()
+        .from(willTemplates)
+        .where(eq(willTemplates.id, templateId));
+      return newTemplate;
+    }
+    
     return template;
+  }
+  
+  // Seed the database with default will templates (if they don't exist)
+  async seedWillTemplates(): Promise<void> {
+    try {
+      console.log('Seeding will templates database...');
+      
+      // Add standard template
+      await db.insert(willTemplates).values({
+        id: 1,
+        title: 'Standard Will',
+        description: 'A comprehensive will suitable for most individuals with standard assets and beneficiaries.',
+        templateContent: JSON.stringify({
+          sections: [
+            'Personal Information',
+            'Beneficiary Designation',
+            'Asset Distribution',
+            'Executor Appointment',
+            'Special Instructions'
+          ]
+        }),
+      });
+      
+      // Add family template
+      await db.insert(willTemplates).values({
+        id: 2,
+        title: 'Family Protection Will',
+        description: 'Designed for families with children, including guardianship provisions and trust considerations.',
+        templateContent: JSON.stringify({
+          sections: [
+            'Guardian Appointment',
+            'Minor Trust Provisions',
+            'Education Funding',
+            'Pet Care Provisions',
+            'Family Heirlooms'
+          ]
+        }),
+      });
+      
+      // Add business template
+      await db.insert(willTemplates).values({
+        id: 3,
+        title: 'Business Owner Will',
+        description: 'Specialized will for entrepreneurs and business owners with succession planning.',
+        templateContent: JSON.stringify({
+          sections: [
+            'Business Succession',
+            'Shareholder Agreements',
+            'Intellectual Property',
+            'Business Debt Handling',
+            'Partner Buyout Provisions'
+          ]
+        }),
+      });
+      
+      // Add property template
+      await db.insert(willTemplates).values({
+        id: 4,
+        title: 'Real Estate Focused Will',
+        description: 'For individuals with significant real estate holdings and property interests.',
+        templateContent: JSON.stringify({
+          sections: [
+            'Property Distribution',
+            'Mortgage Instructions',
+            'Rental Property Management',
+            'Foreign Property Handling',
+            'Land Conservation Options'
+          ]
+        }),
+      });
+      
+      console.log('Successfully seeded will templates');
+      
+    } catch (error) {
+      console.error('Error seeding will templates:', error);
+      
+      // If the error is a duplicate key error, ignore it (templates already exist)
+      // Otherwise log the error for debugging
+      if ((error as any)?.code !== '23505') {
+        throw error;
+      }
+    }
   }
 
   // Document management methods implementation
