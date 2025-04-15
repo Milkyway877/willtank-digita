@@ -81,7 +81,7 @@ const DocumentUpload: React.FC = () => {
                     description?: string;
                   }) => ({
                     id: doc.type || 'unknown-doc', // Use the type field as a document ID
-                    file: new File([''], doc.name || 'document.pdf'), // Create placeholder File object
+                    file: new File([''], doc.name || 'document.pdf', { type: 'application/pdf' }), // Create placeholder File object
                     name: doc.name || 'Unnamed Document',
                     progress: 100,
                     status: 'success' as const,
@@ -113,7 +113,7 @@ const DocumentUpload: React.FC = () => {
             setWillId(parsedId);
             
             // Redirect to add willId to URL for clarity
-            navigate(`/document-upload?willId=${parsedId}`, { replace: true });
+            navigate(`/will-creation/documents?willId=${parsedId}`, { replace: true });
           }
         }
       }

@@ -195,7 +195,7 @@ const ContactInformation = () => {
     // Save current form state before navigating back
     const formData = form.getValues();
     await saveContactInfo(formData);
-    navigate(`/document-upload?willId=${willId}`);
+    navigate(`/will-creation/documents?willId=${willId}`);
   };
 
   // Handle save and exit

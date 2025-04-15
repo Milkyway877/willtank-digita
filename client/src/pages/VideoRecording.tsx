@@ -70,7 +70,9 @@ const VideoRecording: React.FC = () => {
           try {
             document.body.removeChild(notification);
             // Navigate to next step
-            navigate('/final-review');
+            const wId = localStorage.getItem('currentWillId');
+            const wIdParam = wId ? `?willId=${wId}` : '';
+            navigate(`/will-creation/preview${wIdParam}`);
           } catch (e) {
             // Element might have been removed already
           }
@@ -110,12 +112,16 @@ const VideoRecording: React.FC = () => {
     saveWillProgress(WillCreationStep.VIDEO_RECORDING);
     
     // Navigate to next step
-    navigate('/final-review');
+    const willId = localStorage.getItem('currentWillId');
+    const willIdParam = willId ? `?willId=${willId}` : '';
+    navigate(`/will-creation/preview${willIdParam}`);
   };
 
   // Continue to final review after recording
   const handleContinue = () => {
-    navigate('/final-review');
+    const willId = localStorage.getItem('currentWillId');
+    const willIdParam = willId ? `?willId=${willId}` : '';
+    navigate(`/will-creation/preview${willIdParam}`);
   };
 
   // Loading state during auth check
