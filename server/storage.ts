@@ -336,7 +336,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(wills)
       .where(eq(wills.userId, userId))
-      .orderBy(sql`${wills.updatedAt} DESC`);
+      .orderBy(sql`${wills.lastUpdated} DESC`);
   }
 
   async getWillById(willId: number): Promise<Will | undefined> {
@@ -360,7 +360,7 @@ export class DatabaseStorage implements IStorage {
       .update(wills)
       .set({
         ...updates,
-        updatedAt: new Date() // Always update the timestamp
+        lastUpdated: new Date() // Always update the timestamp
       })
       .where(eq(wills.id, willId))
       .returning();

@@ -304,15 +304,14 @@ export const willStatusEnum = pgEnum("will_status", ["draft", "completed", "lock
 export const wills = pgTable("wills", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
+  templateId: integer("template_id"),
   title: text("title").notNull(),
   content: text("content"),
-  template: willTemplateEnum("template").default("basic").notNull(),
-  status: willStatusEnum("status").default("draft").notNull(),
-  dataJson: json("data_json"), // Store all chat answers as JSON
-  isComplete: boolean("is_complete").default(false),
-  videoUrl: text("video_url"),
+  status: text("status").default("draft"),
+  isReleased: boolean("is_released").default(false),
+  videoRecordingUrl: text("video_recording_url"),
   createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  lastUpdated: timestamp("last_updated").defaultNow(),
 });
 
 // Will documents table (for documents specific to a will)
@@ -373,13 +372,12 @@ export const usersToWills = relations(users, ({ many }) => ({
 // Will schemas
 export const insertWillSchema = createInsertSchema(wills).pick({
   userId: true,
+  templateId: true,
   title: true,
   content: true,
-  template: true,
   status: true,
-  dataJson: true,
-  isComplete: true,
-  videoUrl: true,
+  isReleased: true,
+  videoRecordingUrl: true,
 });
 
 export const insertWillDocumentSchema = createInsertSchema(willDocuments).pick({
