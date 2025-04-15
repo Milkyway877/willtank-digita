@@ -1,0 +1,150 @@
+You are building the **core engine and experience of WillTank**, a platform that helps users generate legally-structured wills through an **AI-powered assistant called Skyler**.
+
+Read carefully and execute with perfection:
+
+---
+
+## 👩‍⚖️ SKYLER IS THE HEART OF WILLTANK
+
+Skyler is NOT just a chatbot. Skyler IS the **will creation engine**.
+
+A user **must** speak to Skyler to create a valid will.
+
+Do NOT skip this.
+
+---
+
+## 💬 SKYLER MUST:
+
+1. **Greet the user** warmly when Will creation begins.
+   - Example: “Hi, I’m Skyler, your personal will assistant. I’ll guide you step-by-step. Let’s get started.”
+
+2. **Ask questions one by one**, dynamically generated based on the **template the user selected**.
+   - Templates can include:
+     - Will for Parents
+     - Will for Business Owners
+     - Will for Guardianship
+     - etc.
+
+3. **Each template has its own set of unique questions.**
+   - Skyler must adjust the flow and questions accordingly.
+   - DO NOT use a generic template for all.
+
+4. The chat interface must look and behave **exactly like ChatGPT**:
+   - Clear message bubbles
+   - Typing animation
+   - Only one message box at bottom
+   - After each answer, auto-scrolls to next question
+   - No side buttons, no clutter
+
+5. Skyler auto-saves each response as it comes in, linked to a `will_id` and the user’s session.
+
+---
+
+## 🧠 AFTER ALL QUESTIONS ARE ANSWERED:
+
+Skyler displays a friendly button:
+➡️ **“Preview Will”**
+
+When clicked:
+- Skyler generates a **realistic-looking** preview of the will, using a PDF-styled layout.
+- The preview should:
+  - Include Skyler’s formatted interpretation of the user’s answers
+  - Look professional: letterhead, logo, watermark (WillTank), document styling
+  - Show roles like beneficiaries, guardians, executors clearly
+
+---
+
+## 🧾 SKYLER ALSO HANDLES NEXT STEPS IN ORDER:
+
+Once user is happy with the preview:
+
+1. Skyler prompts:
+   ➡️ “Press **Generate Will** to proceed”
+
+2. Once will is generated, Skyler says:
+   ✅ “Great! Let’s upload supporting documents now”
+
+3. The user is taken to a **document upload page**, linked directly to the `will_id`.
+   - User must upload:
+     - Photos of ID
+     - Property documents
+     - Any other supporting asset files
+   - Use packages like `react-dropzone`, `supabase.storage`, or `filepond` for this.
+
+4. After documents:
+   - Auto-redirect to **Contacts Page**:
+     - All people added in the will should appear here (beneficiaries, executors, guardians, etc.)
+     - User **must** provide:
+       - Email
+       - Phone
+       - Location
+     - All contacts must be saved in `contacts` table with correct `will_id`
+
+5. After contacts:
+   - Go to **Video Recording Page**
+     - User records a video of themselves giving a will statement
+     - Use `react-webcam`, `MediaRecorder`, or `ffmpeg` to record
+     - Small webcam preview + guidelines of what to say
+     - Save video under `videos` table linked to `will_id`
+
+6. Finally:
+   - Take user to **Final Will Preview**
+     - Combine Q&A → full will
+     - Display all linked documents (with view/download)
+     - Show contact list
+     - Embed video
+     - Everything styled like a real legal will
+     - PDF layout, date, watermark “WillTank”, logo, elegant serif fonts
+
+   - Skyler prompts:
+     ➡️ “If you’re satisfied, press **Finalize Will**”
+
+7. Then → **Plan Selection Page**
+   - Stripe plans: Starter, Gold, Platinum, Enterprise
+   - Upon payment success:
+     - Will is locked
+     - Show message: 🎉 “Congratulations! Your Will has been successfully created.”
+     - Redirect to Dashboard where they see all Wills stored.
+
+---
+
+## 🧠 IMPORTANT RULES FOR SKYLER + AI:
+
+- **DO NOT SKIP SKYLER.** No user should create a will manually. It must be done via Skyler chat.
+- **DO NOT mix templates.** Each template = different Skyler flow.
+- **DO NOT confuse user with multiple buttons or UI noise.** Just like ChatGPT — clean, clear, focused.
+- Skyler = guide, friend, lawyer, validator, and memory keeper. She saves everything quietly and seamlessly.
+- Skyler must give users confidence that they’re doing things the right way.
+
+---
+
+## 🧱 REQUIRED STACKS & PACKAGES (React-based):
+
+- Chat UI: `react-chat-ui`, `tailwind`, or custom ChatGPT-like interface
+- Auto-scroll: `useRef`, `scrollIntoView`, `IntersectionObserver`
+- Auto-save: `debounced useEffect`, `supabase.from(...).upsert()`
+- PDF Will generation: `pdf-lib`, `html2pdf.js`, `@react-pdf/renderer`
+- Video Recording: `react-webcam`, `mediarecorder`
+- File Upload: `filepond`, `react-dropzone`, `supabase.storage`
+- Payments: `stripe-react`, `stripe-js`
+- Supabase RLS: Ensure all entries have user_id + will_id
+
+---
+
+## FINAL NOTES:
+
+You are building a **flawless, end-to-end Will creation experience** that feels:
+- Intelligent
+- Minimal
+- Human
+- Secure
+- Beautiful
+
+Skyler is the **soul of WillTank** — treat her like your best UX designer and legal brain combined.
+
+No placeholder crap.
+No dead buttons.
+No random editing.
+Just pure, clean, working AI-led will creation.
+

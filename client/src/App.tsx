@@ -30,6 +30,7 @@ import WillsPage from "@/pages/wills";
 import ManageWillsPage from "@/pages/wills/manage";
 import CreateWillPage from "@/pages/wills/[id]/create";
 import ViewWillPage from "@/pages/wills/[id]/view";
+import { AiChat } from "@/pages/AiChat";
 import { AuthProvider } from "@/hooks/use-auth";
 import { NotificationsProvider } from "@/hooks/use-notifications";
 import { TwoFactorProvider } from "@/hooks/use-2fa";
@@ -75,6 +76,7 @@ function Router() {
       <ProtectedRoute path="/wills/:id/create" component={CreateWillPage} />
       <ProtectedRoute path="/wills/:id/view" component={ViewWillPage} />
       <ProtectedRoute path="/wills/:id/edit" component={CreateWillPage} />
+      <ProtectedRoute path="/wills/:id/chat" component={AiChat} />
 
       {/* Email Test Route - For development testing only */}
       <Route path="/email-test" component={EmailTest} />
