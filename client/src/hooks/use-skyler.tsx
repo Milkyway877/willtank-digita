@@ -1,19 +1,25 @@
-import React, { createContext, ReactNode, useContext, useState } from 'react';
+import React, { createContext, ReactNode, useContext, useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 
-interface SkylerMessage {
+export interface SkylerMessage {
+  id?: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  timestamp?: number;
 }
 
 interface SkylerContextType {
   messages: SkylerMessage[];
   addMessage: (message: SkylerMessage) => void;
   streamingMessage: string;
+  streamingContent?: string;
   isLoading: boolean;
+  isStreaming: boolean;
+  error: string | null;
   sendMessage: (content: string) => Promise<void>;
   sendStreamingMessage: (content: string) => Promise<void>;
+  clearChat: () => void;
 }
 
 const SkylerContext = createContext<SkylerContextType | null>(null);
@@ -21,22 +27,41 @@ const SkylerContext = createContext<SkylerContextType | null>(null);
 export const SkylerProvider = ({ children }: { children: ReactNode }) => {
   const [messages, setMessages] = useState<SkylerMessage[]>([]);
   const [streamingMessage, setStreamingMessage] = useState<string>('');
+  const [streamingContent, setStreamingContent] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const addMessage = (message: SkylerMessage) => {
-    setMessages((prev) => [...prev, message]);
+    // Generate a unique ID and timestamp if not provided
+    const enrichedMessage = {
+      ...message,
+      id: message.id || `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      timestamp: message.timestamp || Date.now()
+    };
+    setMessages((prev) => [...prev, enrichedMessage]);
   };
+
+  const clearChat = useCallback(() => {
+    setMessages([]);
+    setStreamingMessage('');
+    setStreamingContent('');
+    setError(null);
+  }, []);
 
   // Regular non-streaming message
   const sendMessage = async (content: string): Promise<void> => {
     try {
       setIsLoading(true);
+      setError(null);
 
       // Add user message to context
       const userMessage: SkylerMessage = {
         role: 'user',
-        content: content
+        content: content,
+        timestamp: Date.now(),
+        id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
       };
       
       // Prepare messages history including previous context 
@@ -60,12 +85,15 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
       // Add assistant response to context
       const assistantMessage: SkylerMessage = {
         role: 'assistant',
-        content: data.message
+        content: data.message,
+        timestamp: Date.now(),
+        id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
       };
       
       setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error communicating with Skyler:', error);
+      setError(error.message || 'Failed to communicate with Skyler');
       toast({
         title: 'Error',
         description: 'Failed to communicate with Skyler. Please try again.',
@@ -80,12 +108,17 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
   const sendStreamingMessage = async (content: string): Promise<void> => {
     try {
       setIsLoading(true);
+      setIsStreaming(true);
       setStreamingMessage('');
+      setStreamingContent('');
+      setError(null);
 
       // Add user message to context
       const userMessage: SkylerMessage = {
         role: 'user',
-        content: content
+        content: content,
+        timestamp: Date.now(),
+        id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
       };
       
       // Update messages with the new user message
@@ -150,6 +183,7 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
                   if (parsedData.content) {
                     accumulatedMessage += parsedData.content;
                     setStreamingMessage(accumulatedMessage);
+                    setStreamingContent(accumulatedMessage);
                   }
                 } catch (e) {
                   console.error('Error parsing SSE data:', e);
@@ -168,14 +202,18 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
       // After streaming is done, add the assistant message to the messages array
       const assistantMessage: SkylerMessage = {
         role: 'assistant',
-        content: accumulatedMessage
+        content: accumulatedMessage,
+        timestamp: Date.now(),
+        id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
       };
       
       setMessages(prev => [...prev, assistantMessage]);
       setStreamingMessage(''); // Clear streaming message as it's now in the messages array
+      setStreamingContent('');
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error with streaming message:', error);
+      setError(error.message || 'Failed to communicate with Skyler');
       toast({
         title: 'Error',
         description: 'Failed to communicate with Skyler. Please try again.',
@@ -183,6 +221,7 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
       });
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
     }
   };
 
@@ -192,9 +231,13 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
         messages,
         addMessage,
         streamingMessage,
+        streamingContent,
         isLoading,
+        isStreaming,
+        error,
         sendMessage,
-        sendStreamingMessage
+        sendStreamingMessage,
+        clearChat
       }}
     >
       {children}

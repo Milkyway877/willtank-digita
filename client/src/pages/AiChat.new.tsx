@@ -124,11 +124,52 @@ const AiChat: React.FC = () => {
       
       const templateName = templateNames[selectedTemplate] || 'Standard Will';
       
+      // Create detailed instructions based on template type
+      let templateSpecificInstructions = '';
+      
+      switch (selectedTemplate) {
+        case 'family':
+          templateSpecificInstructions = `
+For a Family Protection Will, you should focus on:
+- Guardianship for minor children
+- Trust arrangements for children's inheritance
+- Specific provisions for spouse/partner
+- Family heirlooms and their distribution
+- Education funds or special provisions for dependents`;
+          break;
+        case 'business':
+          templateSpecificInstructions = `
+For a Business Owner Will, you should focus on:
+- Business succession planning
+- Ownership transfer instructions
+- Partner buyout provisions
+- Treatment of business assets vs personal assets
+- Any special instructions for business continuation`;
+          break;
+        case 'property':
+          templateSpecificInstructions = `
+For a Real Estate Focused Will, you should focus on:
+- Detailed inventory of all real estate holdings
+- Specific instructions for each property
+- Rental/income properties management
+- Mortgage and debt handling
+- Joint ownership considerations`;
+          break;
+        default: // standard
+          templateSpecificInstructions = `
+For a Standard Will, cover the essentials:
+- Personal property distribution
+- Basic beneficiary designations
+- Simple executor instructions
+- Digital asset instructions
+- Basic funeral/memorial wishes`;
+      }
+      
       const systemMessage: Message = {
         role: 'system',
         content: `You are Skyler, an AI assistant specializing in ${templateName} creation. Guide the user through creating their will in a conversational manner.
         
-Your task is to extract the following information:
+Your task is to extract the following information step by step:
 1. Personal details (name, date of birth, address, marital status)
 2. Beneficiaries (name, relationship, share of estate)
 3. Executor information
@@ -136,12 +177,44 @@ Your task is to extract the following information:
 5. Guardian information (if applicable)
 6. Special instructions
 
-Be friendly, compassionate, and patient. Ask one question at a time. When the user has provided sufficient information, let them know they can proceed to document upload.`
+${templateSpecificInstructions}
+
+IMPORTANT GUIDELINES:
+- Be friendly, compassionate, and patient
+- Ask ONE question at a time and wait for a response
+- After each answer, acknowledge it and ask the next logical question
+- Store information provided in a structured way
+- If an answer is unclear, ask for clarification before moving on
+- When all information is gathered, help the user summarize their will
+- Tell the user they can proceed to document upload when finished
+
+When all questions are answered, output a JSON summary of the will in this format:
+\`\`\`json
+{
+  "personalInfo": {
+    "fullName": "",
+    "dateOfBirth": "",
+    "address": "",
+    "maritalStatus": ""
+  },
+  "beneficiaries": [
+    {"name": "", "relationship": "", "share": ""}
+  ],
+  "executor": {"name": "", "relationship": ""},
+  "assets": [
+    {"type": "", "description": "", "beneficiary": ""}
+  ],
+  "specialInstructions": ""
+}
+\`\`\`
+
+Let the conversation flow naturally. Each of your responses should end with a question that guides the user to provide the next piece of information.`
       };
       
+      // First add the system message
       setMessages([systemMessage]);
       
-      // Add first assistant message
+      // Then add first assistant message with a slight delay
       setTimeout(() => {
         const welcomeMessage: Message = {
           role: 'assistant',
@@ -150,10 +223,11 @@ Be friendly, compassionate, and patient. Ask one question at a time. When the us
 Let's get started! First, could you please tell me your full legal name?`
         };
         
+        // Using the addMessage function directly
         setMessages(prevMessages => [...prevMessages, welcomeMessage]);
       }, 500);
     }
-  }, [messages, selectedTemplate]);
+  }, [selectedTemplate]); // Only depend on selectedTemplate, not messages
   
   // Auto scroll to bottom of messages
   useEffect(() => {
@@ -205,14 +279,36 @@ Let's get started! First, could you please tell me your full legal name?`
     try {
       await sendStreamingMessage(input.trim());
       
-      // After streaming is complete, add the full response to messages
-      setMessages(prevMessages => [
-        ...prevMessages, 
-        { role: 'assistant', content: streamingMessage }
-      ]);
-      
-      // Try to extract will data from assistant's response
+      // Don't manually add the message - this is now handled in the Skyler hook
+      // The message has already been added to the messages array
+
+      // Try to extract will data from assistant's response and save to database
       updateWillData(streamingMessage);
+      
+      // Every few messages, attempt to save the will progress to database
+      if (messages.length % 3 === 0) {
+        try {
+          // Save draft will to database
+          const response = await apiRequest('POST', '/api/wills', {
+            title: 'My Will (Draft)',
+            type: selectedTemplate || 'standard',
+            content: JSON.stringify({
+              messages: messages,
+              extracted: willData
+            }),
+            status: 'draft'
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            // Store will ID for future updates
+            localStorage.setItem('currentWillId', data.id.toString());
+            console.log('Saved will draft progress', data.id);
+          }
+        } catch (err) {
+          console.error('Error saving will draft:', err);
+        }
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       toast({

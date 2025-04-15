@@ -1,0 +1,122 @@
+Got you LOUD AND CLEAR, partner. ⚡🔥  
+This is the *heart* of WillTank — and right now **Skyler (the chatbot inside will creation)** is broken, useless, and scaring users off the platform. That ends **TODAY**.
+
+---
+
+## ✅ THE REALITY:
+- Skyler asks **one question** and then **freezes**.
+- No progression = users can't create wills.
+- It's **NOT functional**, disconnected from logic/state.
+- Layout is weak → No clear flow, no responsiveness.
+- Users **never get to the “will generation”**, it all stops at that first interaction.
+- THIS is the **core** of WillTank. It must be **bulletproof**.
+
+---
+
+## 🔥 ULTIMATE FIX PROMPT: SKYLER CHATBOT — WILL CREATION CORE
+
+> Paste this directly into your dev assistant or AI coding agent.
+> This is the **GODMODE FIX** prompt for Skyler and the will creation page.
+
+---
+
+🚨 **PROMPT STARTS HERE** 🚨
+
+You are a senior full-stack dev responsible for fixing the **core functionality** of the WillTank platform — the **Skyler chatbot inside the will creation process**.
+
+---
+
+## ⚠️ CRITICAL CONTEXT:
+
+- This platform uses **custom email/password auth via SMTP** – DO NOT alter the authentication flow.
+- Supabase is ONLY used for **user data management**, **wills**, and **storage** – nothing more.
+- The chatbot **Skyler** is responsible for guiding the user through will creation, **step-by-step**, based on selected templates.
+- **Skyler currently breaks after the first question** – this MUST be fixed.
+- The AI should **feel alive, responsive, and never hang**. It should **guide users fluidly** through the full will creation process and **submit the final will into Supabase**.
+
+---
+
+## ✅ TASKS TO PERFORM (DO NOT SKIP):
+
+1. ✅ **Fix Skyler Chat Freezing Bug**
+   - Ensure Skyler continues to the next question based on the selected template.
+   - Detect and fix where state/logic handling breaks after the first message.
+   - No infinite loading or inactivity.
+
+2. ✅ **Implement Real-time Dynamic Question Flow**
+   - Each template has a defined list of questions.
+   - After a question is answered, Skyler should:
+     - Save the answer to local state or Supabase
+     - Generate the next relevant question
+     - Show correction suggestions (e.g., spelling/format issues)
+     - Provide “Fix” and “Continue” buttons for unclear inputs.
+
+3. ✅ **Ensure Auto-Save Drafts to Supabase**
+   - While users are creating a will, all progress should save to the `wills` table (`status = "in_progress"`).
+   - If they leave and come back, Skyler should resume where they left off.
+
+4. ✅ **Chat UI Flow Should Include:**
+   - Loading spinner between messages
+   - Typing indicator for Skyler
+   - User messages appear instantly
+   - Chat bubbles must support scroll, timestamp, and markdown formatting
+   - Auto-scroll to bottom as chat continues
+
+5. ✅ **Fix Layout Responsiveness**
+   - Layout should adapt to desktop, tablet, and mobile views
+   - The chat interface should take full height with:
+     - Left sidebar (template menu + profile at bottom)
+     - Center: Skyler chat flow
+     - Top (optional): Progress bar or title of will
+
+6. ✅ **Skyler Message Engine Logic**
+   - All questions should be generated dynamically.
+   - Each question must be mapped to a field in Supabase.
+   - Once all questions are answered:
+     - Skyler confirms final submission.
+     - Will is saved to `wills` table as `status = "finalized"`.
+
+---
+
+## 🔧 SYSTEM DESIGN REMINDER
+
+Tables in Supabase:
+- `users`: User info (id, email, status, will_created, etc.)
+- `wills`: Stores full Q&A data per user
+- `assets`: Optional uploads (e.g., property proofs)
+
+Skyler needs to write into the `wills` table as the user progresses. If a user has a `will` in progress → auto resume.
+
+---
+
+## ⚠️ DO NOT:
+- ❌ Break custom authentication
+- ❌ Use Clerk, Firebase, or Supabase Auth
+- ❌ Loop the first question forever
+- ❌ Ignore template question logic
+- ❌ Lose previous responses on page refresh
+
+---
+
+## ✅ Final Deliverable:
+- Fully functional Skyler AI chatbot for will creation.
+- Clean, fast, responsive layout.
+- Smooth question-answer flow.
+- Resume functionality if users leave.
+- Final submission = successful entry in Supabase.
+
+---
+
+**MAKE THIS THE STRONGEST PART OF THE PLATFORM. SKYLER MUST NEVER FREEZE AGAIN.**
+
+🚨 **PROMPT ENDS HERE** 🚨
+
+---
+
+Let me know if you want me to:
+- 🔧 Review your current `Skyler.jsx` logic
+- ⚙️ Help refactor the state handling
+- 💾 Implement the Supabase draft-saving logic
+- 🧪 Add test cases for Skyler's question flow
+
+We’re fixing this platform from the inside out — Skyler becomes a real, living assistant starting now. Let’s get it 🛠️🔥
