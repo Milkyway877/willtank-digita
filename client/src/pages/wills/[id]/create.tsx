@@ -122,17 +122,26 @@ export default function CreateWillPage() {
     }
   };
   
-  // Generate content with Skyler
+  // Generate content with Skyler and extract contacts/documents
   const generateWillWithAI = () => {
     const templateName = will?.title.replace("My ", "") || "Basic Will";
     const prompt = `Please create a comprehensive legal will document based on the "${templateName}" template. Include all standard legal sections and clauses that would be found in a professional ${templateName.toLowerCase()}. Format it properly with sections for personal details, executor appointment, beneficiary designations, asset distribution, guardianship (if relevant), and final arrangements. Make it detailed enough to be legally sound but easy to understand.`;
     
     setGeneratingWithAI(true);
-    sendStreamingMessage(prompt);
+    
+    // Send streaming message with willId and extraction options
+    sendStreamingMessage(
+      prompt, 
+      willId,
+      {
+        extractContacts: true,    // Extract contacts mentioned in the will
+        extractDocuments: true    // Suggest documents based on content
+      }
+    );
     
     toast({
       title: "Generating will content",
-      description: "Skyler is drafting your will document based on your template choice...",
+      description: "Skyler is drafting your will document and identifying important people and documents...",
     });
   };
   
@@ -490,7 +499,11 @@ export default function CreateWillPage() {
                     variant="outline"
                     onClick={() => {
                       toggleSkyler();
-                      sendStreamingMessage("I need help editing my will content. Can you provide guidance?");
+                      sendStreamingMessage(
+                        "I need help editing my will content. Can you provide guidance?",
+                        willId,
+                        { extractDocuments: true }
+                      );
                     }}
                   >
                     <MessageSquare className="mr-2 h-4 w-4" />

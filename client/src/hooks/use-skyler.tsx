@@ -10,6 +10,12 @@ export interface SkylerMessage {
   timestamp: number;
 }
 
+// Processing options for AI-powered will features
+export interface SkylerProcessingOptions {
+  extractContacts?: boolean;
+  extractDocuments?: boolean;
+}
+
 // Clear interface of what Skyler provides
 interface SkylerContextType {
   messages: SkylerMessage[];
@@ -20,13 +26,27 @@ interface SkylerContextType {
   isStreaming: boolean;
   error: string | null;
   sendMessage: (content: string) => Promise<SkylerMessage | null>;
-  sendStreamingMessage: (content: string) => Promise<SkylerMessage | null>;
+  sendStreamingMessage: (
+    content: string,
+    willId?: number,
+    options?: SkylerProcessingOptions
+  ) => Promise<SkylerMessage | null>;
   clearMessages: () => void;
   updateHistory: (newMessages: SkylerMessage[]) => void;
   retryLastMessage: () => Promise<void>;
 }
 
 const SkylerContext = createContext<SkylerContextType | null>(null);
+
+// Helper functions outside the component to avoid circular deps
+function createMessageObject(role: 'user' | 'assistant' | 'system', content: string): SkylerMessage {
+  return {
+    id: uuidv4(),
+    role,
+    content,
+    timestamp: Date.now()
+  };
+}
 
 /**
  * Provider component that wraps app and makes Skyler API available to any child component
@@ -66,12 +86,7 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
    * Add a new message to the conversation
    */
   const addMessage = useCallback((message: Omit<SkylerMessage, 'id' | 'timestamp'>) => {
-    const fullMessage: SkylerMessage = {
-      ...message,
-      id: uuidv4(),
-      timestamp: Date.now()
-    };
-    
+    const fullMessage = createMessageObject(message.role, message.content);
     setMessages(prev => [...prev, fullMessage]);
     return fullMessage;
   }, []);
@@ -102,38 +117,16 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
   }, []);
   
   /**
-   * Retry the last user message that was sent
-   */
-  const retryLastMessage = useCallback(async () => {
-    if (lastUserMessageRef.current) {
-      // Remove the last assistant message if exists
-      const lastMessage = messagesRef.current[messagesRef.current.length - 1];
-      if (lastMessage?.role === 'assistant') {
-        setMessages(prev => prev.slice(0, -1));
-      }
-      
-      // Re-send the last user message
-      await sendStreamingMessage(lastUserMessageRef.current);
-    }
-  }, []);
-  
-  /**
    * Send a message to Skyler API (non-streaming)
    */
-  const sendMessage = async (content: string): Promise<SkylerMessage | null> => {
+  const sendMessage = useCallback(async (content: string): Promise<SkylerMessage | null> => {
     try {
       setIsLoading(true);
       setError(null);
       lastUserMessageRef.current = content;
       
       // Create and add user message
-      const userMessage: SkylerMessage = {
-        id: uuidv4(),
-        role: 'user',
-        content,
-        timestamp: Date.now()
-      };
-      
+      const userMessage = createMessageObject('user', content);
       setMessages(prev => [...prev, userMessage]);
       
       // Create new AbortController
@@ -163,13 +156,7 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
       const data = await response.json();
       
       // Create and add assistant response
-      const assistantMessage: SkylerMessage = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: data.message,
-        timestamp: Date.now()
-      };
-      
+      const assistantMessage = createMessageObject('assistant', data.message);
       setMessages(prev => [...prev, assistantMessage]);
       return assistantMessage;
       
@@ -193,21 +180,15 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
       setIsLoading(false);
       setAbortController(null);
     }
-  };
+  }, [toast]);
 
   /**
    * Send a message with streaming response
-   * @param content - The message content
-   * @param willId - Optional will ID for context
-   * @param options - Additional processing options
    */
-  const sendStreamingMessage = async (
+  const sendStreamingMessage = useCallback(async (
     content: string,
     willId?: number,
-    options?: {
-      extractContacts?: boolean;
-      extractDocuments?: boolean;
-    }
+    options?: SkylerProcessingOptions
   ): Promise<SkylerMessage | null> => {
     try {
       setIsLoading(true);
@@ -217,13 +198,7 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
       lastUserMessageRef.current = content;
 
       // Create and add user message
-      const userMessage: SkylerMessage = {
-        id: uuidv4(),
-        role: 'user',
-        content,
-        timestamp: Date.now()
-      };
-      
+      const userMessage = createMessageObject('user', content);
       setMessages(prev => [...prev, userMessage]);
       
       // Create new AbortController
@@ -327,13 +302,7 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
       setLastCompletedContent(accumulatedMessage);
       
       // Create and add the assistant message
-      const assistantMessage: SkylerMessage = {
-        id: uuidv4(),
-        role: 'assistant',
-        content: accumulatedMessage,
-        timestamp: Date.now()
-      };
-      
+      const assistantMessage = createMessageObject('assistant', accumulatedMessage);
       setMessages(prev => [...prev, assistantMessage]);
       setStreamingContent('');
       
@@ -360,7 +329,23 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
       setIsStreaming(false);
       setAbortController(null);
     }
-  };
+  }, [toast]);
+
+  /**
+   * Retry the last user message that was sent
+   */
+  const retryLastMessage = useCallback(async () => {
+    if (lastUserMessageRef.current) {
+      // Remove the last assistant message if exists
+      const lastMessage = messagesRef.current[messagesRef.current.length - 1];
+      if (lastMessage?.role === 'assistant') {
+        setMessages(prev => prev.slice(0, -1));
+      }
+      
+      // Re-send the last user message (without will context or processing options)
+      await sendStreamingMessage(lastUserMessageRef.current);
+    }
+  }, [sendStreamingMessage]);
 
   return (
     <SkylerContext.Provider
