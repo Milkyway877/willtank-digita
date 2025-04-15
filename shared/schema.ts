@@ -293,3 +293,116 @@ export const insertReminderSchema = createInsertSchema(reminders).pick({
 
 export type InsertReminder = z.infer<typeof insertReminderSchema>;
 export type Reminder = typeof reminders.$inferSelect;
+
+// Will template type enum
+export const willTemplateEnum = pgEnum("will_template", ["basic", "married", "elder", "business"]);
+
+// Will status enum
+export const willStatusEnum = pgEnum("will_status", ["draft", "completed", "locked"]);
+
+// Wills table
+export const wills = pgTable("wills", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  title: text("title").notNull(),
+  content: text("content"),
+  template: willTemplateEnum("template").default("basic").notNull(),
+  status: willStatusEnum("status").default("draft").notNull(),
+  dataJson: json("data_json"), // Store all chat answers as JSON
+  isComplete: boolean("is_complete").default(false),
+  videoUrl: text("video_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Will documents table (for documents specific to a will)
+export const willDocuments = pgTable("will_documents", {
+  id: serial("id").primaryKey(),
+  willId: integer("will_id").notNull().references(() => wills.id),
+  name: text("name").notNull(),
+  path: text("path").notNull(),
+  type: text("type").notNull(),
+  uploadDate: timestamp("upload_date").defaultNow(),
+  size: integer("size").notNull(),
+});
+
+// Will contact table
+export const willContacts = pgTable("will_contacts", {
+  id: serial("id").primaryKey(),
+  willId: integer("will_id").notNull().references(() => wills.id),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone"),
+  country: text("country"),
+  role: text("role").notNull(), // beneficiary, executor, witness
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Define will relations
+export const willsRelations = relations(wills, ({ one, many }) => ({
+  user: one(users, {
+    fields: [wills.userId],
+    references: [users.id],
+  }),
+  documents: many(willDocuments),
+  contacts: many(willContacts),
+}));
+
+// Define will document relations
+export const willDocumentsRelations = relations(willDocuments, ({ one }) => ({
+  will: one(wills, {
+    fields: [willDocuments.willId],
+    references: [wills.id],
+  }),
+}));
+
+// Define will contact relations
+export const willContactsRelations = relations(willContacts, ({ one }) => ({
+  will: one(wills, {
+    fields: [willContacts.willId],
+    references: [wills.id],
+  }),
+}));
+
+// Add wills to user relations
+export const usersToWills = relations(users, ({ many }) => ({
+  wills: many(wills),
+}));
+
+// Will schemas
+export const insertWillSchema = createInsertSchema(wills).pick({
+  userId: true,
+  title: true,
+  content: true,
+  template: true,
+  status: true,
+  dataJson: true,
+  isComplete: true,
+  videoUrl: true,
+});
+
+export const insertWillDocumentSchema = createInsertSchema(willDocuments).pick({
+  willId: true,
+  name: true,
+  path: true,
+  type: true,
+  size: true,
+});
+
+export const insertWillContactSchema = createInsertSchema(willContacts).pick({
+  willId: true,
+  name: true,
+  email: true,
+  phone: true,
+  country: true,
+  role: true,
+});
+
+// Will types
+export type InsertWill = z.infer<typeof insertWillSchema>;
+export type Will = typeof wills.$inferSelect;
+export type InsertWillDocument = z.infer<typeof insertWillDocumentSchema>;
+export type WillDocument = typeof willDocuments.$inferSelect;
+export type InsertWillContact = z.infer<typeof insertWillContactSchema>;
+export type WillContact = typeof willContacts.$inferSelect;

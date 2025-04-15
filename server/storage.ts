@@ -1,7 +1,10 @@
 import { 
   users, type User, type InsertUser,
   documents, type Document, type InsertDocument,
-  notifications, type Notification, type InsertNotification
+  notifications, type Notification, type InsertNotification,
+  wills, type Will, type InsertWill,
+  willDocuments, type WillDocument, type InsertWillDocument,
+  willContacts, type WillContact, type InsertWillContact
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, lt, isNull, sql } from "drizzle-orm";
@@ -33,6 +36,24 @@ export interface IStorage {
   getDocumentById(documentId: number): Promise<Document | undefined>;
   addDocument(document: InsertDocument): Promise<Document>;
   deleteDocument(documentId: number): Promise<void>;
+  
+  // Will management methods
+  getUserWills(userId: number): Promise<Will[]>;
+  getWillById(willId: number): Promise<Will | undefined>;
+  createWill(will: InsertWill): Promise<Will>;
+  updateWill(willId: number, updates: Partial<InsertWill>): Promise<Will>;
+  deleteWill(willId: number): Promise<void>;
+  
+  // Will documents methods
+  getWillDocuments(willId: number): Promise<WillDocument[]>;
+  addWillDocument(document: InsertWillDocument): Promise<WillDocument>;
+  deleteWillDocument(documentId: number): Promise<void>;
+  
+  // Will contacts methods
+  getWillContacts(willId: number): Promise<WillContact[]>;
+  addWillContact(contact: InsertWillContact): Promise<WillContact>;
+  updateWillContact(contactId: number, updates: Partial<InsertWillContact>): Promise<WillContact>;
+  deleteWillContact(contactId: number): Promise<void>;
   
   // Notification methods
   getUserNotifications(userId: number): Promise<Notification[]>;
@@ -307,6 +328,119 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(notifications)
       .where(eq(notifications.id, notificationId));
+  }
+  
+  // Will management methods implementation
+  async getUserWills(userId: number): Promise<Will[]> {
+    return db
+      .select()
+      .from(wills)
+      .where(eq(wills.userId, userId))
+      .orderBy(sql`${wills.updatedAt} DESC`);
+  }
+
+  async getWillById(willId: number): Promise<Will | undefined> {
+    const [will] = await db
+      .select()
+      .from(wills)
+      .where(eq(wills.id, willId));
+    return will;
+  }
+
+  async createWill(will: InsertWill): Promise<Will> {
+    const [newWill] = await db
+      .insert(wills)
+      .values(will)
+      .returning();
+    return newWill;
+  }
+
+  async updateWill(willId: number, updates: Partial<InsertWill>): Promise<Will> {
+    const [updatedWill] = await db
+      .update(wills)
+      .set({
+        ...updates,
+        updatedAt: new Date() // Always update the timestamp
+      })
+      .where(eq(wills.id, willId))
+      .returning();
+    
+    return updatedWill;
+  }
+
+  async deleteWill(willId: number): Promise<void> {
+    // First delete all related will documents and contacts
+    await db
+      .delete(willDocuments)
+      .where(eq(willDocuments.willId, willId));
+    
+    await db
+      .delete(willContacts)
+      .where(eq(willContacts.willId, willId));
+    
+    // Then delete the will itself
+    await db
+      .delete(wills)
+      .where(eq(wills.id, willId));
+  }
+
+  // Will documents methods implementation
+  async getWillDocuments(willId: number): Promise<WillDocument[]> {
+    return db
+      .select()
+      .from(willDocuments)
+      .where(eq(willDocuments.willId, willId))
+      .orderBy(sql`${willDocuments.uploadDate} DESC`);
+  }
+
+  async addWillDocument(document: InsertWillDocument): Promise<WillDocument> {
+    const [newDocument] = await db
+      .insert(willDocuments)
+      .values(document)
+      .returning();
+    return newDocument;
+  }
+
+  async deleteWillDocument(documentId: number): Promise<void> {
+    await db
+      .delete(willDocuments)
+      .where(eq(willDocuments.id, documentId));
+  }
+
+  // Will contacts methods implementation
+  async getWillContacts(willId: number): Promise<WillContact[]> {
+    return db
+      .select()
+      .from(willContacts)
+      .where(eq(willContacts.willId, willId))
+      .orderBy(sql`${willContacts.createdAt} DESC`);
+  }
+
+  async addWillContact(contact: InsertWillContact): Promise<WillContact> {
+    const [newContact] = await db
+      .insert(willContacts)
+      .values(contact)
+      .returning();
+    return newContact;
+  }
+
+  async updateWillContact(contactId: number, updates: Partial<InsertWillContact>): Promise<WillContact> {
+    const [updatedContact] = await db
+      .update(willContacts)
+      .set({
+        ...updates,
+        updatedAt: new Date() // Always update the timestamp
+      })
+      .where(eq(willContacts.id, contactId))
+      .returning();
+    
+    return updatedContact;
+  }
+
+  async deleteWillContact(contactId: number): Promise<void> {
+    await db
+      .delete(willContacts)
+      .where(eq(willContacts.id, contactId));
   }
 }
 

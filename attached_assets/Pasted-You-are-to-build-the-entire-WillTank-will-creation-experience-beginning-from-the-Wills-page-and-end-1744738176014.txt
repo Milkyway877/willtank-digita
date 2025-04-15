@@ -1,0 +1,204 @@
+You are to build the entire WillTank will creation experience, beginning from the Wills page and ending at the final congratulatory screen after a valid will is generated.
+
+This must be a **seamless, beautiful, fully functional multi-stage flow** — NOT a placeholder or mockup.
+
+---
+
+## 🧾 PAGE 1: WILLS PAGE – pages/Wills.jsx
+
+A modern, beautiful page that shows all saved wills for the user.
+
+### Top Button:
+- Label: `Create New Will`
+- Style: Rounded, elegant button, placed top-right
+- On click: Triggers smooth scroll or modal → opens the Template Selection Wizard
+
+### Will List Section:
+- For each will, show:
+  - Title
+  - Created At
+  - Last Updated
+- Buttons:
+  - `Preview` → opens full will in readable modal
+  - `Edit` → reopens chat flow with saved data
+  - `Download` → generates real PDF using `pdf-lib` or `html2pdf.js`
+  - `Delete` → removes will (with confirm)
+- Store data using Supabase (PostgreSQL DB)
+
+---
+
+## 🧱 TEMPLATE SELECTION SECTION
+
+Display will templates like:
+- Basic Will
+- Married Will
+- Elder Will
+- Business Will
+
+Each template should have:
+- Title, Description, Who it’s for, and an icon
+- On click:
+  - Store the selection
+  - Smooth-scroll to Skyler Chat interface
+
+---
+
+## 🤖 SKYLER CHAT SECTION
+
+A real AI-like experience:
+- Skyler greets user and begins contextually asking will questions
+- Ask questions like:
+  - Full name
+  - Marital status
+  - Do you have children?
+  - Assets?
+  - Executors?
+  - Beneficiaries?
+
+### UI Rules:
+- Only show a message bubble + 1 input field + send button
+- After each answer:
+  - Auto-scroll upward
+  - Display next question from Skyler
+- No other buttons visible
+
+### Data:
+- Store answers progressively (in Supabase or local state)
+- Detect when all questions are done, and show a `Preview Will` button
+
+---
+
+## 🧾 PREVIEW WILL (Step 1)
+
+- Display a generated document preview:
+  - Styled like a real legal document
+  - Include logo, watermark (WillTank faint behind), letterhead, and current date
+  - Use fonts like `Merriweather` or `Lora` for formality
+  - Section titles: Introduction, Beneficiaries, Executors, Distribution, etc.
+  - Add `Edit Answers` and `Satisfied` buttons
+
+- If satisfied, show: `Generate Will`
+
+---
+
+## 📥 DOCUMENT UPLOAD SECTION (Step 2)
+
+User is prompted to upload files to support the will:
+- Title: “Upload Supporting Documents”
+- Instructions: “Upload ownership proofs, IDs, shares, titles…”
+- Use:
+  - `react-dropzone` or `react-filepond` for multi-file upload
+  - Save files to Supabase Storage or AWS S3
+- Show uploaded file names and delete icons
+
+Once done: Button – `Proceed`
+
+---
+
+## 👥 CONTACTS PAGE (Step 3)
+
+User now fills out contact info for all beneficiaries/executors mentioned:
+
+- Dynamically fetch the names from Skyler chat answers
+- For each name:
+  - Show form fields:
+    - Email
+    - Phone Number
+    - Country/Location
+
+Button: `Proceed`
+
+Store all contact data properly in the backend.
+
+---
+
+## 📹 VIDEO RECORDING PAGE (Step 4)
+
+User records a video testimony to support authenticity:
+
+### UI:
+- Small camera preview window (user sees themselves)
+- Side instructions:
+  - What to say in the video
+  - “State your name, date, confirm the will is yours…”
+
+### Functionality:
+- Use `react-webcam` for camera feed
+- Record using `mediaRecorder`
+- Save video to Supabase Storage / S3
+- Button: `Proceed`
+
+---
+
+## 📄 FINAL PREVIEW PAGE (Step 5)
+
+Show the **finalized, real-looking Will Document**:
+- Header with WillTank Logo + Date
+- Watermark “WillTank” behind in faint
+- All Skyler chat data embedded
+- Supporting documents listed
+- Contact info section
+- Signature/Declaration section
+
+Options:
+- `Go Back & Edit`
+- `Finalize My Will`
+
+---
+
+## 💳 PLAN SELECTION PAGE (Step 6)
+
+Once user clicks “Finalize My Will”:
+- Show Pricing Plans:
+  - Starter, Gold, Platinum, Enterprise
+- Integrate with Stripe Checkout
+  - Use Product IDs if already created
+  - Handle subscription, webhooks, and success callback
+
+---
+
+## ✅ CONGRATULATIONS PAGE (Step 7)
+
+After successful plan selection:
+- Show success message:
+  - “🎉 Congratulations! You’ve successfully created a valid, secure Will.”
+- Button → Go to Dashboard
+
+---
+
+### 🔧 REQUIRED TECH STACK:
+
+- **React (Functional Components + Hooks)**
+- **TailwindCSS**
+- **Supabase (Auth, Database, Storage)**
+- **Stripe (for payments)**
+- **uuid** – for will ID generation
+- **html2pdf.js / pdf-lib** – for PDF generation
+- **react-dropzone / react-filepond** – for file uploads
+- **react-webcam** – for video recording
+- **react-router-dom** – for page routing
+- **react-toastify / sonner** – for notifications
+- **Framer Motion** – for transitions if needed
+
+---
+
+### 🔐 DATA MODELING RECOMMENDATION (Supabase Tables):
+
+- `wills`: id, user_id, template, created_at, updated_at, data_json, status
+- `contacts`: id, will_id, name, email, phone, location
+- `documents`: id, will_id, file_url, type
+- `videos`: id, will_id, video_url
+- `subscriptions`: id, user_id, plan, stripe_id
+
+---
+
+### 🧠 FINAL NOTES:
+
+- Do NOT leave any broken buttons or dummy flows.
+- Each button and stage must be real and connected.
+- Every answer must be saved and retrieved properly.
+- Skyler chat must NOT loop, freeze, or skip stages.
+- User cannot skip stages unless flow allows it.
+- No placeholder modals. Everything is 100% real and working.
+
+This is a full product. You are to **build the real working version**, not mockups. Deliver each page, component, and hook cleanly and modularly.
