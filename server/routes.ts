@@ -1501,29 +1501,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // User profile and will status management routes
-  app.get("/api/user/will-status", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const userId = req.user!.id;
-      const user = await dbStorage.getUser(userId);
-      
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-      
-      return res.status(200).json({
-        willInProgress: user.willInProgress || false,
-        willCompleted: user.willCompleted || false
-      });
-    } catch (error) {
-      console.error("Error fetching will status:", error);
-      return res.status(500).json({ error: "Failed to fetch will status" });
-    }
-  });
+  // User profile management routes - removed will functionality
   
   app.post("/api/user/update-profile", async (req: Request, res: Response) => {
     if (!isUserAuthenticated(req)) {
@@ -1546,32 +1524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(users.id, userId))
         .returning();
       
-      // Create notification for will progress if will status changed
-      if (updates.willInProgress === true && !user.willInProgress) {
-        try {
-          await NotificationEvents.CUSTOM(userId, 
-            "Will creation started",
-            "You've started creating your will. Return anytime to continue where you left off.",
-            "info"
-          );
-        } catch (notificationError) {
-          console.error("Failed to create notification:", notificationError);
-          // Continue with response even if notification creation fails
-        }
-      }
-      
-      if (updates.willCompleted === true && !user.willCompleted) {
-        try {
-          await NotificationEvents.CUSTOM(userId,
-            "Will completed",
-            "Congratulations! You've completed your will. You can now manage it from your dashboard.",
-            "success"
-          );
-        } catch (notificationError) {
-          console.error("Failed to create notification:", notificationError);
-          // Continue with response even if notification creation fails
-        }
-      }
+      // Removed will-related notification logic
       
       // For backward compatibility, also maintain onboarding endpoints
       return res.status(200).json({ 
@@ -1585,7 +1538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Keep endpoints for backward compatibility but route to new functionality
+  // Onboarding endpoints for backward compatibility but without will functionality
   app.get("/api/onboarding/status", async (req: Request, res: Response) => {
     if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -1599,9 +1552,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
       
-      // Map new fields to old fields for backward compatibility
+      // All users now considered onboarded since we don't have will creation journey
       return res.status(200).json({
-        hasCompletedOnboarding: user.willCompleted || false
+        hasCompletedOnboarding: true
       });
     } catch (error) {
       console.error("Error fetching onboarding status:", error);
@@ -1618,20 +1571,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user!.id;
       const { profile } = req.body;
       
-      // Map to new fields
-      const updates: any = {
-        willCompleted: true
-      };
-      
+      // Only update user preferences if provided
+      const updates: any = {};
       if (profile) {
         updates.preferences = profile;
       }
       
-      // Update user in database
-      const [updatedUser] = await db.update(users)
-        .set(updates)
-        .where(eq(users.id, userId))
-        .returning();
+      // Update user in database if there are any updates to make
+      let updatedUser = req.user;
+      if (Object.keys(updates).length > 0) {
+        [updatedUser] = await db.update(users)
+          .set(updates)
+          .where(eq(users.id, userId))
+          .returning();
+      }
       
       return res.status(200).json({
         message: "Profile updated successfully",
@@ -1774,51 +1727,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update user will status endpoint (syncs with Supabase)
+  // This endpoint is kept for backward compatibility
+  // but will always return that will creation is completed
   app.post("/api/user/will-status", async (req: Request, res: Response) => {
     if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
-    try {
-      const userId = req.user!.id;
-      const { willInProgress, willCompleted } = req.body;
-      
-      if (willInProgress === undefined && willCompleted === undefined) {
-        return res.status(400).json({ error: "At least one status field must be provided" });
-      }
-      
-      // Update in primary database
-      const updateData: any = {};
-      if (willInProgress !== undefined) updateData.willInProgress = willInProgress;
-      if (willCompleted !== undefined) updateData.willCompleted = willCompleted;
-      
-      await db.update(users)
-        .set(updateData)
-        .where(eq(users.id, userId))
-        .execute();
-      
-      // Sync with Supabase
-      const supabaseData: any = {};
-      if (willInProgress !== undefined) supabaseData.will_in_progress = willInProgress;
-      if (willCompleted !== undefined) supabaseData.will_completed = willCompleted;
-      
-      const supabaseResult = await updateUserWillStatus(userId.toString(), supabaseData);
-      
-      if (!supabaseResult.success) {
-        console.warn("Supabase sync warning:", supabaseResult.error);
-      }
-      
-      return res.status(200).json({ 
-        success: true, 
-        message: "Will status updated successfully",
-        willInProgress: willInProgress !== undefined ? willInProgress : req.user.willInProgress,
-        willCompleted: willCompleted !== undefined ? willCompleted : req.user.willCompleted
-      });
-    } catch (error) {
-      console.error("Error updating will status:", error);
-      return res.status(500).json({ error: "Failed to update will status" });
-    }
+    // We no longer have will functionality, so just return success for backward compatibility
+    return res.status(200).json({ 
+      success: true, 
+      message: "Status updated successfully",
+      hasCompletedOnboarding: true
+    });
   });
 
   const httpServer = createServer(app);
