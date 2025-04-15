@@ -92,7 +92,7 @@ const DocumentUpload: React.FC = () => {
               } else if (response.status === 403) {
                 // Handle unauthorized access
                 console.error('Unauthorized access to will documents');
-                navigate('/will-selection');
+                navigate('/template-selection');
               }
             } catch (error) {
               console.error('Error loading existing documents:', error);
