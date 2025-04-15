@@ -77,7 +77,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onPaymentSuccess, onPaymentEr
               name: '',
             },
             fields: {
-              phone: 'optional',
+              phone: 'auto',
             },
           }}
         />

@@ -28,9 +28,11 @@ import SubscriptionPage from "@/pages/subscription";
 import PricingPage from "@/pages/PricingPage";
 import SubscriptionSuccessPage from "@/pages/SubscriptionSuccessPage";
 import TemplateSelection from "@/pages/TemplateSelection";
+import Subscription from "@/pages/Subscription";
 // Use the completely new AiChat component
 import AiChat from "@/pages/AiChat";
 import DocumentUpload from "@/pages/DocumentUpload";
+import ContactInformation from "@/pages/ContactInformation";
 import VideoRecording from "@/pages/VideoRecording";
 import FinalReview from "@/pages/FinalReview";
 import Completion from "@/pages/Completion";
@@ -60,12 +62,13 @@ function Router() {
       <ProtectedRoute path="/template-selection" component={TemplateSelection} />
       <ProtectedRoute path="/create-will" component={AiChat} /> {/* Repurpose AiChat as create-will */}
       <ProtectedRoute path="/document-upload" component={DocumentUpload} />
+      <ProtectedRoute path="/contact-information" component={ContactInformation} />
       <ProtectedRoute path="/video-recording" component={VideoRecording} />
-      <ProtectedRoute path="/finalize" component={FinalReview} /> {/* Renamed for clarity */}
+      <ProtectedRoute path="/final-review" component={FinalReview} />
       
       {/* Subscription */}
       <ProtectedRoute path="/pricing" component={PricingPage} />
-      <ProtectedRoute path="/subscription" component={SubscriptionPage} />
+      <ProtectedRoute path="/subscription" component={Subscription} />
       <ProtectedRoute path="/subscription/success" component={SubscriptionSuccessPage} />
       
       {/* Dashboard - User Hub */}

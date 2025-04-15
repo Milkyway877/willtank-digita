@@ -182,6 +182,9 @@ const Subscription: React.FC = () => {
       
       // Mark will as completed
       await apiRequest('POST', '/api/user/will-status', {
+        willId: parseInt(willId || '0'),
+        progress: 'completed',
+        willInProgress: false,
         willCompleted: true
       });
       
@@ -258,6 +261,9 @@ const Subscription: React.FC = () => {
     try {
       // Mark will as completed
       await apiRequest('POST', '/api/user/will-status', {
+        willId: parseInt(willId || '0'),
+        progress: 'completed',
+        willInProgress: false,
         willCompleted: true
       });
       
