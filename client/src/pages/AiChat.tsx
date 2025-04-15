@@ -128,40 +128,63 @@ export const AiChat = () => {
     retryLastMessage
   } = useSkyler();
 
-  // Load template selection from localStorage
+  // Load template selection and handle URL parameters
   useEffect(() => {
     // Update progress tracker
     trackWillProgress(WillCreationStep.CHAT);
     
-    // Get selected template
-    const storedTemplate = localStorage.getItem('selectedWillTemplate');
-    if (storedTemplate) {
-      setSelectedTemplate(storedTemplate);
-    }
+    // Check URL for willId parameter first (this indicates a new will creation from template)
+    const params = new URLSearchParams(window.location.search);
+    const willIdParam = params.get('willId');
     
-    // Check if there's an in-progress will
-    const storedWillId = localStorage.getItem('currentWillId');
-    if (storedWillId) {
-      const willIdNum = parseInt(storedWillId, 10);
+    if (willIdParam) {
+      // This is a brand new will from template selection
+      const willIdNum = parseInt(willIdParam, 10);
       if (!isNaN(willIdNum)) {
         setWillId(willIdNum);
-        loadExistingWill(willIdNum);
+        
+        // Update localStorage with this new will ID
+        localStorage.setItem('currentWillId', willIdParam);
+        
+        // Do NOT load existing will data as this is a new creation
+        console.log('Starting fresh will creation for ID:', willIdNum);
+        
+        // Ensure we clear any previous will data
+        localStorage.removeItem('willData');
       }
-    }
-    
-    // Try to load saved will data
-    const savedWillData = localStorage.getItem('willData');
-    if (savedWillData) {
-      try {
-        const parsedData = JSON.parse(savedWillData);
-        if (parsedData) {
-          setWillData(prevData => ({
-            ...prevData,
-            ...parsedData
-          }));
+    } else {
+      // No willId in URL, try to resume existing will from localStorage
+      
+      // Get selected template
+      const storedTemplate = localStorage.getItem('selectedWillTemplate');
+      if (storedTemplate) {
+        setSelectedTemplate(storedTemplate);
+      }
+      
+      // Check if there's an in-progress will
+      const storedWillId = localStorage.getItem('currentWillId');
+      if (storedWillId) {
+        const willIdNum = parseInt(storedWillId, 10);
+        if (!isNaN(willIdNum)) {
+          setWillId(willIdNum);
+          loadExistingWill(willIdNum);
         }
-      } catch (error) {
-        console.error('Error parsing saved will data:', error);
+      }
+      
+      // Try to load saved will data
+      const savedWillData = localStorage.getItem('willData');
+      if (savedWillData) {
+        try {
+          const parsedData = JSON.parse(savedWillData);
+          if (parsedData) {
+            setWillData(prevData => ({
+              ...prevData,
+              ...parsedData
+            }));
+          }
+        } catch (error) {
+          console.error('Error parsing saved will data:', error);
+        }
       }
     }
     
@@ -197,7 +220,22 @@ export const AiChat = () => {
   
   // Initialize Skyler conversation - only once when component mounts
   useEffect(() => {
-    if (selectedTemplate && !isConversationInitialized && messages.length === 0) {
+    // Check URL for willId and selectedTemplate params (when coming from template selection)
+    const params = new URLSearchParams(window.location.search);
+    const willIdParam = params.get('willId');
+    
+    // If we have a will ID in the URL and no conversation yet, immediately initialize
+    // with the stored template (this would be the case for a fresh will creation)
+    if (willIdParam && !isConversationInitialized && messages.length === 0) {
+      const storedTemplate = localStorage.getItem('selectedWillTemplate');
+      if (storedTemplate) {
+        console.log('Starting new will conversation with template:', storedTemplate);
+        initializeConversation(storedTemplate);
+        setIsConversationInitialized(true);
+      }
+    }
+    // Normal initialization for cases where we already have a template selected
+    else if (selectedTemplate && !isConversationInitialized && messages.length === 0) {
       initializeConversation(selectedTemplate);
       setIsConversationInitialized(true);
     }
@@ -565,6 +603,9 @@ Let's get started! First, could you please tell me your full legal name?`
         willCompleted: true
       });
       
+      // Update progress tracker to document upload
+      trackWillProgress(WillCreationStep.DOCUMENT_UPLOAD);
+      
       // Navigate to document upload
       toast({
         title: 'Will Created Successfully',
@@ -573,7 +614,12 @@ Let's get started! First, could you please tell me your full legal name?`
       
       // Use timeout to allow the toast to be shown
       setTimeout(() => {
-        navigate('/document-upload');
+        // Make sure to pass the willId to maintain the flow
+        if (willId) {
+          navigate(`/document-upload?willId=${willId}`);
+        } else {
+          navigate('/document-upload');
+        }
       }, 1000);
       
     } catch (error) {
