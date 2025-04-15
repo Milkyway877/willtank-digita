@@ -133,9 +133,18 @@ export const AiChat = () => {
     // Update progress tracker
     trackWillProgress(WillCreationStep.CHAT);
     
-    // Check URL for willId parameter first (this indicates a new will creation from template)
+    // Get the will ID from the URL path
+    const pathSegments = window.location.pathname.split('/');
+    const willIdParam = pathSegments[2]; // /wills/:id/chat
+    
+    // Get template from query params
     const params = new URLSearchParams(window.location.search);
-    const willIdParam = params.get('willId');
+    const templateParam = params.get('template');
+    
+    if (templateParam && Object.keys(TEMPLATE_NAMES).includes(templateParam)) {
+      setSelectedTemplate(templateParam);
+      localStorage.setItem('selectedWillTemplate', templateParam);
+    }
     
     if (willIdParam) {
       // This is a brand new will from template selection
@@ -146,8 +155,13 @@ export const AiChat = () => {
         // Update localStorage with this new will ID
         localStorage.setItem('currentWillId', willIdParam);
         
-        // Do NOT load existing will data as this is a new creation
-        console.log('Starting fresh will creation for ID:', willIdNum);
+        // Start Skyler conversation if new
+        if (!isConversationInitialized && templateParam) {
+          // We will initialize the conversation with Skyler in a moment
+          setTimeout(() => initializeConversation(templateParam), 100);
+        }
+        
+        console.log('Starting will creation for ID:', willIdNum, 'with template:', templateParam);
         
         // Ensure we clear any previous will data
         localStorage.removeItem('willData');
@@ -644,7 +658,7 @@ Let's get started! First, could you please tell me your full legal name?`
       // Use timeout to allow the toast to be shown
       setTimeout(() => {
         // Always pass the most up-to-date willId
-        navigate(`/will-creation/documents?willId=${savedWillId}`);
+        navigate(`/wills/${savedWillId}/create?tab=documents`);
       }, 1000);
       
     } catch (error) {

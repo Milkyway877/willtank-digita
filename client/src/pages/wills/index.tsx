@@ -60,8 +60,8 @@ export default function WillsPage() {
         isReleased: false,
       });
       
-      // Navigate to the will creation page
-      navigate(`/wills/${newWill.id}/create`);
+      // Navigate to the Skyler-powered will creation experience
+      navigate(`/wills/${newWill.id}/chat?template=${templateId}`);
     } catch (error) {
       console.error("Failed to create will:", error);
     } finally {
