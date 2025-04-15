@@ -49,15 +49,7 @@ app.use((req, res, next) => {
   // Initialize Supabase tables
   await initializeSupabaseTables();
   
-  // Seed will templates if needed
-  try {
-    console.log('Pre-seeding will templates...');
-    await storage.seedWillTemplates();
-    console.log('Will templates check complete');
-  } catch (error) {
-    console.error('Error pre-seeding will templates:', error);
-    // Continue with server startup even if seeding fails
-  }
+  // Removed will template seeding as we've removed all will functionality
   
   const server = await registerRoutes(app);
 

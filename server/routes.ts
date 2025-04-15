@@ -164,6 +164,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Document API endpoints for general document storage - no longer tied to wills
   
+  // GET all documents for a user
+  app.get("/api/documents", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const userId = req.user!.id;
+      const documents = await dbStorage.getUserDocuments(userId);
+      return res.status(200).json(documents);
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      return res.status(500).json({ error: "Failed to fetch documents" });
+    }
+  });
+  
   // Generic document upload route (no longer associated with wills)
   app.post("/api/documents", upload.single('file'), async (req: Request, res: Response) => {
     if (!isUserAuthenticated(req)) {
@@ -176,6 +192,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const userId = req.user!.id;
+      const category = req.body.category || 'general';
       
       // Read the file content
       const fileContent = fs.readFileSync(req.file.path);
@@ -206,51 +223,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the URL from Supabase upload
       const fileUrl = uploadResult.data?.url || "";
       
-      return res.status(201).json({
-        id: Date.now(), // Placeholder ID since we're not storing in DB
+      // Store document in database
+      const documentData = {
+        userId,
         fileName: req.file.originalname,
         fileType: req.file.mimetype,
         fileSize: req.file.size,
         fileUrl,
+        category
+      };
+      
+      const document = await dbStorage.addDocument(documentData);
+      
+      return res.status(201).json({
+        ...document,
         cloudStorage: true,
-        message: "Document uploaded successfully to cloud storage"
+        message: "Document uploaded successfully"
       });
     } catch (error) {
-      console.error("Error uploading document to Supabase:", error);
+      console.error("Error uploading document:", error);
       // Clean up temporary file if it was uploaded
       if (req.file && fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
       }
-      return res.status(500).json({ error: "Failed to upload document to cloud storage" });
+      return res.status(500).json({ error: "Failed to upload document" });
     }
   });
   
-  app.delete("/api/documents/:filename", async (req: Request, res: Response) => {
+  // Get document by ID
+  app.get("/api/documents/:id", async (req: Request, res: Response) => {
     if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      const { filename } = req.params;
-      const userId = req.user!.id;
-      
-      if (!filename) {
-        return res.status(400).json({ error: "Filename is required" });
+      const documentId = parseInt(req.params.id);
+      if (isNaN(documentId)) {
+        return res.status(400).json({ error: "Invalid document ID" });
       }
       
-      // Since we no longer track documents in database, we just attempt to delete from Supabase
+      const document = await dbStorage.getDocumentById(documentId);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      // Make sure the user can only access their own documents
+      if (document.userId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      return res.status(200).json(document);
+    } catch (error) {
+      console.error("Error fetching document:", error);
+      return res.status(500).json({ error: "Failed to fetch document" });
+    }
+  });
+  
+  // Delete document by ID 
+  app.delete("/api/documents/:id", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const documentId = parseInt(req.params.id);
+      if (isNaN(documentId)) {
+        return res.status(400).json({ error: "Invalid document ID" });
+      }
+      
+      // Get the document first to check ownership and get the filename
+      const document = await dbStorage.getDocumentById(documentId);
+      if (!document) {
+        return res.status(404).json({ error: "Document not found" });
+      }
+      
+      // Make sure the user can only delete their own documents
+      if (document.userId !== req.user!.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+      
+      // Extract the filename from the URL
+      const fileUrl = document.fileUrl;
+      const urlParts = fileUrl.split('/');
+      const filename = urlParts[urlParts.length - 1];
+      
+      // Try to delete from Supabase storage
       try {
-        const storagePath = `${userId}/documents/${filename}`;
-        
-        // Delete from Supabase storage
+        const storagePath = `${req.user!.id}/documents/${filename}`;
         await deleteFile(storagePath);
         console.log('Deleted file from Supabase storage:', storagePath);
       } catch (deleteError) {
         console.error('Error deleting from cloud storage:', deleteError);
-        return res.status(500).json({ error: "Failed to delete document from storage" });
+        // We continue even if storage deletion fails
       }
       
+      // Delete from database
+      await dbStorage.deleteDocument(documentId);
+      
       return res.status(200).json({ 
+        success: true, 
         message: "Document deleted successfully",
         cloudStorage: true
       });
