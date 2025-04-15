@@ -41,7 +41,7 @@ export function ProtectedRoute({
   }
   
   // All authorized users go directly to the dashboard
-  const isDashboardPath = path.startsWith('/dashboard');
+  const isDashboardPath = path.startsWith('/dashboard') || path.startsWith('/wills');
   
   // Redirect all authenticated users to dashboard if not already on a dashboard page
   if (user && user.isEmailVerified && !isDashboardPath) {

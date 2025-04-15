@@ -175,7 +175,7 @@ const Sidebar: React.FC = () => {
                       if (isMobile) setIsCollapsed(true);
                     }}
                     className={`flex items-center py-2.5 px-3 rounded-lg transition-all ${
-                      currentLocation === item.path
+                      currentLocation === item.path || (item.path === '/wills' && currentLocation.startsWith('/wills'))
                         ? 'bg-primary/10 text-primary'
                         : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                     } ${isCollapsed ? 'justify-center' : ''}`}
