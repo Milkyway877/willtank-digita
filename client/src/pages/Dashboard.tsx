@@ -20,7 +20,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (user) {
-        navigate('/template-selection');
+        navigate('/will-selection');
       }
     }, 1500);
 

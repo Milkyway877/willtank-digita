@@ -319,7 +319,7 @@ const WillsPage: React.FC = () => {
   // Create new will
   const handleCreateNewWill = () => {
     // Direct to the template selection to start the will creation process with Skyler
-    navigate('/template-selection');
+    navigate('/will-selection');
   };
   
   // Edit existing will

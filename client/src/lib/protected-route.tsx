@@ -43,7 +43,7 @@ export function ProtectedRoute({
   // New Simplified Flow - Redirect based on will creation status
   const isDashboardPath = path.startsWith('/dashboard');
   const isWelcomePath = path === '/welcome';
-  const isTemplatePath = path === '/template-selection';
+  const isTemplatePath = path === '/will-selection';
   const isCreateWillPath = path === '/create-will';
   
   // If user has completed a will, make sure they reach dashboard

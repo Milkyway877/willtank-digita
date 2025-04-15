@@ -35,7 +35,7 @@ const Welcome: React.FC = () => {
     if (user && !user.willInProgress) {
       updateWillStatusMutation.mutate({ willInProgress: true });
     }
-    navigate('/template-selection');
+    navigate('/will-selection');
   };
   
   return (

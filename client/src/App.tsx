@@ -60,7 +60,7 @@ function Router() {
       
       {/* New Simplified Flow */}
       <ProtectedRoute path="/welcome" component={Welcome} />
-      <ProtectedRoute path="/template-selection" component={TemplateSelection} />
+      <ProtectedRoute path="/will-selection" component={TemplateSelection} />
       
       {/* New Structured Will Creation Flow - PART 1-8 */}
       <ProtectedRoute path="/will-creation/chat" component={AiChat} />
