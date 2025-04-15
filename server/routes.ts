@@ -5,12 +5,10 @@ import { setupAuth, comparePasswords } from "./auth";
 import { initializeScheduler, triggerCheckInEmails } from "./scheduler";
 import { storage as dbStorage } from "./storage";
 import { db } from "./db";
-import { updateUserWillStatus, uploadFile, deleteFile } from "./supabase-connector";
+import { uploadFile, deleteFile } from "./supabase-connector";
 import { 
   checkInResponses, 
   users, 
-  wills, 
-  willDocuments, 
   notifications, 
   insertNotificationSchema,
   deliverySettings,
@@ -164,193 +162,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     limits: { fileSize: 100 * 1024 * 1024 } // 100MB file size limit
   });
   
-  // Will API endpoints
-  app.get("/api/wills", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const userId = req.user!.id;
-      const userWills = await dbStorage.getWillsByUserId(userId);
-      
-      return res.status(200).json(userWills);
-    } catch (error) {
-      console.error("Error fetching wills:", error);
-      return res.status(500).json({ error: "Failed to fetch wills" });
-    }
-  });
+  // Document API endpoints for general document storage - no longer tied to wills
   
-  app.get("/api/wills/:id", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const willId = parseInt(req.params.id);
-      const userId = req.user!.id;
-      
-      const will = await dbStorage.getWillById(willId);
-      
-      if (!will) {
-        return res.status(404).json({ error: "Will not found" });
-      }
-      
-      // Security check: ensure will belongs to current user
-      if (will.userId !== userId) {
-        return res.status(403).json({ error: "Unauthorized access to will" });
-      }
-      
-      return res.status(200).json(will);
-    } catch (error) {
-      console.error("Error fetching will:", error);
-      return res.status(500).json({ error: "Failed to fetch will details" });
-    }
-  });
-  
-  app.post("/api/wills", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const userId = req.user!.id;
-      const { templateId, title, content } = req.body;
-      
-      if (!title || !content) {
-        return res.status(400).json({ error: "Title and content are required" });
-      }
-      
-      // Validate the templateId (must be a valid integer and template must exist)
-      let validTemplateId: number | null = null;
-      
-      if (templateId) {
-        // If templateId is provided, ensure it's a valid integer
-        const templateIdNumber = typeof templateId === 'number' 
-          ? templateId 
-          : parseInt(templateId, 10);
-        
-        if (!isNaN(templateIdNumber)) {
-          try {
-            // Check if the template exists
-            const template = await dbStorage.getWillTemplateById(templateIdNumber);
-            if (template) {
-              validTemplateId = templateIdNumber;
-            }
-          } catch (templateError) {
-            console.error('Error checking template:', templateError);
-            // Continue without template if there's an error checking
-          }
-        }
-      }
-      
-      // Log for debugging
-      console.log(`Creating will with templateId: ${validTemplateId}, title: ${title}`);
-      
-      // Create the will with validated templateId
-      const newWill = await dbStorage.createWill({
-        userId,
-        templateId: validTemplateId,
-        title,
-        content,
-        status: "draft"
-      });
-      
-      // Create notification for the user about will creation
-      try {
-        await NotificationEvents.WILL_CREATED(userId, newWill.id, newWill.title);
-      } catch (notificationError) {
-        console.error("Failed to create notification for will creation:", notificationError);
-        // Continue with response even if notification creation fails
-      }
-      
-      return res.status(201).json(newWill);
-    } catch (error) {
-      console.error("Error creating will:", error);
-      return res.status(500).json({ error: "Failed to create will" });
-    }
-  });
-  
-  app.put("/api/wills/:id", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const willId = parseInt(req.params.id);
-      const userId = req.user!.id;
-      const { title, content, status } = req.body;
-      
-      // Check if will exists and belongs to user
-      const existingWill = await dbStorage.getWillById(willId);
-      
-      if (!existingWill) {
-        return res.status(404).json({ error: "Will not found" });
-      }
-      
-      if (existingWill.userId !== userId) {
-        return res.status(403).json({ error: "Unauthorized access to will" });
-      }
-      
-      const updatedWill = await dbStorage.updateWill(willId, {
-        title,
-        content,
-        status,
-        lastUpdated: new Date()
-      });
-      
-      // Create notification based on the update type
-      try {
-        if (status === "published") {
-          await NotificationEvents.WILL_PUBLISHED(userId, willId, title || existingWill.title);
-        } else if (status === "completed") {
-          await NotificationEvents.WILL_COMPLETED(userId, willId, title || existingWill.title);
-        } else {
-          await NotificationEvents.WILL_UPDATED(userId, willId, title || existingWill.title);
-        }
-      } catch (notificationError) {
-        console.error("Failed to create notification for will update:", notificationError);
-        // Continue with response even if notification creation fails
-      }
-      
-      return res.status(200).json(updatedWill);
-    } catch (error) {
-      console.error("Error updating will:", error);
-      return res.status(500).json({ error: "Failed to update will" });
-    }
-  });
-  
-  // Document API endpoints
-  app.get("/api/wills/:willId/documents", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const willId = parseInt(req.params.willId);
-      const userId = req.user!.id;
-      
-      // Check if will belongs to user
-      const will = await dbStorage.getWillById(willId);
-      
-      if (!will) {
-        return res.status(404).json({ error: "Will not found" });
-      }
-      
-      if (will.userId !== userId) {
-        return res.status(403).json({ error: "Unauthorized access to will documents" });
-      }
-      
-      const documents = await dbStorage.getWillDocuments(willId);
-      
-      return res.status(200).json(documents);
-    } catch (error) {
-      console.error("Error fetching documents:", error);
-      return res.status(500).json({ error: "Failed to fetch documents" });
-    }
-  });
-  
-  app.post("/api/wills/:willId/documents", upload.single('file'), async (req: Request, res: Response) => {
+  // Generic document upload route (no longer associated with wills)
+  app.post("/api/documents", upload.single('file'), async (req: Request, res: Response) => {
     if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -360,23 +175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "No file uploaded" });
       }
       
-      const willId = parseInt(req.params.willId);
       const userId = req.user!.id;
-      
-      // Check if will belongs to user
-      const will = await dbStorage.getWillById(willId);
-      
-      if (!will) {
-        // Remove uploaded temporary file if will doesn't exist
-        fs.unlinkSync(req.file.path);
-        return res.status(404).json({ error: "Will not found" });
-      }
-      
-      if (will.userId !== userId) {
-        // Remove uploaded temporary file if user doesn't own the will
-        fs.unlinkSync(req.file.path);
-        return res.status(403).json({ error: "Unauthorized access to will" });
-      }
       
       // Read the file content
       const fileContent = fs.readFileSync(req.file.path);
@@ -392,7 +191,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const uploadResult = await uploadFile(
         documentFile, 
         userId.toString(), 
-        willId.toString()
+        "documents"
       );
       
       // Clean up local temporary file after upload
@@ -407,25 +206,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the URL from Supabase upload
       const fileUrl = uploadResult.data?.url || "";
       
-      // Add document to database with Supabase URL
-      const newDocument = await dbStorage.addWillDocument({
-        willId,
+      return res.status(201).json({
+        id: Date.now(), // Placeholder ID since we're not storing in DB
         fileName: req.file.originalname,
         fileType: req.file.mimetype,
         fileSize: req.file.size,
-        fileUrl
-      });
-      
-      // Create notification for document upload
-      try {
-        await NotificationEvents.DOCUMENT_UPLOADED(userId, willId, req.file.originalname);
-      } catch (notificationError) {
-        console.error("Failed to create notification for document upload:", notificationError);
-        // Continue with response even if notification creation fails
-      }
-      
-      return res.status(201).json({
-        ...newDocument,
+        fileUrl,
         cloudStorage: true,
         message: "Document uploaded successfully to cloud storage"
       });
@@ -439,158 +225,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Video recording upload endpoint using Supabase storage
-  app.post("/api/wills/:willId/video", upload.single('video'), async (req: Request, res: Response) => {
+  app.delete("/api/documents/:filename", async (req: Request, res: Response) => {
     if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No video file uploaded" });
-      }
-      
-      const willId = parseInt(req.params.willId);
+      const { filename } = req.params;
       const userId = req.user!.id;
       
-      // Check if will exists and belongs to user
-      const will = await dbStorage.getWillById(willId);
-      
-      if (!will) {
-        // Remove uploaded temporary file if will doesn't exist
-        fs.unlinkSync(req.file.path);
-        return res.status(404).json({ error: "Will not found" });
+      if (!filename) {
+        return res.status(400).json({ error: "Filename is required" });
       }
       
-      if (will.userId !== userId) {
-        // Remove uploaded temporary file if user doesn't own the will
-        fs.unlinkSync(req.file.path);
-        return res.status(403).json({ error: "Unauthorized access to will" });
-      }
-      
-      // Read the file content
-      const fileContent = fs.readFileSync(req.file.path);
-      
-      // Create a File object from the file content
-      const videoFile = new File(
-        [fileContent], 
-        path.basename(req.file.path), 
-        { type: req.file.mimetype }
-      );
-      
-      // Upload to Supabase storage
-      const uploadResult = await uploadFile(
-        videoFile, 
-        userId.toString(), 
-        willId.toString()
-      );
-      
-      // Clean up local temporary file after upload
-      if (fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
-      
-      if (!uploadResult.success) {
-        throw new Error(uploadResult.error ? uploadResult.error.toString() : "Failed to upload to Supabase storage");
-      }
-      
-      // Get the URL from Supabase upload
-      const videoUrl = uploadResult.data?.url || "";
-      
-      // Update will with Supabase video URL
-      const updatedWill = await dbStorage.updateWill(willId, {
-        videoRecordingUrl: videoUrl,
-        lastUpdated: new Date()
-      });
-      
-      // Create notification for video upload
+      // Since we no longer track documents in database, we just attempt to delete from Supabase
       try {
-        await NotificationEvents.VIDEO_TESTIMONY_RECORDED(userId, willId);
-      } catch (notificationError) {
-        console.error("Failed to create notification for video recording:", notificationError);
-        // Continue with response even if notification creation fails
-      }
-      
-      return res.status(200).json({
-        success: true,
-        message: "Video uploaded successfully to cloud storage",
-        videoUrl: videoUrl
-      });
-    } catch (error) {
-      console.error("Error uploading video to Supabase:", error);
-      // Clean up temporary file if it was uploaded
-      if (req.file && fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
-      return res.status(500).json({ error: "Failed to upload video to cloud storage" });
-    }
-  });
-  
-  app.delete("/api/documents/:id", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const documentId = parseInt(req.params.id);
-      const userId = req.user!.id;
-      
-      // Get document
-      const [document] = await db
-        .select()
-        .from(willDocuments)
-        .where(eq(willDocuments.id, documentId));
-      
-      if (!document) {
-        return res.status(404).json({ error: "Document not found" });
-      }
-      
-      // Get will to check ownership
-      const will = await dbStorage.getWillById(document.willId);
-      
-      if (!will || will.userId !== userId) {
-        return res.status(403).json({ error: "Unauthorized access to document" });
-      }
-      
-      // Check if this is a cloud storage URL (Supabase)
-      if (document.fileUrl.includes('supabase')) {
-        // Extract path from URL or handle cloud storage deletion
-        try {
-          // Get the path from the URL
-          const url = new URL(document.fileUrl);
-          const pathParts = url.pathname.split('/');
-          const filename = pathParts[pathParts.length - 1];
-          const storagePath = `${userId}/${will.id}/${filename}`;
-          
-          // Delete from Supabase storage
-          await deleteFile(storagePath);
-          console.log('Deleted file from Supabase storage:', storagePath);
-        } catch (deleteError) {
-          console.error('Error deleting from cloud storage:', deleteError);
-          // Continue with database deletion even if storage deletion fails
-        }
-      } else {
-        // If it's a local file, delete from filesystem
-        const filePath = path.join(process.cwd(), document.fileUrl);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      }
-      
-      // Delete from database
-      await dbStorage.deleteWillDocument(documentId);
-      
-      // Create notification for document deletion
-      try {
-        await NotificationEvents.DOCUMENT_DELETED(userId, will.id, document.fileName);
-      } catch (notificationError) {
-        console.error("Failed to create notification for document deletion:", notificationError);
-        // Continue with response even if notification creation fails
+        const storagePath = `${userId}/documents/${filename}`;
+        
+        // Delete from Supabase storage
+        await deleteFile(storagePath);
+        console.log('Deleted file from Supabase storage:', storagePath);
+      } catch (deleteError) {
+        console.error('Error deleting from cloud storage:', deleteError);
+        return res.status(500).json({ error: "Failed to delete document from storage" });
       }
       
       return res.status(200).json({ 
         message: "Document deleted successfully",
-        cloudStorage: document.fileUrl.includes('supabase')
+        cloudStorage: true
       });
     } catch (error) {
       console.error("Error deleting document:", error);
@@ -598,66 +260,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Will template endpoints
-  app.get("/api/will-templates", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const templates = await dbStorage.getWillTemplates();
-      return res.status(200).json(templates);
-    } catch (error) {
-      console.error("Error fetching will templates:", error);
-      return res.status(500).json({ error: "Failed to fetch will templates" });
-    }
-  });
+  // Dashboard-related endpoints go here
   
-  app.get("/api/will-templates/:id", async (req: Request, res: Response) => {
-    if (!isUserAuthenticated(req)) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-    
-    try {
-      const templateId = parseInt(req.params.id);
-      const template = await dbStorage.getWillTemplateById(templateId);
-      
-      if (!template) {
-        return res.status(404).json({ error: "Template not found" });
-      }
-      
-      return res.status(200).json(template);
-    } catch (error) {
-      console.error("Error fetching will template:", error);
-      return res.status(500).json({ error: "Failed to fetch will template" });
-    }
-  });
-  
-  // Skyler context-aware endpoints
+  // Skyler context-aware endpoints - simplified for dashboard only usage
   app.get("/api/skyler/user-context", async (req: Request, res: Response) => {
     if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      const userId = req.user!.id;
-      
-      // Get user's wills to provide context for Skyler
-      const userWills = await dbStorage.getWillsByUserId(userId);
-      
-      // Get only relevant information for context
+      // Get only user information for context (no more will data)
       const context = {
         user: {
           username: req.user!.username,
           fullName: req.user!.fullName,
-        },
-        wills: userWills.map(will => ({
-          id: will.id,
-          title: will.title,
-          status: will.status,
-          lastUpdated: will.lastUpdated,
-          createdAt: will.createdAt
-        }))
+        }
       };
       
       return res.status(200).json(context);
@@ -714,13 +331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If user is reported deceased, trigger death verification process
       if (alive === 'false') {
         // In a real implementation, this would trigger emails to death verifiers
-        // and set the will status to pending verification
-        await db
-          .update(wills)
-          .set({
-            status: 'pending_verification'
-          })
-          .where(eq(wills.userId, Number(userId)));
+        // Removed will status update since we no longer have will functionality
 
         return res.status(200).render('death-reported', {
           message: 'Death reported. The verification process has been initiated.'
