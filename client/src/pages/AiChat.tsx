@@ -584,7 +584,7 @@ Let's get started! First, could you please tell me your full legal name?`
   };
   
   /**
-   * Handle completing the will creation
+   * Handle completing the will creation and moving to Document Upload
    */
   const handleCompleteWill = async () => {
     if (isLoading || isFinalizing) return;
@@ -598,19 +598,24 @@ Let's get started! First, could you please tell me your full legal name?`
       // Save the final will
       await saveWillProgress();
       
-      // Mark user as having completed a will
+      // Mark the will as in progress, NOT completed (it's not completed until final review)
       await apiRequest('POST', '/api/user/will-status', {
-        willCompleted: true
+        willId: willId,
+        progress: WillCreationStep.DOCUMENT_UPLOAD,
+        willInProgress: true,
+        willCompleted: false
       });
       
-      // Update progress tracker to document upload
+      // Update progress tracker to document upload (next step)
       trackWillProgress(WillCreationStep.DOCUMENT_UPLOAD);
       
-      // Navigate to document upload
+      // Navigate to document upload as the next step in the will creation flow
       toast({
-        title: 'Will Created Successfully',
-        description: 'Now you can upload important documents to accompany your will.',
+        title: 'Information Collected Successfully',
+        description: 'Next, please upload important documents to accompany your will.',
       });
+      
+      console.log(`Will creation continuing to document upload. WillId: ${willId}`);
       
       // Use timeout to allow the toast to be shown
       setTimeout(() => {
@@ -618,15 +623,16 @@ Let's get started! First, could you please tell me your full legal name?`
         if (willId) {
           navigate(`/document-upload?willId=${willId}`);
         } else {
+          console.error('Missing willId when trying to proceed to document upload');
           navigate('/document-upload');
         }
       }, 1000);
       
     } catch (error) {
-      console.error('Error completing will:', error);
+      console.error('Error proceeding to document upload:', error);
       toast({
         title: 'Error',
-        description: 'Failed to complete your will. Please try again.',
+        description: 'Failed to proceed to the document upload step. Please try again.',
         variant: 'destructive'
       });
     } finally {
