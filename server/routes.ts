@@ -13,7 +13,15 @@ import {
   insertNotificationSchema,
   deliverySettings,
   beneficiaries,
-  reminders
+  reminders,
+  wills,
+  willDocuments,
+  willContacts,
+  insertWillSchema,
+  insertWillDocumentSchema,
+  insertWillContactSchema,
+  willTemplateEnum,
+  willStatusEnum
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
@@ -332,19 +340,418 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Dashboard-related endpoints go here
+
+  // Will endpoints
+  app.get("/api/wills", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const wills = await dbStorage.getUserWills(req.user.id);
+      return res.status(200).json(wills);
+    } catch (error) {
+      console.error("Error fetching wills:", error);
+      return res.status(500).json({ error: "Failed to fetch wills" });
+    }
+  });
+
+  // Get a specific will by ID
+  app.get("/api/wills/:id", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const willId = parseInt(req.params.id);
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      // Security check - only allow access to user's own wills
+      if (will.userId !== req.user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      return res.status(200).json(will);
+    } catch (error) {
+      console.error("Error fetching will:", error);
+      return res.status(500).json({ error: "Failed to fetch will" });
+    }
+  });
   
-  // Skyler context-aware endpoints - simplified for dashboard only usage
+  // Create a new will
+  app.post("/api/wills", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const willData = {
+        ...req.body,
+        userId: req.user.id,
+        // Make sure dataJson is stored as a string if it's an object
+        dataJson: req.body.dataJson ? 
+          (typeof req.body.dataJson === 'string' ? 
+            req.body.dataJson : 
+            JSON.stringify(req.body.dataJson)) : 
+          null
+      };
+      
+      // Validate the data with zod schema
+      const validatedData = insertWillSchema.parse(willData);
+      
+      const newWill = await dbStorage.createWill(validatedData);
+      return res.status(201).json(newWill);
+    } catch (error) {
+      console.error("Error creating will:", error);
+      return res.status(500).json({ error: "Failed to create will" });
+    }
+  });
+  
+  // Update a will
+  app.put("/api/wills/:id", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const willId = parseInt(req.params.id);
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      // Security check - only allow updates to user's own wills
+      if (will.userId !== req.user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      // Process updates
+      const updates = {
+        ...req.body,
+        // Make sure dataJson is stored as a string if it's an object
+        dataJson: req.body.dataJson ? 
+          (typeof req.body.dataJson === 'string' ? 
+            req.body.dataJson : 
+            JSON.stringify(req.body.dataJson)) : 
+          undefined
+      };
+      
+      const updatedWill = await dbStorage.updateWill(willId, updates);
+      return res.status(200).json(updatedWill);
+    } catch (error) {
+      console.error("Error updating will:", error);
+      return res.status(500).json({ error: "Failed to update will" });
+    }
+  });
+  
+  // Delete a will
+  app.delete("/api/wills/:id", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const willId = parseInt(req.params.id);
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      // Security check - only allow deletion of user's own wills
+      if (will.userId !== req.user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      await dbStorage.deleteWill(willId);
+      return res.status(200).json({ message: "Will deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting will:", error);
+      return res.status(500).json({ error: "Failed to delete will" });
+    }
+  });
+  
+  // Get documents for a specific will
+  app.get("/api/wills/:id/documents", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const willId = parseInt(req.params.id);
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      // Security check - only allow access to user's own wills
+      if (will.userId !== req.user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      const documents = await dbStorage.getWillDocuments(willId);
+      return res.status(200).json(documents);
+    } catch (error) {
+      console.error("Error fetching will documents:", error);
+      return res.status(500).json({ error: "Failed to fetch will documents" });
+    }
+  });
+  
+  // Add document to a will
+  app.post("/api/wills/:id/documents", upload.single('file'), async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+    
+    try {
+      const willId = parseInt(req.params.id);
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      // Security check - only allow uploads to user's own wills
+      if (will.userId !== req.user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      // Read the file content
+      const fileContent = fs.readFileSync(req.file.path);
+      
+      // Create a File object from the file content
+      const documentFile = new File(
+        [fileContent], 
+        req.file.originalname, 
+        { type: req.file.mimetype }
+      );
+      
+      // Organize files by user ID and will ID
+      const uploadResult = await uploadFile(
+        documentFile, 
+        `${req.user.id}/wills/${willId}/documents`,
+        req.file.originalname
+      );
+      
+      // Clean up local temporary file after upload
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      
+      if (!uploadResult.success) {
+        throw new Error(uploadResult.error ? uploadResult.error.toString() : "Failed to upload to storage");
+      }
+      
+      // Get the URL from upload
+      const fileUrl = uploadResult.data?.url || "";
+      
+      // Store document in database
+      const document = await dbStorage.addWillDocument({
+        willId,
+        name: req.file.originalname,
+        path: fileUrl,
+        type: req.file.mimetype,
+        size: req.file.size
+      });
+      
+      return res.status(201).json(document);
+    } catch (error) {
+      console.error("Error uploading will document:", error);
+      // Clean up temporary file if it was uploaded
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(500).json({ error: "Failed to upload will document" });
+    }
+  });
+  
+  // Delete document from a will
+  app.delete("/api/wills/:willId/documents/:docId", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const willId = parseInt(req.params.willId);
+      const docId = parseInt(req.params.docId);
+      
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      // Security check - only allow deletions from user's own wills
+      if (will.userId !== req.user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      await dbStorage.deleteWillDocument(docId);
+      return res.status(200).json({ message: "Document deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting will document:", error);
+      return res.status(500).json({ error: "Failed to delete will document" });
+    }
+  });
+  
+  // Get contacts for a specific will
+  app.get("/api/wills/:id/contacts", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const willId = parseInt(req.params.id);
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      // Security check - only allow access to user's own wills
+      if (will.userId !== req.user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      const contacts = await dbStorage.getWillContacts(willId);
+      return res.status(200).json(contacts);
+    } catch (error) {
+      console.error("Error fetching will contacts:", error);
+      return res.status(500).json({ error: "Failed to fetch will contacts" });
+    }
+  });
+  
+  // Add contact to a will
+  app.post("/api/wills/:id/contacts", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const willId = parseInt(req.params.id);
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      // Security check - only allow additions to user's own wills
+      if (will.userId !== req.user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      const contactData = {
+        ...req.body,
+        willId
+      };
+      
+      // Validate with schema
+      const validatedData = insertWillContactSchema.parse(contactData);
+      
+      const contact = await dbStorage.addWillContact(validatedData);
+      return res.status(201).json(contact);
+    } catch (error) {
+      console.error("Error adding will contact:", error);
+      return res.status(500).json({ error: "Failed to add will contact" });
+    }
+  });
+  
+  // Update contact for a will
+  app.put("/api/wills/:willId/contacts/:contactId", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const willId = parseInt(req.params.willId);
+      const contactId = parseInt(req.params.contactId);
+      
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      // Security check - only allow updates to user's own wills
+      if (will.userId !== req.user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      const updatedContact = await dbStorage.updateWillContact(contactId, req.body);
+      return res.status(200).json(updatedContact);
+    } catch (error) {
+      console.error("Error updating will contact:", error);
+      return res.status(500).json({ error: "Failed to update will contact" });
+    }
+  });
+  
+  // Delete contact from a will
+  app.delete("/api/wills/:willId/contacts/:contactId", async (req: Request, res: Response) => {
+    if (!isUserAuthenticated(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    
+    try {
+      const willId = parseInt(req.params.willId);
+      const contactId = parseInt(req.params.contactId);
+      
+      const will = await dbStorage.getWillById(willId);
+      
+      if (!will) {
+        return res.status(404).json({ error: "Will not found" });
+      }
+      
+      // Security check - only allow deletions from user's own wills
+      if (will.userId !== req.user.id) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      
+      await dbStorage.deleteWillContact(contactId);
+      return res.status(200).json({ message: "Contact deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting will contact:", error);
+      return res.status(500).json({ error: "Failed to delete will contact" });
+    }
+  });
+  
+  // Skyler context-aware endpoints for full will functionality 
   app.get("/api/skyler/user-context", async (req: Request, res: Response) => {
     if (!isUserAuthenticated(req)) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
     try {
-      // Get only user information for context (no more will data)
+      // Get user information and will data for context
+      const userWills = await dbStorage.getUserWills(req.user.id);
+      
+      // Get the first active will for context, if any
+      const activeWill = userWills.find(will => will.status !== 'draft');
+      
       const context = {
         user: {
           username: req.user!.username,
           fullName: req.user!.fullName,
+        },
+        wills: {
+          count: userWills.length,
+          hasActiveWill: !!activeWill,
+          activeWill: activeWill ? {
+            id: activeWill.id,
+            title: activeWill.title,
+            template: activeWill.template,
+            status: activeWill.status,
+            createdAt: activeWill.createdAt
+          } : null
         }
       };
       
