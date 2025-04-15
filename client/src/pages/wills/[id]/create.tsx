@@ -63,6 +63,15 @@ export default function CreateWillPage() {
   });
 
   // Update form values when will data is loaded
+  // Get tab from URL query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get('tab');
+    if (tabParam && ['content', 'documents', 'contacts', 'video', 'finalize'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, []);
+
   useEffect(() => {
     if (will) {
       form.reset({
