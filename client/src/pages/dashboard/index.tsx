@@ -4,13 +4,35 @@ import { useLocation } from 'wouter';
 import { motion } from 'framer-motion';
 import WelcomeBanner from '@/components/dashboard/WelcomeBanner';
 import TrustProgressBar from '@/components/dashboard/TrustProgressBar';
-import WillDocumentCard from '@/components/dashboard/WillDocumentCard';
-import Beneficiaries from '@/components/dashboard/Beneficiaries';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { Calendar, Video, UploadCloud, MessageSquare, FilePlus, AlertCircle, Loader2 } from 'lucide-react';
+import { 
+  Calendar, 
+  Video, 
+  UploadCloud, 
+  MessageSquare, 
+  FilePlus, 
+  AlertCircle, 
+  Loader2,
+  FileText,
+  Users,
+  Clock,
+  CreditCard,
+  Check,
+  ArrowRight
+} from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { getLastUpdated } from '@/lib/will-progress-tracker';
 
 interface Will {
   id: number;
@@ -20,18 +42,47 @@ interface Will {
   createdAt: string;
   updatedAt: string;
   isComplete: boolean;
+  status?: 'draft' | 'completed' | 'locked';
 }
 
 interface WillDocument {
   id: number;
   willId: number;
-  fileName: string;
-  fileType: string;
-  fileSize: number;
+  name: string;
+  path: string;
+  type: string;
   uploadDate: string;
-  filePath: string;
+  size: number;
 }
 
+interface Subscription {
+  id: number;
+  userId: number;
+  plan: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+}
+
+// Component for Dashboard stats
+const DashboardStat = ({ icon: Icon, label, value, color = "primary" }: {
+  icon: React.ElementType;
+  label: string;
+  value: string | number;
+  color?: string;
+}) => (
+  <div className="flex items-center p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">
+    <div className={`p-3 rounded-full mr-4 bg-${color}-100 dark:bg-${color}-900/30`}>
+      <Icon className={`h-5 w-5 text-${color}-600 dark:text-${color}-400`} />
+    </div>
+    <div>
+      <p className="text-gray-500 dark:text-gray-400 text-sm">{label}</p>
+      <p className="text-2xl font-semibold text-gray-800 dark:text-white">{value}</p>
+    </div>
+  </div>
+);
+
+// Empty state component
 const EmptyStateMessage = ({ title, message, action, onAction }: { 
   title: string, 
   message: string, 
@@ -46,13 +97,13 @@ const EmptyStateMessage = ({ title, message, action, onAction }: {
     <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-6">
       {message}
     </p>
-    <button 
+    <Button
       onClick={onAction}
-      className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark transition-colors inline-flex items-center"
+      className="inline-flex items-center"
     >
       <FilePlus className="h-4 w-4 mr-2" />
       {action}
-    </button>
+    </Button>
   </div>
 );
 
@@ -71,6 +122,9 @@ const DashboardPage: React.FC = () => {
     queryKey: ['/api/wills'],
     queryFn: async () => {
       const res = await apiRequest('GET', '/api/wills');
+      if (!res.ok) {
+        throw new Error('Failed to fetch wills');
+      }
       return res.json();
     }
   });
@@ -89,12 +143,31 @@ const DashboardPage: React.FC = () => {
     queryFn: async () => {
       if (!mostRecentWill) return [];
       const res = await apiRequest('GET', `/api/wills/${mostRecentWill.id}/documents`);
+      if (!res.ok) {
+        throw new Error('Failed to fetch documents');
+      }
       return res.json();
     },
     enabled: !!mostRecentWill
   });
   
-  // Calculate trust progress based on data
+  // Fetch subscription info
+  const {
+    data: subscription,
+    isLoading: isLoadingSubscription
+  } = useQuery<Subscription>({
+    queryKey: ['/api/subscription'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/subscription');
+      if (!res.ok) {
+        // If not found, return default subscription
+        return { plan: 'Starter', status: 'active' } as Subscription;
+      }
+      return res.json();
+    }
+  });
+  
+  // Calculate trust progress based on real data
   useEffect(() => {
     if (wills && documents) {
       let progress = 0;
@@ -116,15 +189,65 @@ const DashboardPage: React.FC = () => {
     }
   }, [wills, documents, mostRecentWill]);
   
+  // Format date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+  
+  // Get time since last update
+  const getTimeSince = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'today';
+    if (diffDays === 1) return 'yesterday';
+    return `${diffDays} days ago`;
+  };
+
+  // Get last will update date
+  const getLastWillUpdateDate = () => {
+    if (mostRecentWill) {
+      return getTimeSince(mostRecentWill.updatedAt);
+    }
+    
+    // Check localStorage as fallback
+    const lastUpdated = getLastUpdated();
+    if (lastUpdated) {
+      return getTimeSince(lastUpdated.toISOString());
+    }
+    
+    return null;
+  };
+  
+  // Navigation handlers for quick actions
   const handleCreateWill = () => {
     navigate('/ai-chat');
   };
   
-  const handleUploadDocument = () => {
-    navigate('/dashboard/documents');
+  const handleViewWills = () => {
+    navigate('/dashboard/wills');
   };
   
-  const handleRecordTestimony = () => {
+  const handleViewDocuments = () => {
+    if (mostRecentWill) {
+      navigate(`/document-upload?willId=${mostRecentWill.id}`);
+    } else {
+      toast({
+        title: "No will created yet",
+        description: "Please create a will before accessing documents.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleViewVideo = () => {
     if (mostRecentWill) {
       navigate(`/video-recording?willId=${mostRecentWill.id}`);
     } else {
@@ -136,14 +259,7 @@ const DashboardPage: React.FC = () => {
     }
   };
   
-  const handleSetupDelivery = () => {
-    navigate('/dashboard/delivery');
-  };
-  
-  const handleSetReminder = () => {
-    navigate('/dashboard/reminders');
-  };
-
+  // Loading state
   if (isLoadingWills) {
     return (
       <DashboardLayout title="Dashboard">
@@ -160,239 +276,263 @@ const DashboardPage: React.FC = () => {
   return (
     <DashboardLayout title="Dashboard">
       <div className="max-w-7xl mx-auto">
-        {/* Welcome Banner */}
-        <WelcomeBanner />
-        
-        {/* Trust Progress Bar */}
-        <TrustProgressBar progress={trustProgress} showDetails={false} />
-        
-        {/* Dashboard Grid */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Will Document Card */}
+        {/* Welcome Banner with Last Activity */}
+        {mostRecentWill && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
+            className="p-4 mb-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm"
           >
-            {mostRecentWill ? (
-              <WillDocumentCard willId={mostRecentWill.id} />
-            ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm transition-all h-full">
-                <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                  <div className="flex items-center">
-                    <FilePlus className="h-5 w-5 text-primary mr-2" />
-                    <h3 className="font-semibold text-gray-800 dark:text-white">Create Your Will</h3>
-                  </div>
-                </div>
-                <div className="p-4">
-                  <EmptyStateMessage 
-                    title="No Will Created Yet"
-                    message="Start the process of creating your will with our AI-powered assistant."
-                    action="Create Your First Will"
-                    onAction={handleCreateWill}
-                  />
-                </div>
-              </div>
-            )}
-          </motion.div>
-          
-          {/* Supporting Documents Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-            className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all"
-          >
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <div className="flex items-center">
-                <UploadCloud className="h-5 w-5 text-primary mr-2" />
-                <h3 className="font-semibold text-gray-800 dark:text-white">Supporting Documents</h3>
-                {documents && documents.length > 0 && (
-                  <span className="ml-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-xs px-2 py-0.5 rounded-full">
-                    {documents.length}
-                  </span>
+            <div className="flex items-center">
+              <div className="flex-grow">
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-white">
+                  Welcome back{user?.fullName ? ', ' + user.fullName.split(' ')[0] : ''}!
+                </h2>
+                {getLastWillUpdateDate() && (
+                  <p className="text-gray-600 dark:text-gray-400 text-sm">
+                    You last edited your will {getLastWillUpdateDate()}.
+                  </p>
                 )}
               </div>
-              {mostRecentWill && (
-                <button 
-                  onClick={handleUploadDocument}
-                  className="text-xs text-primary hover:text-primary-dark"
-                >
-                  View All
-                </button>
-              )}
-            </div>
-            <div className="p-4">
-              {isLoadingDocs ? (
-                <div className="flex justify-center items-center py-4">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : documents && documents.length > 0 ? (
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium">{documents.length} Document{documents.length !== 1 ? 's' : ''}</span>
-                  </div>
-                  <div className="space-y-2">
-                    {documents.slice(0, 3).map(doc => (
-                      <div key={doc.id} className="flex items-center p-2 bg-gray-50 dark:bg-gray-900 rounded">
-                        <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded flex items-center justify-center mr-3">
-                          <span className="text-green-500">✓</span>
-                        </div>
-                        <span className="text-sm">{doc.fileName}</span>
-                      </div>
-                    ))}
-                    {documents.length > 3 && (
-                      <div className="text-center text-sm text-gray-500 dark:text-gray-400 mt-2">
-                        + {documents.length - 3} more document{documents.length - 3 !== 1 ? 's' : ''}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    {!mostRecentWill 
-                      ? "Create a will first, then add supporting documents."
-                      : "No documents uploaded yet. Add important documents to support your will."}
-                  </p>
-                  <button
-                    onClick={handleUploadDocument}
-                    className="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-lg transition-colors"
-                    disabled={!mostRecentWill}
-                  >
-                    {mostRecentWill ? "Upload Documents" : "Create Will First"}
-                  </button>
+              {subscription && (
+                <div className="px-3 py-1 bg-primary/10 text-primary text-sm rounded-full">
+                  {subscription.plan || 'Starter'} Plan
                 </div>
               )}
             </div>
           </motion.div>
-          
-          {/* Video Testimony Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
-            className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all"
-          >
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+        )}
+        
+        {/* Stats Section - Real Data from Supabase */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {wills && wills.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <DashboardStat 
+                icon={FileText} 
+                label="Total Wills" 
+                value={wills.length} 
+              />
+              <DashboardStat 
+                icon={UploadCloud} 
+                label="Documents" 
+                value={documents?.length || 0} 
+              />
+              <DashboardStat 
+                icon={Video} 
+                label="Video Status" 
+                value={mostRecentWill?.isComplete ? '✅ Recorded' : '❌ Missing'} 
+                color={mostRecentWill?.isComplete ? "green" : "red"}
+              />
+              <DashboardStat 
+                icon={Clock} 
+                label="Last Updated" 
+                value={mostRecentWill ? formatDate(mostRecentWill.updatedAt) : 'N/A'} 
+              />
+            </div>
+          ) : (
+            <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-xl border border-blue-100 dark:border-blue-800/50">
               <div className="flex items-center">
-                <Video className="h-5 w-5 text-primary mr-2" />
-                <h3 className="font-semibold text-gray-800 dark:text-white">Video Testimony</h3>
-              </div>
-              {mostRecentWill && (
-                <button
-                  onClick={() => navigate('/dashboard/video')}
-                  className="text-xs text-primary hover:text-primary-dark"
-                >
-                  View
-                </button>
-              )}
-            </div>
-            <div className="p-4">
-              {mostRecentWill && mostRecentWill.isComplete ? (
+                <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-800 mr-3">
+                  <AlertCircle className="h-5 w-5 text-blue-500 dark:text-blue-300" />
+                </div>
                 <div>
-                  <div 
-                    className="aspect-video bg-gray-100 dark:bg-gray-900 rounded-lg mb-3 flex items-center justify-center cursor-pointer"
-                    onClick={() => navigate('/dashboard/video')}
-                  >
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Video className="h-6 w-6 text-primary" />
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Recorded: {new Date(mostRecentWill.updatedAt).toLocaleDateString()}</span>
-                    <span 
-                      className="text-primary hover:text-primary-dark cursor-pointer"
-                      onClick={() => navigate('/dashboard/video')}
-                    >
-                      Watch
-                    </span>
-                  </div>
+                  <p className="font-medium">You haven't created a will yet</p>
+                  <p className="text-sm mt-1">Start by clicking the "Create New Will" button below.</p>
                 </div>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    {!mostRecentWill 
-                      ? "Create a will first, then record a video testimony."
-                      : "Record a video testimony to add a personal touch to your will."}
-                  </p>
-                  <button
-                    onClick={handleRecordTestimony}
-                    className="px-3 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-lg transition-colors"
-                    disabled={!mostRecentWill}
-                  >
-                    {mostRecentWill ? "Record Testimony" : "Create Will First"}
-                  </button>
-                </div>
-              )}
+              </div>
             </div>
-          </motion.div>
-          
-          {/* Beneficiaries Card */}
+          )}
+        </motion.div>
+        
+        {/* Quick Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+              <CardDescription>Access your important will management tools</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <Button 
+                  onClick={handleViewWills}
+                  variant="outline" 
+                  className="h-auto py-6 flex flex-col items-center justify-center space-y-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <FileText className="h-6 w-6 text-primary" />
+                  <span>Wills</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {wills?.length || 0} {wills?.length === 1 ? 'will' : 'wills'} created
+                  </span>
+                </Button>
+                
+                <Button 
+                  onClick={handleViewDocuments} 
+                  variant="outline" 
+                  className="h-auto py-6 flex flex-col items-center justify-center space-y-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  disabled={!mostRecentWill}
+                >
+                  <UploadCloud className="h-6 w-6 text-primary" />
+                  <span>Supporting Documents</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {documents?.length || 0} {documents?.length === 1 ? 'document' : 'documents'} uploaded
+                  </span>
+                </Button>
+                
+                <Button 
+                  onClick={handleViewVideo} 
+                  variant="outline" 
+                  className="h-auto py-6 flex flex-col items-center justify-center space-y-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  disabled={!mostRecentWill}
+                >
+                  <Video className="h-6 w-6 text-primary" />
+                  <span>Video Testimony</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {mostRecentWill?.isComplete ? 'Recorded' : 'Not recorded yet'}
+                  </span>
+                </Button>
+              </div>
+            </CardContent>
+            <CardFooter className="flex justify-center border-t pt-4">
+              {!wills || wills.length === 0 ? (
+                <Button 
+                  onClick={handleCreateWill}
+                  className="flex items-center"
+                >
+                  <FilePlus className="mr-2 h-4 w-4" />
+                  Create Your First Will
+                </Button>
+              ) : (
+                <Button 
+                  onClick={handleCreateWill}
+                  variant="outline"
+                  className="flex items-center"
+                >
+                  <FilePlus className="mr-2 h-4 w-4" />
+                  Create New Will
+                </Button>
+              )}
+            </CardFooter>
+          </Card>
+        </motion.div>
+        
+        {/* Trust Progress */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+        >
+          <Card className="mb-6">
+            <CardHeader className="pb-2">
+              <CardTitle>Trust Progress</CardTitle>
+              <CardDescription>Complete all steps to ensure your will is properly set up</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <TrustProgressBar progress={trustProgress} showDetails={true} />
+            </CardContent>
+          </Card>
+        </motion.div>
+        
+        {/* Recent Activity or Empty State */}
+        {!wills || wills.length === 0 ? (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.3 }}
-            className="lg:col-span-2"
+            className="bg-white dark:bg-gray-800 rounded-xl p-8 border border-gray-200 dark:border-gray-700 shadow-sm text-center"
           >
-            <Beneficiaries willId={mostRecentWill?.id} />
-          </motion.div>
-          
-          {/* Reminders Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.4 }}
-            className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all"
-          >
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <div className="flex items-center">
-                <Calendar className="h-5 w-5 text-primary mr-2" />
-                <h3 className="font-semibold text-gray-800 dark:text-white">Reminders</h3>
-              </div>
+            <div className="mx-auto w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+              <FileText className="h-10 w-10 text-primary" />
             </div>
-            <div className="p-4">
-              <div className="text-sm text-center text-gray-500 dark:text-gray-400 py-8">
-                <p>You have no upcoming reminders.</p>
-                <button 
-                  className="mt-2 text-primary hover:text-primary-dark"
-                  onClick={handleSetReminder}
+            <h3 className="text-xl font-semibold mb-2">No Wills Created Yet</h3>
+            <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto mb-6">
+              Start by creating your first will with our AI-powered assistant Skyler. The process is simple and guided.
+            </p>
+            <Button 
+              onClick={handleCreateWill}
+              size="lg"
+              className="flex items-center mx-auto"
+            >
+              <FilePlus className="mr-2 h-5 w-5" />
+              Create Your First Will
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.3 }}
+          >
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                  <CardTitle>Recent Activity</CardTitle>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleViewWills}
+                  >
+                    View All Wills
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {wills.slice(0, 3).map((will) => (
+                    <div 
+                      key={will.id} 
+                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
+                      onClick={() => {
+                        localStorage.setItem('currentWillId', will.id.toString());
+                        navigate(`/dashboard/wills`);
+                      }}
+                    >
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mr-3">
+                          <FileText className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{will.title || `Will #${will.id}`}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            Last updated: {formatDate(will.updatedAt)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center">
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${
+                          will.isComplete 
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                            : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        }`}>
+                          {will.isComplete ? 'Complete' : 'Draft'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+              <CardFooter className="border-t pt-4 flex justify-center">
+                <Button 
+                  variant="ghost" 
+                  onClick={handleCreateWill}
+                  className="flex items-center"
                 >
-                  Set a reminder
-                </button>
-              </div>
-            </div>
+                  <FilePlus className="mr-2 h-4 w-4" />
+                  Create New Will
+                </Button>
+              </CardFooter>
+            </Card>
           </motion.div>
-          
-          {/* Delivery Instructions Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.5 }}
-            className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all"
-          >
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <div className="flex items-center">
-                <MessageSquare className="h-5 w-5 text-primary mr-2" />
-                <h3 className="font-semibold text-gray-800 dark:text-white">Delivery Instructions</h3>
-              </div>
-            </div>
-            <div className="p-4">
-              <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-sm text-amber-700 dark:text-amber-300 mb-3">
-                <p>You haven't set up delivery instructions yet.</p>
-              </div>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Specify how your will should be delivered to your executor and beneficiaries in case of emergency.
-              </p>
-              <button 
-                onClick={handleSetupDelivery}
-                className="w-full py-2 bg-primary/10 hover:bg-primary/20 text-primary font-medium rounded-lg transition-colors"
-              >
-                Set Up Delivery
-              </button>
-            </div>
-          </motion.div>
-        </div>
+        )}
       </div>
     </DashboardLayout>
   );

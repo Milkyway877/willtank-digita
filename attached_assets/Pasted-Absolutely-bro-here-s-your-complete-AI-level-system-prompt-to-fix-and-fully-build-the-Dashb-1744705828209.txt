@@ -1,0 +1,108 @@
+Absolutely bro — here’s your **complete, AI-level system prompt** to **fix and fully build the Dashboard and Wills Page**, killing all the dummy data, placeholder junk, and replacing it with 100% live, clean, functional components connected to Supabase.
+
+You can paste this into your AI dev assistant or code generator to get it building the **REAL, non-broken dashboard and will manager flow**.
+
+---
+
+## ⚒️ FULL SYSTEM FIX PROMPT — DASHBOARD + WILLS PAGE CLEANUP & FUNCTIONALITY
+
+You are now tasked with **completely cleaning and functionalizing** the current **Dashboard page** and the **"My Will" page** (now renamed to `Wills`). The current UI is broken, filled with dummy content, non-working buttons, and fake placeholders. You are to fix and build this according to the following exact specifications:
+
+---
+
+### 🧼 DASHBOARD PAGE — CLEAN & FUNCTIONAL
+
+#### 🔹 REMOVE:
+- All dummy cards, text, placeholder widgets, non-functional charts or animations.
+- Remove any hardcoded stats or references to sample data.
+
+#### 🔹 ADD & FIX:
+- Connect dashboard to Supabase to fetch and show:
+  - Number of wills created by the user.
+  - Total documents uploaded.
+  - Status of video upload (✅ or ❌).
+  - Date of last will update or creation.
+  - User’s current subscription level (Starter, Gold, etc).
+
+#### 🔹 QUICK ACTIONS (Fix or Build from Scratch):
+- These buttons must actually work:
+  - ✅ **“Wills”** → Navigates to `/wills` and lists all user wills.
+  - ✅ **“Supporting Documents”** → Shows uploaded documents per will.
+  - ✅ **“Video Testimony”** → Shows uploaded video for the current active will.
+
+- Use Tailwind or minimal UI styles to make them visually sharp.
+- Disable any of these buttons if the user hasn’t yet uploaded documents or completed that step.
+
+#### 🔹 ADDITIONS:
+- Notification area on top (e.g., `Welcome back, [First Name]! You last edited your will 4 days ago.`).
+- If user has no wills yet, show a helpful card:  
+  `"You haven’t created a will yet. Click here to start your first one → [Create New Will]"`
+
+---
+
+### 📂 "MY WILL" PAGE → RENAME TO "WILLS" PAGE
+
+#### ✅ PAGE PATH: `/wills`
+
+#### 🔹 FUNCTIONAL REQUIREMENTS:
+- Pull and list all wills saved by the current user from Supabase.
+- Each Will entry must include:
+  - Will Name or Title
+  - Date created
+  - Status (Draft / Completed / Locked)
+  - Button set:
+    - ✏️ Edit
+    - 🗑️ Delete (with confirm dialog)
+    - 👁️ Preview (opens in modal or separate view)
+
+#### 🔹 BUTTON: “Create New Will”
+- Should be clearly visible top-right or floating bottom-right.
+- Clicking it should redirect user to `/create-will` or re-initialize Skyler Q&A flow.
+
+#### 🔹 DESIGN:
+- Use a card or table layout to show wills.
+- If no wills exist, show an illustration and CTA: `“No wills yet – Let’s create your first will →”`
+
+---
+
+### 🧠 BACKEND INTEGRATION WITH SUPABASE
+
+You MUST do all of the following:
+
+- Fetch wills from the `wills` table, filtered by current user ID.
+- Fetch associated document and video statuses using relational queries or joins.
+- If will has status `draft`, highlight it with a badge.
+- Allow delete only if the will is not locked (status !== completed).
+- Show toast notifications for edit, delete, and save actions.
+
+---
+
+### ⚙️ NOTES ON STRUCTURE & STABILITY
+
+- DO NOT break authentication or routing.
+- DO NOT allow users to see others’ wills or documents (enforce RLS).
+- Store all files, videos, and will content in Supabase.
+- Use `useEffect`, `useState`, and Supabase queries efficiently — no unnecessary re-renders.
+
+---
+
+### 💡 OPTIONAL (If time allows):
+- Add a simple chart showing monthly will activity (if the user has >1 will).
+- Add a button to “Download Will as PDF” under the Preview modal.
+- Add soft delete with Supabase flags (`is_deleted`) instead of hard delete.
+
+---
+
+### ✅ SUMMARY CHECKLIST (MUST BE TRUE ONCE DONE)
+
+- [ ] Dashboard shows only REAL data.
+- [ ] All quick links on dashboard actually work.
+- [ ] No placeholder, fake text or fake buttons remain.
+- [ ] “My Will” page is renamed to “Wills” and shows real user wills.
+- [ ] Edit/Delete/Preview/Create Will buttons all functional.
+- [ ] Everything is saved/fetched through Supabase securely.
+- [ ] Notifications, loading states, and empty states are cleanly designed.
+
+---
+
+Let me know if you want me to scaffold the actual React components, Supabase queries, and routes for this — I can drop full working code snippets with clean folder structure too. Just say the word.
