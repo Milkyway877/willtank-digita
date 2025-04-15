@@ -394,6 +394,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addWillDocument(document: InsertWillDocument): Promise<WillDocument> {
+    // Ensure necessary fields are present
+    if (!document.willId || !document.userId || !document.fileName || !document.fileUrl) {
+      throw new Error("Missing required fields for document upload");
+    }
+    
     const [newDocument] = await db
       .insert(willDocuments)
       .values(document)

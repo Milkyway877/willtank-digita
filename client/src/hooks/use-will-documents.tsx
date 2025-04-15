@@ -25,10 +25,18 @@ export function useWillDocuments(willId: number) {
   // Upload document to a will
   const uploadDocumentMutation = useMutation({
     mutationFn: async (formData: FormData) => {
-      const res = await apiRequest('POST', `/api/wills/${willId}/documents`, null, {
-        headers: {}, // Let browser set content-type with boundary for FormData
+      // Use fetch directly for FormData
+      const res = await fetch(`/api/wills/${willId}/documents`, {
+        method: 'POST',
         body: formData,
+        // Let browser set the content-type with proper boundary
       });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to upload document');
+      }
+      
       return res.json();
     },
     onSuccess: () => {

@@ -10,6 +10,7 @@ export type ContactFormValues = {
   email: string;
   phone?: string;
   address?: string;
+  country?: string;
   role: 'beneficiary' | 'executor' | 'witness' | 'other';
   notes?: string;
 };

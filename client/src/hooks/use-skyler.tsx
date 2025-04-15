@@ -197,8 +197,18 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
 
   /**
    * Send a message with streaming response
+   * @param content - The message content
+   * @param willId - Optional will ID for context
+   * @param options - Additional processing options
    */
-  const sendStreamingMessage = async (content: string): Promise<SkylerMessage | null> => {
+  const sendStreamingMessage = async (
+    content: string,
+    willId?: number,
+    options?: {
+      extractContacts?: boolean;
+      extractDocuments?: boolean;
+    }
+  ): Promise<SkylerMessage | null> => {
     try {
       setIsLoading(true);
       setIsStreaming(true);
@@ -223,7 +233,13 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
       // Use updated messages array with the new user message
       const currentMessages = [...messagesRef.current, userMessage];
 
-      // Create fetch request for streaming
+      // Process the extraction options
+      const processingOptions = options ? {
+        extractContacts: options.extractContacts || false,
+        extractDocuments: options.extractDocuments || false
+      } : undefined;
+
+      // Create fetch request for streaming with will context if provided
       const response = await fetch('/api/skyler/chat-stream', {
         method: 'POST',
         headers: {
@@ -233,7 +249,10 @@ export const SkylerProvider = ({ children }: { children: ReactNode }) => {
           messages: currentMessages.map(m => ({
             role: m.role,
             content: m.content
-          }))
+          })),
+          // Include will ID and processing options if they exist
+          ...(willId ? { willId } : {}),
+          ...(processingOptions ? { processingOptions } : {})
         }),
         signal: controller.signal
       });
