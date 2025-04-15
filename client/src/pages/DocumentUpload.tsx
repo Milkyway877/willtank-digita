@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { Upload, X, Check, AlertCircle, FileText, Image, Film, File, ArrowRight } from 'lucide-react';
 import AnimatedAurora from '@/components/ui/AnimatedAurora';
 import Logo from '@/components/ui/Logo';
+import { WillCreationStep, saveWillProgress as trackWillProgress } from '@/lib/will-progress-tracker';
 
 // Document type interface
 interface DocumentRequirement {
@@ -49,22 +50,24 @@ const DocumentUpload: React.FC = () => {
   
   // Get willId from URL query parameters
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const willIdParam = params.get('willId');
-    
-    if (willIdParam) {
-      try {
-        const parsedWillId = parseInt(willIdParam, 10);
-        console.log(`Found willId in URL: ${parsedWillId}`);
-        setWillId(parsedWillId);
-        
-        // Store in localStorage for other components
-        localStorage.setItem('currentWillId', parsedWillId.toString());
-      } catch (error) {
-        console.error('Error parsing willId from URL:', error);
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      const willIdParam = searchParams.get('willId');
+      
+      if (willIdParam) {
+        try {
+          const parsedWillId = parseInt(willIdParam, 10);
+          console.log(`Found willId in URL: ${parsedWillId}`);
+          setWillId(parsedWillId);
+          
+          // Store in localStorage for other components
+          localStorage.setItem('currentWillId', parsedWillId.toString());
+        } catch (error) {
+          console.error('Error parsing willId from URL:', error);
+        }
       }
     }
-  }, [location]);
+  }, []);
 
   // Load will data from localStorage
   useEffect(() => {
@@ -297,7 +300,18 @@ const DocumentUpload: React.FC = () => {
 
   // Handle continue to video recording
   const handleContinue = () => {
-    navigate('/video-recording');
+    // Update progress tracker
+    trackWillProgress(WillCreationStep.VIDEO_RECORDING);
+    
+    // Continue to video recording with the willId
+    if (willId) {
+      console.log(`Continuing to video recording with willId: ${willId}`);
+      navigate(`/video-recording?willId=${willId}`);
+    } else {
+      // Fallback if willId is missing
+      console.error('Missing willId when trying to proceed to video recording');
+      navigate('/video-recording');
+    }
   };
 
   // Get file icon based on file type
