@@ -14,8 +14,6 @@ export const users = pgTable("users", {
   verificationCodeExpiry: timestamp("verification_code_expiry"),
   resetPasswordToken: text("reset_password_token"),
   resetPasswordExpiry: timestamp("reset_password_expiry"),
-  willInProgress: boolean("will_in_progress").default(false),
-  willCompleted: boolean("will_completed").default(false),
   preferences: json("preferences"), // Storing user preferences as JSON
   lastCheckIn: timestamp("last_check_in"),
   nextCheckInDue: timestamp("next_check_in_due"),
@@ -102,51 +100,24 @@ export const deathVerificationOtps = pgTable("death_verification_otps", {
   usedAt: timestamp("used_at"),
 });
 
-// Will templates table
-export const willTemplates = pgTable("will_templates", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  templateContent: text("template_content").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-// Wills table
-export const wills = pgTable("wills", {
+// Documents table (no longer linked to wills)
+export const documents = pgTable("documents", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
-  templateId: integer("template_id").references(() => willTemplates.id),
-  title: text("title").notNull(),
-  content: text("content").notNull(),
-  status: text("status").notNull().default("draft"), // draft, completed
-  lastUpdated: timestamp("last_updated").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow(),
-  videoRecordingUrl: text("video_recording_url"),
-  isReleased: boolean("is_released").default(false), // Set to true when death is verified
-});
-
-// Will documents table
-export const willDocuments = pgTable("will_documents", {
-  id: serial("id").primaryKey(),
-  willId: integer("will_id").notNull().references(() => wills.id),
   fileName: text("file_name").notNull(),
   fileType: text("file_type").notNull(),
   fileSize: integer("file_size").notNull(),
   uploadDate: timestamp("upload_date").defaultNow(),
   fileUrl: text("file_url").notNull(),
+  category: text("category").default("general"),
 });
 
-// Define will relations
-export const willsRelations = relations(wills, ({ one, many }) => ({
+// Define document relations
+export const documentsRelations = relations(documents, ({ one }) => ({
   user: one(users, {
-    fields: [wills.userId],
+    fields: [documents.userId],
     references: [users.id],
   }),
-  template: one(willTemplates, {
-    fields: [wills.templateId],
-    references: [willTemplates.id],
-  }),
-  documents: many(willDocuments),
 }));
 
 // Notification types enum
@@ -170,7 +141,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   beneficiaries: many(beneficiaries),
   executors: many(executors),
   deathVerifiers: many(deathVerifiers),
-  wills: many(wills),
+  documents: many(documents),
   notifications: many(notifications),
 }));
 
@@ -212,20 +183,13 @@ export const insertDeathVerifierSchema = createInsertSchema(deathVerifiers).pick
   phone: true,
 });
 
-export const insertWillSchema = createInsertSchema(wills).pick({
+export const insertDocumentSchema = createInsertSchema(documents).pick({
   userId: true,
-  templateId: true,
-  title: true,
-  content: true,
-  status: true,
-});
-
-export const insertWillDocumentSchema = createInsertSchema(willDocuments).pick({
-  willId: true,
   fileName: true,
   fileType: true,
   fileSize: true,
   fileUrl: true,
+  category: true,
 });
 
 export const insertNotificationSchema = createInsertSchema(notifications).pick({
@@ -280,11 +244,8 @@ export type InsertExecutor = z.infer<typeof insertExecutorSchema>;
 export type Executor = typeof executors.$inferSelect;
 export type InsertDeathVerifier = z.infer<typeof insertDeathVerifierSchema>;
 export type DeathVerifier = typeof deathVerifiers.$inferSelect;
-export type InsertWill = z.infer<typeof insertWillSchema>;
-export type Will = typeof wills.$inferSelect;
-export type InsertWillDocument = z.infer<typeof insertWillDocumentSchema>;
-export type WillDocument = typeof willDocuments.$inferSelect;
-export type WillTemplate = typeof willTemplates.$inferSelect;
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
+export type Document = typeof documents.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertDeliverySettings = z.infer<typeof insertDeliverySettingsSchema>;

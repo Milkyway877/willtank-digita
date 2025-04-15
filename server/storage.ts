@@ -1,8 +1,6 @@
 import { 
   users, type User, type InsertUser,
-  wills, type Will, type InsertWill,
-  willDocuments, type WillDocument, type InsertWillDocument,
-  willTemplates, type WillTemplate,
+  documents, type Document, type InsertDocument,
   notifications, type Notification, type InsertNotification
 } from "@shared/schema";
 import { db } from "./db";
@@ -30,20 +28,11 @@ export interface IStorage {
   updateOnboardingStatus(userId: number, hasCompleted: boolean): Promise<User>;
   saveUserProfile(userId: number, profile: { fullName?: string, [key: string]: any }): Promise<User>;
   
-  // Will management methods
-  getWillsByUserId(userId: number): Promise<Will[]>;
-  getWillById(willId: number): Promise<Will | undefined>;
-  createWill(will: InsertWill): Promise<Will>;
-  updateWill(willId: number, updates: Partial<Will>): Promise<Will | undefined>;
-  
-  // Will template methods
-  getWillTemplates(): Promise<WillTemplate[]>;
-  getWillTemplateById(templateId: number): Promise<WillTemplate | undefined>;
-  
   // Document management methods
-  getWillDocuments(willId: number): Promise<WillDocument[]>;
-  addWillDocument(document: InsertWillDocument): Promise<WillDocument>;
-  deleteWillDocument(documentId: number): Promise<void>;
+  getUserDocuments(userId: number): Promise<Document[]>;
+  getDocumentById(documentId: number): Promise<Document | undefined>;
+  addDocument(document: InsertDocument): Promise<Document>;
+  deleteDocument(documentId: number): Promise<void>;
   
   // Notification methods
   getUserNotifications(userId: number): Promise<Notification[]>;
@@ -194,10 +183,19 @@ export class DatabaseStorage implements IStorage {
 
   // Onboarding methods implementation
   async updateOnboardingStatus(userId: number, hasCompleted: boolean): Promise<User> {
+    // Store onboarding status in preferences
+    const user = await this.getUser(userId);
+    if (!user) throw new Error(`User not found: ${userId}`);
+    
+    const preferences = user.preferences ? 
+      JSON.parse(user.preferences as string) : {};
+    
+    preferences.hasCompletedOnboarding = hasCompleted;
+    
     const [updated] = await db
       .update(users)
       .set({
-        hasCompletedOnboarding: hasCompleted,
+        preferences: JSON.stringify(preferences) as any,
       })
       .where(eq(users.id, userId))
       .returning();
@@ -224,180 +222,35 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  // Will management methods implementation
-  async getWillsByUserId(userId: number): Promise<Will[]> {
-    return db
-      .select()
-      .from(wills)
-      .where(eq(wills.userId, userId))
-      .orderBy(sql`${wills.createdAt} DESC`);
-  }
-
-  async getWillById(willId: number): Promise<Will | undefined> {
-    const [will] = await db
-      .select()
-      .from(wills)
-      .where(eq(wills.id, willId));
-    return will;
-  }
-
-  async createWill(will: InsertWill): Promise<Will> {
-    const [newWill] = await db
-      .insert(wills)
-      .values(will)
-      .returning();
-    return newWill;
-  }
-
-  async updateWill(willId: number, updates: Partial<Will>): Promise<Will | undefined> {
-    try {
-      const [updated] = await db
-        .update(wills)
-        .set(updates)
-        .where(eq(wills.id, willId))
-        .returning();
-      return updated;
-    } catch (error) {
-      console.error('Failed to update will:', error);
-      return undefined;
-    }
-  }
-
-  // Will template methods implementation
-  async getWillTemplates(): Promise<WillTemplate[]> {
-    const templates = await db.select().from(willTemplates);
-    
-    // If no templates exist, seed the database with default templates
-    if (templates.length === 0) {
-      await this.seedWillTemplates();
-      return db.select().from(willTemplates);
-    }
-    
-    return templates;
-  }
-
-  async getWillTemplateById(templateId: number): Promise<WillTemplate | undefined> {
-    const [template] = await db
-      .select()
-      .from(willTemplates)
-      .where(eq(willTemplates.id, templateId));
-      
-    // If no template exists, try seeding and fetching again
-    if (!template) {
-      await this.seedWillTemplates();
-      const [newTemplate] = await db
-        .select()
-        .from(willTemplates)
-        .where(eq(willTemplates.id, templateId));
-      return newTemplate;
-    }
-    
-    return template;
-  }
-  
-  // Seed the database with default will templates (if they don't exist)
-  async seedWillTemplates(): Promise<void> {
-    try {
-      console.log('Seeding will templates database...');
-      
-      // Add standard template
-      await db.insert(willTemplates).values({
-        id: 1,
-        title: 'Standard Will',
-        description: 'A comprehensive will suitable for most individuals with standard assets and beneficiaries.',
-        templateContent: JSON.stringify({
-          sections: [
-            'Personal Information',
-            'Beneficiary Designation',
-            'Asset Distribution',
-            'Executor Appointment',
-            'Special Instructions'
-          ]
-        }),
-      });
-      
-      // Add family template
-      await db.insert(willTemplates).values({
-        id: 2,
-        title: 'Family Protection Will',
-        description: 'Designed for families with children, including guardianship provisions and trust considerations.',
-        templateContent: JSON.stringify({
-          sections: [
-            'Guardian Appointment',
-            'Minor Trust Provisions',
-            'Education Funding',
-            'Pet Care Provisions',
-            'Family Heirlooms'
-          ]
-        }),
-      });
-      
-      // Add business template
-      await db.insert(willTemplates).values({
-        id: 3,
-        title: 'Business Owner Will',
-        description: 'Specialized will for entrepreneurs and business owners with succession planning.',
-        templateContent: JSON.stringify({
-          sections: [
-            'Business Succession',
-            'Shareholder Agreements',
-            'Intellectual Property',
-            'Business Debt Handling',
-            'Partner Buyout Provisions'
-          ]
-        }),
-      });
-      
-      // Add property template
-      await db.insert(willTemplates).values({
-        id: 4,
-        title: 'Real Estate Focused Will',
-        description: 'For individuals with significant real estate holdings and property interests.',
-        templateContent: JSON.stringify({
-          sections: [
-            'Property Distribution',
-            'Mortgage Instructions',
-            'Rental Property Management',
-            'Foreign Property Handling',
-            'Land Conservation Options'
-          ]
-        }),
-      });
-      
-      console.log('Successfully seeded will templates');
-      
-    } catch (error) {
-      console.error('Error seeding will templates:', error);
-      
-      // If the error is a duplicate key error, ignore it (templates already exist)
-      // Otherwise log the error for debugging
-      if ((error as any)?.code !== '23505') {
-        throw error;
-      }
-    }
-  }
-
   // Document management methods implementation
-  async getWillDocuments(willId: number): Promise<WillDocument[]> {
+  async getUserDocuments(userId: number): Promise<Document[]> {
     return db
       .select()
-      .from(willDocuments)
-      .where(eq(willDocuments.willId, willId))
-      .orderBy(sql`${willDocuments.uploadDate} DESC`);
+      .from(documents)
+      .where(eq(documents.userId, userId))
+      .orderBy(sql`${documents.uploadDate} DESC`);
   }
 
-  async addWillDocument(document: InsertWillDocument): Promise<WillDocument> {
+  async getDocumentById(documentId: number): Promise<Document | undefined> {
+    const [document] = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.id, documentId));
+    return document;
+  }
+
+  async addDocument(document: InsertDocument): Promise<Document> {
     const [newDocument] = await db
-      .insert(willDocuments)
+      .insert(documents)
       .values(document)
       .returning();
     return newDocument;
   }
 
-  async deleteWillDocument(documentId: number): Promise<void> {
+  async deleteDocument(documentId: number): Promise<void> {
     await db
-      .delete(willDocuments)
-      .where(eq(willDocuments.id, documentId));
+      .delete(documents)
+      .where(eq(documents.id, documentId));
   }
 
   // Notification methods implementation
