@@ -300,11 +300,17 @@ const FinalReview: React.FC = () => {
     try {
       // Mark the will as completed
       await apiRequest('POST', '/api/user/will-status', {
-        willCompleted: true
+        willId: parseInt(willId || '0'),
+        progress: WillCreationStep.PAYMENT,
+        willInProgress: true,
+        willCompleted: false
       });
       
+      // Save progress
+      saveWillProgress(WillCreationStep.PAYMENT);
+      
       // Navigate to subscription page
-      navigate('/subscription');
+      navigate(`/subscription?willId=${willId}`);
     } catch (error) {
       console.error('Error proceeding to payment:', error);
       toast({
