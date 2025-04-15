@@ -1,36 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { ArrowRight, RefreshCw, CheckCircle2, Loader2, Send } from 'lucide-react';
+import { Avatar } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
+import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation } from 'wouter';
-import { useAuth } from '@/hooks/use-auth';
-import { useSkyler, SkylerMessage } from '@/hooks/use-skyler';
-import { Send, ChevronUp, ChevronDown, User, PenSquare, Paperclip, FileText, Loader2 } from 'lucide-react';
-import Logo from '@/components/ui/Logo';
-import AnimatedAurora from '@/components/ui/AnimatedAurora';
 import { useToast } from '@/hooks/use-toast';
+import { useLocation } from 'wouter';
+import { apiRequest } from '@/lib/queryClient';
+import { useSkyler, SkylerMessage } from '@/hooks/use-skyler';
+import { useAuth } from '@/hooks/use-auth';
+import { WillCreationStep, saveWillProgress as trackWillProgress } from '@/lib/will-progress-tracker';
+import AnimatedAurora from '@/components/ui/AnimatedAurora';
 
-// Message types
-type MessageRole = 'assistant' | 'user';
-
-interface Message {
-  id: string;
-  role: MessageRole;
-  content: string;
-  createdAt: Date;
-}
-
-// Questions for will creation
-interface Question {
-  id: string;
-  text: string;
-  fieldName: string;
-  responseType: 'text' | 'number' | 'date' | 'select' | 'multiselect';
-  options?: string[];
-  validation?: (value: string) => boolean;
-  required?: boolean;
-  followupResponse?: string;
-}
-
-// Will document data structure
+/**
+ * Interface for Will Data extracted from Skyler conversation
+ */
 interface WillData {
   personalInfo: {
     fullName?: string;
@@ -41,794 +27,822 @@ interface WillData {
   beneficiaries: Array<{
     name: string;
     relationship: string;
-    share?: string;
-    contact?: string;
+    share: string;
   }>;
   executor?: {
     name: string;
     relationship: string;
-    contact?: string;
   };
   assets: Array<{
     type: string;
     description: string;
-    estimatedValue?: string;
-    beneficiary?: string;
-  }>;
-  guardians?: Array<{
-    name: string;
-    relationship: string;
-    contact?: string;
+    beneficiary: string;
   }>;
   specialInstructions?: string;
 }
 
-const AiChat: React.FC = () => {
-  const { user, isLoading } = useAuth();
-  const [, navigate] = useLocation();
-  const [messages, setMessages] = useState<Message[]>([]);
+/**
+ * Template instructions for different will types
+ */
+const TEMPLATE_INSTRUCTIONS = {
+  standard: `
+For a Standard Will, cover the essentials:
+- Personal property distribution
+- Basic beneficiary designations
+- Simple executor instructions
+- Digital asset instructions
+- Basic funeral/memorial wishes`,
+  
+  family: `
+For a Family Protection Will, you should focus on:
+- Guardianship for minor children
+- Trust arrangements for children's inheritance
+- Specific provisions for spouse/partner
+- Family heirlooms and their distribution
+- Education funds or special provisions for dependents`,
+  
+  business: `
+For a Business Owner Will, you should focus on:
+- Business succession planning
+- Ownership transfer instructions
+- Partner buyout provisions
+- Treatment of business assets vs personal assets
+- Any special instructions for business continuation`,
+  
+  property: `
+For a Real Estate Focused Will, you should focus on:
+- Detailed inventory of all real estate holdings
+- Specific instructions for each property
+- Rental/income properties management
+- Mortgage and debt handling
+- Joint ownership considerations`
+};
+
+/**
+ * Map template IDs to display names
+ */
+const TEMPLATE_NAMES: Record<string, string> = {
+  'standard': 'Standard Will',
+  'family': 'Family Protection Will',
+  'business': 'Business Owner Will',
+  'property': 'Real Estate Focused Will'
+};
+
+/**
+ * Skyler AI Chat Component - Completely Redesigned
+ */
+export const AiChat = () => {
+  // UI State
   const [input, setInput] = useState('');
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('standard');
   const [willData, setWillData] = useState<WillData>({
     personalInfo: {},
     beneficiaries: [],
-    assets: []
+    assets: [],
+    specialInstructions: ''
   });
-  const [previewExpanded, setPreviewExpanded] = useState(true);
-  const [isTyping, setIsTyping] = useState(false);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const endOfMessagesRef = useRef<HTMLDivElement>(null);
+  const [willId, setWillId] = useState<number | null>(null);
+  const [isConversationInitialized, setIsConversationInitialized] = useState(false);
   
-  // Template information
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-
-  // Redirect to auth if not logged in
-  useEffect(() => {
-    if (!isLoading && !user) {
-      navigate('/auth/sign-in');
-    }
-  }, [user, isLoading, navigate]);
-
-  // Get selected template from localStorage
-  useEffect(() => {
-    const template = localStorage.getItem('selectedWillTemplate');
-    if (template) {
-      setSelectedTemplate(template);
-    } else {
-      // If no template is selected, redirect back to template selection
-      navigate('/template-selection');
-    }
-  }, [navigate]);
-
-  // Use Skyler AI with GPT-4o Mini API instead of hardcoded questions
+  // References
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const savingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Hooks
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const { user, refetchUser } = useAuth();
+  
+  // Skyler Chat API
   const {
-    messages: skylerMessages,
-    isLoading: isSkylerLoading,
-    error: skylerError,
+    messages,
+    sendStreamingMessage,
     streamingContent,
+    isLoading,
     isStreaming,
-    sendStreamingMessage
+    error,
+    clearMessages,
+    addMessage,
+    retryLastMessage
   } = useSkyler();
-  
-  // This is left here only for compatibility
-  const questions: Question[] = [
-    {
-      id: 'name',
-      text: "Hi there! I'm Skyler, your AI will creation assistant. To start with, what's your full legal name?",
-      fieldName: 'fullName',
-      responseType: 'text',
-      required: true,
-      followupResponse: "Great! Nice to meet you, {response}. Let's create your will document together."
-    },
-    {
-      id: 'dob',
-      text: "What's your date of birth?",
-      fieldName: 'dateOfBirth',
-      responseType: 'date',
-      required: true,
-      followupResponse: "Thanks for sharing that information."
-    },
-    {
-      id: 'address',
-      text: "What's your current residential address?",
-      fieldName: 'address',
-      responseType: 'text',
-      required: true,
-      followupResponse: "Got it, thank you."
-    },
-    {
-      id: 'maritalStatus',
-      text: "What's your marital status?",
-      fieldName: 'maritalStatus',
-      responseType: 'select',
-      options: ['Single', 'Married', 'Divorced', 'Widowed', 'Separated', 'Domestic Partnership'],
-      required: true,
-      followupResponse: "Thank you for sharing that."
-    },
-    {
-      id: 'beneficiary1',
-      text: "Now let's add your first beneficiary. Who would you like to include in your will? Please provide their full name.",
-      fieldName: 'beneficiaryName',
-      responseType: 'text',
-      required: true,
-      followupResponse: "Great! {response} has been added as a beneficiary."
-    },
-    {
-      id: 'beneficiaryRelationship',
-      text: "What is your relationship to this beneficiary?",
-      fieldName: 'beneficiaryRelationship',
-      responseType: 'text',
-      required: true,
-      followupResponse: "Got it, thank you for that information."
-    },
-    {
-      id: 'asset1',
-      text: "Let's add your first asset. What type of asset would you like to include? (e.g., real estate, vehicle, bank account, investments)",
-      fieldName: 'assetType',
-      responseType: 'text',
-      required: true,
-      followupResponse: "Thank you. Now I'll need some more details about this asset."
-    },
-    {
-      id: 'assetDescription',
-      text: "Please provide a brief description of this asset.",
-      fieldName: 'assetDescription',
-      responseType: 'text',
-      required: true,
-      followupResponse: "Got it. This asset has been added to your will."
-    },
-    {
-      id: 'executor',
-      text: "Who would you like to name as the executor of your will? This person will be responsible for carrying out your wishes.",
-      fieldName: 'executorName',
-      responseType: 'text',
-      required: true,
-      followupResponse: "{response} has been designated as your executor."
-    },
-    {
-      id: 'executorRelationship',
-      text: "What is your relationship to your executor?",
-      fieldName: 'executorRelationship',
-      responseType: 'text',
-      required: true,
-      followupResponse: "Thank you for that information."
-    },
-    {
-      id: 'specialInstructions',
-      text: "Do you have any special instructions or additional wishes you'd like to include in your will?",
-      fieldName: 'specialInstructions',
-      responseType: 'text',
-      required: false,
-      followupResponse: "I've included those special instructions in your will."
-    },
-    {
-      id: 'confirmation',
-      text: "Perfect! I've gathered all the necessary information to create your will. Would you like to continue to the supporting documents section?",
-      fieldName: 'confirmation',
-      responseType: 'select',
-      options: ['Yes', 'No, I want to review my answers'],
-      required: true,
-      followupResponse: "Great! Let's move forward."
-    }
-  ];
 
-  // Initialize first message from Skyler AI when the component mounts
+  // Load template selection from localStorage
   useEffect(() => {
-    if (messages.length === 0 && selectedTemplate && !isStreaming && !isSkylerLoading) {
-      setIsTyping(true);
-      
-      // Send initial context to Skyler
-      const initialPrompt = `I'm creating a ${selectedTemplate} will. Please introduce yourself as Skyler, my AI will creation assistant, and guide me through the process of creating my will step by step.`;
-      
-      // Use the streaming API to get Skyler's response
-      sendStreamingMessage(initialPrompt)
-        .then(() => {
-          setIsTyping(false);
-        })
-        .catch((error) => {
-          console.error("Error initializing Skyler:", error);
-          setIsTyping(false);
-        });
-    }
-  }, [messages.length, selectedTemplate, isStreaming, isSkylerLoading, sendStreamingMessage]);
-
-  // Auto scroll to the latest message
-  useEffect(() => {
-    if (endOfMessagesRef.current) {
-      endOfMessagesRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, isTyping]);
-
-  // Focus on input after new message
-  useEffect(() => {
-    if (inputRef.current && !isTyping) {
-      inputRef.current.focus();
-    }
-  }, [isTyping, messages]);
-
-  // Handle user's message submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    // Update progress tracker
+    trackWillProgress(WillCreationStep.AI_CHAT);
     
-    if (!input.trim() || isTyping || isStreaming) return;
+    // Get selected template
+    const storedTemplate = localStorage.getItem('selectedWillTemplate');
+    if (storedTemplate) {
+      setSelectedTemplate(storedTemplate);
+    }
     
-    try {
-      // Add user message to the local messages state for immediate UI feedback
-      const userMessage: Message = {
-        id: `user-${Date.now()}`,
-        role: 'user',
-        content: input,
-        createdAt: new Date()
-      };
-      
-      setMessages(prevMessages => [...prevMessages, userMessage]);
-      
-      // Clear input field
-      setInput('');
-      
-      // Set typing indicator
-      setIsTyping(true);
-      
-      // Extract will information from the user's input based on context
-      // This still uses the structure of the previous implementation for compatibility
+    // Check if there's an in-progress will
+    const storedWillId = localStorage.getItem('currentWillId');
+    if (storedWillId) {
+      const willIdNum = parseInt(storedWillId, 10);
+      if (!isNaN(willIdNum)) {
+        setWillId(willIdNum);
+        loadExistingWill(willIdNum);
+      }
+    }
+    
+    // Try to load saved will data
+    const savedWillData = localStorage.getItem('willData');
+    if (savedWillData) {
       try {
-        const currentQuestion = questions[currentQuestionIndex];
-        if (currentQuestion) {
-          updateWillData(currentQuestion.fieldName, input);
+        const parsedData = JSON.parse(savedWillData);
+        if (parsedData) {
+          setWillData(prevData => ({
+            ...prevData,
+            ...parsedData
+          }));
         }
       } catch (error) {
-        console.error("Error updating will data:", error);
+        console.error('Error parsing saved will data:', error);
       }
-      
-      // Send message to Skyler AI through the API
-      await sendStreamingMessage(input);
-      
-      // After receiving Skyler's response, check if we need to show the continue button
-      // This was previously triggered after the last question, now we'll try to detect it from the content
-      const lastMessage = skylerMessages[skylerMessages.length - 1];
-      if (lastMessage && lastMessage.role === 'assistant') {
-        const content = lastMessage.content.toLowerCase();
+    }
+    
+    // Clean up saving timeout on unmount
+    return () => {
+      if (savingTimeoutRef.current) {
+        clearTimeout(savingTimeoutRef.current);
+      }
+    };
+  }, []);
+  
+  // Update user's will in progress status
+  useEffect(() => {
+    const updateWillStatus = async () => {
+      try {
+        const response = await apiRequest('POST', '/api/user/update-profile', {
+          willInProgress: true
+        });
         
-        if ((content.includes('all the information') || content.includes('all the details')) && 
-            content.includes('document') && 
-            (content.includes('complete') || content.includes('ready to proceed'))) {
-          
-          // Add a continue button if Skyler indicates the will is complete
-          setTimeout(() => {
-            const continueMessage: Message = {
-              id: `skyler-continue-${Date.now()}`,
-              role: 'assistant',
-              content: "CONTINUE_BUTTON",
-              createdAt: new Date()
-            };
-            
-            setMessages(prevMessages => [...prevMessages, continueMessage]);
-          }, 1000);
+        if (response.ok) {
+          await refetchUser();
         }
+      } catch (error) {
+        console.error('Error updating will progress status:', error);
+      }
+    };
+    
+    // Only update status if conversation has started
+    if (messages.length > 0 && !isSaving) {
+      updateWillStatus();
+    }
+  }, [messages.length, refetchUser, isSaving]);
+  
+  // Initialize Skyler conversation - only once when component mounts
+  useEffect(() => {
+    if (selectedTemplate && !isConversationInitialized && messages.length === 0) {
+      initializeConversation(selectedTemplate);
+      setIsConversationInitialized(true);
+    }
+  }, [selectedTemplate, isConversationInitialized, messages.length]);
+  
+  // Auto-scroll to bottom of chat
+  useEffect(() => {
+    const scrollToBottom = () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+    
+    // Small delay to ensure content is rendered
+    const timeoutId = setTimeout(scrollToBottom, 100);
+    return () => clearTimeout(timeoutId);
+  }, [messages, streamingContent]);
+  
+  // Auto-save will progress after user inactivity
+  useEffect(() => {
+    // Only try to save if there are actual messages and a template
+    if (messages.length > 1 && selectedTemplate) {
+      // Clear any existing timeout
+      if (savingTimeoutRef.current) {
+        clearTimeout(savingTimeoutRef.current);
       }
       
-      // Turn off typing indicator
-      setIsTyping(false);
-    } catch (error) {
-      console.error("Error submitting message:", error);
-      // Turn off typing indicator in case of error
-      setIsTyping(false);
-      
-      // Show error message
-      const errorMessage: Message = {
-        id: `error-${Date.now()}`,
+      // Set a new timeout to save after inactivity (3 seconds)
+      savingTimeoutRef.current = setTimeout(() => {
+        saveWillProgress();
+      }, 3000);
+    }
+    
+    return () => {
+      if (savingTimeoutRef.current) {
+        clearTimeout(savingTimeoutRef.current);
+      }
+    };
+  }, [messages, willData]);
+  
+  /**
+   * Initialize the conversation with a system message and welcome message
+   */
+  const initializeConversation = (template: string) => {
+    // Clear any previous messages
+    clearMessages();
+    
+    const templateName = TEMPLATE_NAMES[template] || 'Standard Will';
+    const templateInstructions = TEMPLATE_INSTRUCTIONS[template as keyof typeof TEMPLATE_INSTRUCTIONS] || TEMPLATE_INSTRUCTIONS.standard;
+    
+    // Add system message to guide Skyler's behavior
+    const systemMessage: Omit<SkylerMessage, 'id' | 'timestamp'> = {
+      role: 'system',
+      content: `You are Skyler, an AI assistant specializing in ${templateName} creation. Guide the user through creating their will in a conversational manner.
+        
+Your task is to extract the following information step by step:
+1. Personal details (name, date of birth, address, marital status)
+2. Beneficiaries (name, relationship, share of estate)
+3. Executor information
+4. Assets and their distribution
+5. Guardian information (if applicable)
+6. Special instructions
+
+${templateInstructions}
+
+IMPORTANT GUIDELINES:
+- Be friendly, compassionate, and patient
+- Ask ONE question at a time and wait for a response
+- After each answer, acknowledge it and ask the next logical question
+- Store information provided in a structured way
+- If an answer is unclear, ask for clarification before moving on
+- When all information is gathered, help the user summarize their will
+- Tell the user they can proceed to document upload when finished
+
+When all questions are answered, output a JSON summary of the will in this format:
+\`\`\`json
+{
+  "personalInfo": {
+    "fullName": "",
+    "dateOfBirth": "",
+    "address": "",
+    "maritalStatus": ""
+  },
+  "beneficiaries": [
+    {"name": "", "relationship": "", "share": ""}
+  ],
+  "executor": {"name": "", "relationship": ""},
+  "assets": [
+    {"type": "", "description": "", "beneficiary": ""}
+  ],
+  "specialInstructions": ""
+}
+\`\`\`
+
+Let the conversation flow naturally. Each of your responses should end with a question that guides the user to provide the next piece of information.`
+    };
+    
+    // Add system message
+    addMessage(systemMessage);
+    
+    // Add welcome message with slight delay
+    setTimeout(() => {
+      const welcomeMessage: Omit<SkylerMessage, 'id' | 'timestamp'> = {
         role: 'assistant',
-        content: "I'm sorry, I'm having trouble processing your request. Please try again.",
-        createdAt: new Date()
+        content: `Hi there! I'm Skyler, your personal will creation assistant. I'll help you create a ${templateName} by asking you some questions about your personal information, beneficiaries, assets, and other important details.
+
+Let's get started! First, could you please tell me your full legal name?`
       };
       
-      setMessages(prevMessages => [...prevMessages, errorMessage]);
-    }
+      addMessage(welcomeMessage);
+    }, 300);
   };
-
-  // Update will data based on user responses
-  const updateWillData = (fieldName: string, value: string) => {
-    setWillData(prevData => {
-      const newData = { ...prevData };
-      
-      // Handle different field types
-      if (fieldName === 'fullName' || fieldName === 'dateOfBirth' || fieldName === 'address' || fieldName === 'maritalStatus') {
-        return {
-          ...newData,
-          personalInfo: {
-            ...newData.personalInfo,
-            [fieldName]: value
-          }
-        };
-      } 
-      else if (fieldName === 'beneficiaryName') {
-        return {
-          ...newData,
-          beneficiaries: [
-            ...newData.beneficiaries,
-            { name: value, relationship: '' }
-          ]
-        };
-      }
-      else if (fieldName === 'beneficiaryRelationship') {
-        const updatedBeneficiaries = [...newData.beneficiaries];
-        if (updatedBeneficiaries.length > 0) {
-          updatedBeneficiaries[updatedBeneficiaries.length - 1].relationship = value;
-        }
-        return {
-          ...newData,
-          beneficiaries: updatedBeneficiaries
-        };
-      }
-      else if (fieldName === 'assetType') {
-        return {
-          ...newData,
-          assets: [
-            ...newData.assets,
-            { type: value, description: '' }
-          ]
-        };
-      }
-      else if (fieldName === 'assetDescription') {
-        const updatedAssets = [...newData.assets];
-        if (updatedAssets.length > 0) {
-          updatedAssets[updatedAssets.length - 1].description = value;
-        }
-        return {
-          ...newData,
-          assets: updatedAssets
-        };
-      }
-      else if (fieldName === 'executorName') {
-        return {
-          ...newData,
-          executor: { 
-            name: value, 
-            relationship: newData.executor?.relationship || ''
-          }
-        };
-      }
-      else if (fieldName === 'executorRelationship' && newData.executor) {
-        return {
-          ...newData,
-          executor: { 
-            name: newData.executor.name,
-            relationship: value,
-            contact: newData.executor.contact
-          }
-        };
-      }
-      else if (fieldName === 'specialInstructions') {
-        return {
-          ...newData,
-          specialInstructions: value
-        };
-      }
-      
-      return newData;
-    });
-  };
-
-  // Handle proceed to document upload
-  const handleProceedToDocumentUpload = () => {
-    // Save will data to localStorage
-    localStorage.setItem('willData', JSON.stringify(willData));
-    navigate('/document-upload');
-  };
-
-  // Format date for the document preview
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '';
+  
+  /**
+   * Load an existing will from the database
+   */
+  const loadExistingWill = async (willId: number) => {
     try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
+      const response = await apiRequest('GET', `/api/wills/${willId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to load will');
+      }
+      
+      const willData = await response.json();
+      
+      // Try to parse stored messages and data
+      if (willData.content) {
+        try {
+          const content = JSON.parse(willData.content);
+          
+          // If there are stored messages, use them
+          if (content.messages && Array.isArray(content.messages)) {
+            // Need to convert to proper format with IDs and timestamps
+            const formattedMessages = content.messages.map((msg: any) => ({
+              id: msg.id || `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+              role: msg.role,
+              content: msg.content,
+              timestamp: msg.timestamp || Date.now()
+            }));
+            
+            // Update Skyler with these messages
+            if (formattedMessages.length > 0) {
+              // Clear messages first
+              clearMessages();
+              
+              // Add messages one by one with slight delay
+              formattedMessages.forEach((msg: any, index: number) => {
+                setTimeout(() => {
+                  addMessage({
+                    role: msg.role,
+                    content: msg.content
+                  });
+                }, index * 50);
+              });
+              
+              setIsConversationInitialized(true);
+            }
+          }
+          
+          // If there's extracted data, use it
+          if (content.extracted) {
+            setWillData(prevData => ({
+              ...prevData,
+              ...content.extracted
+            }));
+          }
+          
+        } catch (error) {
+          console.error('Error parsing will content:', error);
+          // If there was an error, initialize a new conversation
+          setTimeout(() => {
+            if (!isConversationInitialized && messages.length === 0) {
+              initializeConversation(selectedTemplate);
+              setIsConversationInitialized(true);
+            }
+          }, 500);
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error loading will:', error);
+      toast({
+        title: 'Error loading will',
+        description: 'Failed to load your previous will progress. Starting fresh.',
+        variant: 'destructive'
       });
-    } catch (e) {
-      return dateString;
+      
+      // Initialize a new conversation if loading failed
+      setTimeout(() => {
+        if (!isConversationInitialized && messages.length === 0) {
+          initializeConversation(selectedTemplate);
+          setIsConversationInitialized(true);
+        }
+      }, 500);
     }
   };
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
+  
+  /**
+   * Extract will data from AI response
+   */
+  const extractWillData = useCallback((content: string): boolean => {
+    try {
+      // Try different JSON extraction patterns
+      const jsonPatterns = [
+        /```json([\s\S]*?)```/, // Standard markdown
+        /```([\s\S]*?)```/,     // Generic code block
+        /{[\s\S]*"personalInfo"[\s\S]*}/  // JSON with expected structure
+      ];
+      
+      let extractedJson = null;
+      
+      // Try each pattern
+      for (const pattern of jsonPatterns) {
+        const match = content.match(pattern);
+        if (match && match[1]) {
+          extractedJson = match[1].trim();
+          break;
+        }
+      }
+      
+      // If no match with regex, try finding JSON object directly
+      if (!extractedJson && content.includes('{') && content.includes('}')) {
+        const start = content.indexOf('{');
+        const end = content.lastIndexOf('}') + 1;
+        if (start >= 0 && end > start) {
+          extractedJson = content.substring(start, end);
+        }
+      }
+      
+      if (extractedJson) {
+        try {
+          const parsedData = JSON.parse(extractedJson);
+          
+          // Make sure it has expected structure
+          if (parsedData && typeof parsedData === 'object') {
+            console.log('Extracted will data:', parsedData);
+            
+            // Merge with existing data
+            const updatedData = {
+              ...willData,
+              personalInfo: {
+                ...willData.personalInfo,
+                ...(parsedData.personalInfo || {})
+              },
+              beneficiaries: parsedData.beneficiaries || willData.beneficiaries || [],
+              executor: parsedData.executor || willData.executor,
+              assets: parsedData.assets || willData.assets || [],
+              specialInstructions: parsedData.specialInstructions || willData.specialInstructions
+            };
+            
+            setWillData(updatedData);
+            
+            // Save to localStorage
+            localStorage.setItem('willData', JSON.stringify(updatedData));
+            return true;
+          }
+        } catch (error) {
+          console.warn('Error parsing extracted JSON:', error);
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error extracting will data:', error);
+      return false;
+    }
+  }, [willData]);
+  
+  /**
+   * Save will progress to database
+   */
+  const saveWillProgress = async () => {
+    // Don't save if already saving or no messages
+    if (isSaving || messages.length <= 1) return;
+    
+    setIsSaving(true);
+    
+    try {
+      const payload = {
+        title: willData.personalInfo?.fullName 
+          ? `Will for ${willData.personalInfo.fullName} (Draft)` 
+          : 'My Will (Draft)',
+        type: selectedTemplate || 'standard',
+        content: JSON.stringify({
+          messages: messages,
+          extracted: willData
+        }),
+        status: 'draft'
+      };
+      
+      // Determine if we're creating or updating
+      const endpoint = willId ? `/api/wills/${willId}` : '/api/wills';
+      const method = willId ? 'PUT' : 'POST';
+      
+      const response = await apiRequest(method, endpoint, payload);
+      
+      if (!response.ok) {
+        throw new Error('Failed to save will progress');
+      }
+      
+      const data = await response.json();
+      
+      // Store will ID for future updates
+      if (!willId && data.id) {
+        setWillId(data.id);
+        localStorage.setItem('currentWillId', data.id.toString());
+      }
+      
+      console.log('Will progress saved successfully:', data.id);
+    } catch (error) {
+      console.error('Error saving will progress:', error);
+      // Don't show toast for every auto-save error to avoid spamming the user
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  /**
+   * Handle sending a message to Skyler
+   */
+  const handleSendMessage = async () => {
+    if (!input.trim() || isLoading) return;
+    
+    const userInput = input.trim();
+    setInput('');
+    
+    try {
+      // Send message to Skyler
+      const assistantMessage = await sendStreamingMessage(userInput);
+      
+      // Try to extract will data from response
+      if (assistantMessage) {
+        extractWillData(assistantMessage.content);
+      }
+      
+      // Auto-save will progress
+      // Handled by the useEffect
+      
+    } catch (error) {
+      console.error('Error in chat conversation:', error);
+      toast({
+        title: 'Error',
+        description: 'Something went wrong with the conversation. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
+  
+  /**
+   * Handle completing the will creation
+   */
+  const handleCompleteWill = async () => {
+    if (isLoading || isFinalizing) return;
+    
+    setIsFinalizing(true);
+    
+    try {
+      // Ask Skyler to summarize the will
+      await sendStreamingMessage("Can you please provide a final summary of my will in JSON format that includes all the information I have shared with you?");
+      
+      // Save the final will
+      await saveWillProgress();
+      
+      // Mark user as having completed a will
+      await apiRequest('POST', '/api/user/will-status', {
+        willCompleted: true
+      });
+      
+      // Navigate to document upload
+      toast({
+        title: 'Will Created Successfully',
+        description: 'Now you can upload important documents to accompany your will.',
+      });
+      
+      // Use timeout to allow the toast to be shown
+      setTimeout(() => {
+        navigate('/document-upload');
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error completing will:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to complete your will. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+  
+  /**
+   * Filter system messages for display
+   */
+  const displayMessages = messages.filter(message => message.role !== 'system');
+  
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Background */}
-      <div className="absolute inset-0 opacity-30 pointer-events-none">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative">
+      {/* Dynamic background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
         <AnimatedAurora />
       </div>
       
-      {/* Chat Area */}
-      <div 
-        className="flex-1 flex flex-col h-screen border-r border-gray-200 dark:border-gray-700"
-        ref={chatContainerRef}
-      >
-        {/* Chat Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white bg-opacity-90 dark:bg-gray-800 dark:bg-opacity-90 backdrop-blur-sm z-10">
-          <div className="flex items-center">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-blue-500 flex items-center justify-center mr-3">
-              <span className="text-white font-bold">S</span>
-            </div>
-            <div>
-              <h2 className="font-semibold">Skyler</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">AI Assistant</p>
-            </div>
-          </div>
-          <div className="flex items-center">
-            <div className="hidden sm:block">
-              <a href="/dashboard" className="text-sm text-primary hover:underline mr-4">Dashboard</a>
-            </div>
-            <a href="/" className="flex items-center">
-              <Logo size="md" withText={false} />
-            </a>
-          </div>
-        </div>
-        
-        {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900 relative">
-          <AnimatePresence>
-            {/* Local messages from pre-AI implementation */}
-            {messages.map(message => (
-              <motion.div
-                key={message.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className={`mb-4 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {message.role === 'assistant' && message.content === "CONTINUE_BUTTON" ? (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="mt-6 mb-10 w-full flex justify-center"
-                  >
-                    <button
-                      onClick={handleProceedToDocumentUpload}
-                      className="px-6 py-3 bg-gradient-to-r from-primary to-blue-500 hover:from-primary-dark hover:to-blue-600 text-white font-medium rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-1"
-                    >
-                      Continue to Document Upload
-                    </button>
-                  </motion.div>
-                ) : (
-                  <div
-                    className={`max-w-[80%] p-4 rounded-lg ${
-                      message.role === 'user'
-                        ? 'bg-primary text-white rounded-tr-none ml-auto'
-                        : 'bg-white dark:bg-gray-800 shadow-sm rounded-tl-none'
-                    }`}
-                  >
-                    {message.content}
-                  </div>
-                )}
-              </motion.div>
-            ))}
-            
-            {/* Skyler AI Messages */}
-            {skylerMessages.map((message) => (
-              <motion.div
-                key={message.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className={`mb-4 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
-                {message.role === 'assistant' ? (
-                  <div className="flex">
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center mr-2 mt-1 flex-shrink-0">
-                      <span className="text-white font-bold text-sm">S</span>
-                    </div>
-                    <div className="bg-white dark:bg-gray-800 rounded-lg py-2 px-4 max-w-[85%] shadow-sm">
-                      <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">{message.content}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex flex-row-reverse">
-                    <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-700 flex items-center justify-center ml-2 mt-1 flex-shrink-0">
-                      <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                    </div>
-                    <div className="bg-blue-500 rounded-lg py-2 px-4 max-w-[85%] shadow-sm">
-                      <p className="text-white whitespace-pre-wrap">{message.content}</p>
-                    </div>
-                  </div>
-                )}
-              </motion.div>
-            ))}
-            
-            {/* Streaming indicator */}
-            {isStreaming && streamingContent && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-                className="mb-4 flex justify-start"
-              >
-                <div className="flex">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center mr-2 mt-1 flex-shrink-0">
-                    <span className="text-white font-bold text-sm">S</span>
-                  </div>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg py-2 px-4 max-w-[85%] shadow-sm">
-                    <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-                      {streamingContent}
-                      <span className="inline-block w-2 h-4 bg-primary ml-1 animate-pulse"></span>
-                    </p>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-            
-            {/* Typing indicator */}
-            {isTyping && !isStreaming && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-4 flex justify-start"
-              >
-                <div className="flex">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center mr-2 mt-1 flex-shrink-0">
-                    <span className="text-white font-bold text-sm">S</span>
-                  </div>
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm rounded-tl-none">
-                    <div className="flex space-x-2">
-                      <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-bounce"></div>
-                      <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                      <div className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600 animate-bounce" style={{ animationDelay: '0.4s' }}></div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+      <div className="container mx-auto px-4 py-6 relative z-10">
+        <div className="max-w-4xl mx-auto">
+          {/* Page header */}
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-6"
+          >
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+              Create Your Will with Skyler
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Chat with Skyler, your personal AI assistant, to complete your will step by step.
+            </p>
+          </motion.div>
           
-          {/* Invisible element to scroll to */}
-          <div ref={endOfMessagesRef}></div>
-        </div>
-        
-        {/* Chat Input */}
-        <form
-          onSubmit={handleSubmit}
-          className="p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700"
-        >
-          <div className="flex items-end gap-2">
-            <div className="relative flex-1">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Type your answer..."
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white pr-10 resize-none"
-                rows={1}
-                disabled={isTyping || (messages.length > 0 && messages[messages.length - 1].content === "CONTINUE_BUTTON")}
-              />
-              <button
-                type="submit"
-                disabled={!input.trim() || isTyping || (messages.length > 0 && messages[messages.length - 1].content === "CONTINUE_BUTTON")}
-                className={`absolute right-2 bottom-3 p-1 rounded-full ${
-                  !input.trim() || isTyping
-                    ? 'text-gray-400 cursor-not-allowed'
-                    : 'text-primary hover:bg-gray-100 dark:hover:bg-gray-600'
-                }`}
-              >
-                <Send className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-      
-      {/* Document Preview Panel (Desktop) */}
-      <div 
-        className={`hidden md:flex flex-col w-[400px] h-screen bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out`}
-      >
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <FileText className="h-5 w-5 text-primary mr-2" />
-            <h3 className="font-semibold">Document Preview</h3>
-          </div>
-          <div className="flex gap-2">
-            <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400">
-              <PenSquare className="h-4 w-4" />
-            </button>
-            <button className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400">
-              <Paperclip className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto p-6 bg-white dark:bg-gray-800">
-          <div className="mx-auto max-w-lg font-serif text-gray-800 dark:text-gray-200">
-            <h1 className="text-center text-2xl font-bold border-b-2 border-gray-200 dark:border-gray-700 pb-4 mb-6">
-              LAST WILL AND TESTAMENT
-            </h1>
-            
-            {/* Personal Information */}
-            {willData.personalInfo.fullName && (
-              <div className="mb-6">
-                <p className="mb-4">
-                  I, <span className="font-bold">{willData.personalInfo.fullName}</span>, 
-                  {willData.personalInfo.address && ` of ${willData.personalInfo.address}, `}
-                  being of sound mind and memory, make this my Last Will and Testament, hereby revoking all previous wills and codicils made by me.
-                </p>
-                
-                {willData.personalInfo.dateOfBirth && (
-                  <p className="mb-4">
-                    <span className="font-semibold">Date of Birth:</span> {formatDate(willData.personalInfo.dateOfBirth)}
-                  </p>
-                )}
-                
-                {willData.personalInfo.maritalStatus && (
-                  <p className="mb-4">
-                    <span className="font-semibold">Marital Status:</span> {willData.personalInfo.maritalStatus}
-                  </p>
-                )}
-              </div>
-            )}
-            
-            {/* Executor */}
-            {willData.executor && (
-              <div className="mb-6">
-                <h2 className="text-lg font-bold mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                  APPOINTMENT OF EXECUTOR
-                </h2>
-                <p>
-                  I appoint <span className="font-bold">{willData.executor.name}</span>, 
-                  my {willData.executor.relationship}, to be the Executor of this Will. 
-                  If they are unable or unwilling to serve, I appoint a suitable representative as chosen by the court.
-                </p>
-              </div>
-            )}
-            
-            {/* Beneficiaries */}
-            {willData.beneficiaries.length > 0 && (
-              <div className="mb-6">
-                <h2 className="text-lg font-bold mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                  BENEFICIARIES
-                </h2>
-                {willData.beneficiaries.map((beneficiary, index) => (
-                  <div key={index} className="mb-2">
-                    <p>
-                      I give to <span className="font-bold">{beneficiary.name}</span>, 
-                      my {beneficiary.relationship}, a share of my estate as detailed below.
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {/* Assets */}
-            {willData.assets.length > 0 && (
-              <div className="mb-6">
-                <h2 className="text-lg font-bold mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                  DISTRIBUTION OF ASSETS
-                </h2>
-                {willData.assets.map((asset, index) => (
-                  <div key={index} className="mb-2">
-                    <p>
-                      <span className="font-semibold">{asset.type}:</span> {asset.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-            
-            {/* Special Instructions */}
-            {willData.specialInstructions && (
-              <div className="mb-6">
-                <h2 className="text-lg font-bold mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                  SPECIAL INSTRUCTIONS
-                </h2>
-                <p>
-                  {willData.specialInstructions}
-                </p>
-              </div>
-            )}
-            
-            {/* Signature & Witnesses (placeholder) */}
-            <div className="mt-12">
-              <h2 className="text-lg font-bold mb-3 border-b border-gray-200 dark:border-gray-700 pb-2">
-                SIGNATURES
-              </h2>
-              <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
-                <p className="text-center mb-8">
-                  _______________________________<br />
-                  {willData.personalInfo.fullName}<br />
-                  <span className="text-sm">Testator</span>
-                </p>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center">
-                    _______________________<br />
-                    <span className="text-sm">Witness 1</span>
-                  </div>
-                  <div className="text-center">
-                    _______________________<br />
-                    <span className="text-sm">Witness 2</span>
+          {/* Main chat container */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden flex flex-col h-[70vh]"
+          >
+            {/* Chat messages area */}
+            <div className="flex-1 overflow-y-auto p-4 pt-6">
+              {/* Loading state */}
+              {displayMessages.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center text-gray-500 dark:text-gray-400">
+                    <p>Starting conversation with Skyler...</p>
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mt-3" />
                   </div>
                 </div>
+              ) : (
+                <AnimatePresence initial={false}>
+                  {/* Display chat messages */}
+                  {displayMessages.map((message) => (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className={`flex items-start mb-4 ${
+                        message.role === 'user' ? 'justify-end' : 'justify-start'
+                      }`}
+                    >
+                      {message.role === 'assistant' && (
+                        <Avatar className="h-10 w-10 mr-3 bg-primary text-white flex items-center justify-center shadow-sm">
+                          <span className="text-sm font-semibold">S</span>
+                        </Avatar>
+                      )}
+                      
+                      <div 
+                        className={`max-w-[80%] ${
+                          message.role === 'user'
+                            ? 'bg-primary text-white rounded-2xl rounded-tr-sm py-3 px-4 shadow-sm'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm py-3 px-4 shadow-sm'
+                        }`}
+                      >
+                        <div className="whitespace-pre-wrap">{message.content}</div>
+                      </div>
+                      
+                      {message.role === 'user' && (
+                        <Avatar className="h-10 w-10 ml-3 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 flex items-center justify-center shadow-sm">
+                          <span className="text-sm font-semibold">You</span>
+                        </Avatar>
+                      )}
+                    </motion.div>
+                  ))}
+                  
+                  {/* Streaming message (currently typing) */}
+                  {isStreaming && streamingContent && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-start mb-4 justify-start"
+                    >
+                      <Avatar className="h-10 w-10 mr-3 bg-primary text-white flex items-center justify-center shadow-sm">
+                        <span className="text-sm font-semibold">S</span>
+                      </Avatar>
+                      
+                      <div className="max-w-[80%] bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm py-3 px-4 shadow-sm">
+                        <div className="whitespace-pre-wrap">{streamingContent}</div>
+                      </div>
+                    </motion.div>
+                  )}
+                  
+                  {/* Thinking indicator */}
+                  {isLoading && !isStreaming && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-start mb-4 justify-start"
+                    >
+                      <Avatar className="h-10 w-10 mr-3 bg-primary text-white flex items-center justify-center shadow-sm">
+                        <span className="text-sm font-semibold">S</span>
+                      </Avatar>
+                      
+                      <div className="max-w-[80%] bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm py-3 px-4 shadow-sm">
+                        <div className="flex items-center space-x-2">
+                          <span>Thinking</span>
+                          <div className="flex">
+                            <span className="animate-bounce inline-block mx-px delay-0">.</span>
+                            <span className="animate-bounce inline-block mx-px delay-150">.</span>
+                            <span className="animate-bounce inline-block mx-px delay-300">.</span>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              )}
+              
+              {/* Error message */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start mb-4 justify-center"
+                >
+                  <div className="max-w-[90%] bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg py-3 px-4 shadow-sm flex flex-col">
+                    <div className="flex items-center mb-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <span className="font-semibold">Error communicating with Skyler</span>
+                    </div>
+                    <p className="text-sm ml-7">{error}</p>
+                    <div className="mt-2 ml-7">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={retryLastMessage}
+                        className="text-red-600 dark:text-red-400 border-red-300 dark:border-red-700"
+                      >
+                        <RefreshCw className="h-4 w-4 mr-1" />
+                        Retry
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              
+              {/* Anchor for scrolling to bottom */}
+              <div ref={messagesEndRef} className="h-1" />
+            </div>
+            
+            <Separator />
+            
+            {/* Input area */}
+            <div className="p-4 bg-gray-50 dark:bg-gray-800">
+              <div className="flex">
+                <Input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                  placeholder="Type your message to Skyler..."
+                  className="flex-1 mr-2 shadow-sm"
+                  disabled={isLoading || isFinalizing}
+                />
+                <Button 
+                  onClick={handleSendMessage} 
+                  disabled={!input.trim() || isLoading || isFinalizing}
+                  className="bg-primary hover:bg-primary-dark shadow-sm"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Send className="h-5 w-5" />
+                  )}
+                </Button>
+              </div>
+              
+              {/* Auto-save indicator and completion button */}
+              <div className="flex justify-between mt-4 items-center">
+                <div className="text-sm text-gray-500 dark:text-gray-400 italic">
+                  {isSaving ? (
+                    <div className="flex items-center">
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      <span>Saving your progress...</span>
+                    </div>
+                  ) : (
+                    <span>Your responses are saved automatically</span>
+                  )}
+                </div>
+                
+                <Button
+                  onClick={handleCompleteWill}
+                  disabled={isFinalizing || isLoading || displayMessages.length < 6}
+                  className="bg-green-600 hover:bg-green-700 text-white shadow-sm flex items-center"
+                >
+                  {isFinalizing ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-5 w-5 mr-2" />
+                      <span>Complete & Continue</span>
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Mobile Document Preview Toggle */}
-      <div className="md:hidden fixed bottom-20 right-4 z-20">
-        <button
-          onClick={() => setPreviewExpanded(!previewExpanded)}
-          className="bg-white dark:bg-gray-800 rounded-full p-3 shadow-lg border border-gray-200 dark:border-gray-700"
-        >
-          <FileText className="h-6 w-6 text-primary" />
-        </button>
-      </div>
-      
-      {/* Mobile Document Preview Drawer */}
-      <div 
-        className={`md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-t-xl shadow-xl transition-transform duration-300 ease-in-out z-10 ${
-          previewExpanded ? 'translate-y-0' : 'translate-y-[90%]'
-        }`}
-      >
-        <div className="flex justify-center p-2 cursor-pointer" onClick={() => setPreviewExpanded(!previewExpanded)}>
-          <div className="w-8 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
-        </div>
-        
-        <div className="flex items-center justify-between px-4 pt-1 pb-3">
-          <h3 className="font-semibold">Document Preview</h3>
-          <button onClick={() => setPreviewExpanded(!previewExpanded)}>
-            {previewExpanded ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
-          </button>
-        </div>
-        
-        <div className="max-h-[50vh] overflow-y-auto p-4">
-          <div className="mx-auto max-w-lg font-serif text-gray-800 dark:text-gray-200">
-            {/* Mobile Preview Content (simplified) */}
-            <h1 className="text-center text-xl font-bold border-b border-gray-200 dark:border-gray-700 pb-2 mb-4">
-              LAST WILL AND TESTAMENT
-            </h1>
-            
-            {willData.personalInfo.fullName && (
-              <p className="mb-3">
-                I, <span className="font-bold">{willData.personalInfo.fullName}</span>, 
-                being of sound mind, make this my Last Will and Testament.
-              </p>
-            )}
-            
-            {willData.executor && (
-              <p className="mb-3">
-                <span className="font-semibold">Executor:</span> {willData.executor.name} ({willData.executor.relationship})
-              </p>
-            )}
-            
-            {willData.beneficiaries.length > 0 && (
-              <div className="mb-3">
-                <p className="font-semibold">Beneficiaries:</p>
-                <ul className="list-disc pl-5">
-                  {willData.beneficiaries.map((beneficiary, index) => (
-                    <li key={index}>{beneficiary.name} ({beneficiary.relationship})</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            
-            {willData.assets.length > 0 && (
-              <div className="mb-3">
-                <p className="font-semibold">Assets:</p>
-                <ul className="list-disc pl-5">
-                  {willData.assets.map((asset, index) => (
-                    <li key={index}>{asset.type}: {asset.description}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
+          </motion.div>
+          
+          {/* Tips card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="mt-6"
+          >
+            <Card className="p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 shadow-md">
+              <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-300 mb-2">Tips for Creating Your Will</h3>
+              <ul className="text-blue-700 dark:text-blue-300 text-sm space-y-1.5">
+                <li className="flex">
+                  <span className="mr-2">•</span>
+                  <span>Be specific when describing assets and their intended distribution</span>
+                </li>
+                <li className="flex">
+                  <span className="mr-2">•</span>
+                  <span>Consider special circumstances or conditions for inheritance</span>
+                </li>
+                <li className="flex">
+                  <span className="mr-2">•</span>
+                  <span>Choose a trustworthy executor who will follow your wishes</span>
+                </li>
+                <li className="flex">
+                  <span className="mr-2">•</span>
+                  <span>For dependents, include detailed guardianship arrangements</span>
+                </li>
+                <li className="flex">
+                  <span className="mr-2">•</span>
+                  <span>You'll have a chance to upload documents and review everything later</span>
+                </li>
+              </ul>
+            </Card>
+          </motion.div>
         </div>
       </div>
     </div>
