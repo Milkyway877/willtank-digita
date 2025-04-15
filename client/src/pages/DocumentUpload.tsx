@@ -92,7 +92,7 @@ const DocumentUpload: React.FC = () => {
               } else if (response.status === 403) {
                 // Handle unauthorized access
                 console.error('Unauthorized access to will documents');
-                navigate('/template-selection');
+                navigate('/will-selection');
               }
             } catch (error) {
               console.error('Error loading existing documents:', error);
@@ -133,11 +133,11 @@ const DocumentUpload: React.FC = () => {
       } catch (error) {
         console.error('Error parsing will data:', error);
         // Navigate back to chat if data is invalid
-        navigate('/ai-chat');
+        navigate('/will-creation/chat');
       }
     } else {
       // No will data found, redirect back to chat
-      navigate('/ai-chat');
+      navigate('/will-creation/chat');
     }
   }, [navigate]);
 
