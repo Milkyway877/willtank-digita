@@ -221,9 +221,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Title and content are required" });
       }
       
+      // Validate the templateId (must be a valid integer and template must exist)
+      let validTemplateId: number | null = null;
+      
+      if (templateId) {
+        // If templateId is provided, ensure it's a valid integer
+        const templateIdNumber = typeof templateId === 'number' 
+          ? templateId 
+          : parseInt(templateId, 10);
+        
+        if (!isNaN(templateIdNumber)) {
+          try {
+            // Check if the template exists
+            const template = await dbStorage.getWillTemplateById(templateIdNumber);
+            if (template) {
+              validTemplateId = templateIdNumber;
+            }
+          } catch (templateError) {
+            console.error('Error checking template:', templateError);
+            // Continue without template if there's an error checking
+          }
+        }
+      }
+      
+      // Log for debugging
+      console.log(`Creating will with templateId: ${validTemplateId}, title: ${title}`);
+      
+      // Create the will with validated templateId
       const newWill = await dbStorage.createWill({
         userId,
-        templateId,
+        templateId: validTemplateId,
         title,
         content,
         status: "draft"

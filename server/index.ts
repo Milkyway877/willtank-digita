@@ -3,6 +3,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import dotenv from "dotenv";
 import { syncUserWithSupabase, initializeSupabaseTables } from "./supabase-connector";
+import { storage } from "./storage";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -47,6 +48,16 @@ app.use((req, res, next) => {
 (async () => {
   // Initialize Supabase tables
   await initializeSupabaseTables();
+  
+  // Seed will templates if needed
+  try {
+    console.log('Pre-seeding will templates...');
+    await storage.seedWillTemplates();
+    console.log('Will templates check complete');
+  } catch (error) {
+    console.error('Error pre-seeding will templates:', error);
+    // Continue with server startup even if seeding fails
+  }
   
   const server = await registerRoutes(app);
 
