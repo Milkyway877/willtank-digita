@@ -74,9 +74,14 @@ const DocumentUpload: React.FC = () => {
                 
                 // Map server documents to our upload format
                 if (existingDocs && existingDocs.length > 0) {
-                  const mappedDocs = existingDocs.map(doc => ({
+                  const mappedDocs = existingDocs.map((doc: {
+                    id?: number;
+                    type?: string;
+                    name?: string;
+                    description?: string;
+                  }) => ({
                     id: doc.type || 'unknown-doc', // Use the type field as a document ID
-                    file: new File([], doc.name || 'document.pdf'), // Create placeholder File object
+                    file: new File([''], doc.name || 'document.pdf'), // Create placeholder File object
                     name: doc.name || 'Unnamed Document',
                     progress: 100,
                     status: 'success' as const,
@@ -375,7 +380,8 @@ const DocumentUpload: React.FC = () => {
         f.id === documentId ? { ...f, progress, status: 'success' } : f
       ));
       
-    } catch (error) {
+    } catch (err) {
+      const error = err as Error;
       console.error('Error uploading file:', error);
       setUploadedFiles(prev => prev.map(f => 
         f.id === documentId ? { 
