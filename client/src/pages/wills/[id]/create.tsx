@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useParams } from "wouter";
 import { useWills } from "@/hooks/use-wills";
 import { useSkyler } from "@/hooks/use-skyler";
@@ -11,12 +11,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, ArrowLeft, Save, Loader2, Upload, UserPlus, File, Send, VideoIcon, CheckCircle, Info } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { AlertCircle, ArrowLeft, Save, Loader2, Upload, UserPlus, File, Send, VideoIcon, CheckCircle, Info, Sparkles, MessageSquare, Camera } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { motion } from "framer-motion";
 
 // Will content schema
 const willContentSchema = z.object({
@@ -32,9 +34,13 @@ export default function CreateWillPage() {
   const willId = parseInt(params.id);
   const { wills, isLoading, getWill, updateWillMutation } = useWills();
   const { toast } = useToast();
-  const { toggleSkyler } = useSkyler();
+  const { toggleSkyler, sendStreamingMessage, isLoading: skylerLoading, skylerResponse } = useSkyler();
   const [activeTab, setActiveTab] = useState("content");
   const [saving, setSaving] = useState(false);
+  const [askingSkyler, setAskingSkyler] = useState(false);
+  const [skylerPrompt, setSkylerPrompt] = useState("");
+  const [generatingWithAI, setGeneratingWithAI] = useState(false);
+  const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const will = getWill(willId);
 
@@ -62,6 +68,14 @@ export default function CreateWillPage() {
     navigate("/wills/manage");
   };
 
+  // Update content when Skyler responds
+  useEffect(() => {
+    if (skylerResponse && generatingWithAI) {
+      form.setValue("content", skylerResponse);
+      setGeneratingWithAI(false);
+    }
+  }, [skylerResponse, form, generatingWithAI]);
+
   // Handle form submission
   const onSubmit: SubmitHandler<WillContentFormValues> = async (data) => {
     setSaving(true);
@@ -88,6 +102,20 @@ export default function CreateWillPage() {
     } finally {
       setSaving(false);
     }
+  };
+  
+  // Generate content with Skyler
+  const generateWillWithAI = () => {
+    const templateName = will?.title.replace("My ", "") || "Basic Will";
+    const prompt = `Please create a comprehensive legal will document based on the "${templateName}" template. Include all standard legal sections and clauses that would be found in a professional ${templateName.toLowerCase()}. Format it properly with sections for personal details, executor appointment, beneficiary designations, asset distribution, guardianship (if relevant), and final arrangements. Make it detailed enough to be legally sound but easy to understand.`;
+    
+    setGeneratingWithAI(true);
+    sendStreamingMessage(prompt);
+    
+    toast({
+      title: "Generating will content",
+      description: "Skyler is drafting your will document based on your template choice...",
+    });
   };
 
   // Show loading state while will data is being fetched
@@ -175,11 +203,50 @@ export default function CreateWillPage() {
 
           {/* Will Content Tab */}
           <TabsContent value="content" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Will Content</CardTitle>
+            <Card className="overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent">
+                <div className="flex items-center justify-between">
+                  <CardTitle>Will Content</CardTitle>
+                  <Badge variant="outline" className="flex items-center gap-1 px-3 py-1 bg-primary/5">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" /> 
+                    <span>AI-Powered</span>
+                  </Badge>
+                </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-6">
+                {!will.content || will.content.trim() === "" ? (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="mb-6 p-6 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-100 dark:border-blue-800"
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="bg-blue-100 dark:bg-blue-800 rounded-full p-3">
+                        <Sparkles className="h-6 w-6 text-blue-600 dark:text-blue-300" />
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className="text-lg font-medium">Let Skyler Draft Your Will</h3>
+                        <p className="text-muted-foreground">
+                          Our AI assistant Skyler can write a complete, legally-sound will document based on your template choice. 
+                          You'll be able to review and edit the generated content.
+                        </p>
+                        <Button 
+                          className="mt-2" 
+                          onClick={generateWillWithAI}
+                          disabled={generatingWithAI}
+                        >
+                          {generatingWithAI ? (
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating your will...</>
+                          ) : (
+                            <><Sparkles className="mr-2 h-4 w-4" /> Generate with AI</>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ) : null}
+                
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                     <FormField
@@ -200,13 +267,46 @@ export default function CreateWillPage() {
                       name="content"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Will Content</FormLabel>
+                          <div className="flex justify-between items-center">
+                            <FormLabel>Will Content</FormLabel>
+                            {will.content && will.content.trim() !== "" && (
+                              <Button 
+                                type="button" 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={generateWillWithAI}
+                                disabled={generatingWithAI}
+                                className="h-8 px-3 text-xs"
+                              >
+                                {generatingWithAI ? (
+                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Sparkles className="mr-1 h-3 w-3" />
+                                )}
+                                Regenerate with AI
+                              </Button>
+                            )}
+                          </div>
                           <FormControl>
-                            <Textarea 
-                              placeholder="Enter the content of your will" 
-                              className="min-h-[300px]" 
-                              {...field} 
-                            />
+                            <div className="relative">
+                              <Textarea 
+                                placeholder="Enter the content of your will" 
+                                className="min-h-[400px] font-serif" 
+                                {...field} 
+                                ref={contentTextareaRef}
+                              />
+                              {generatingWithAI && (
+                                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-md">
+                                  <div className="flex flex-col items-center space-y-2 p-4">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                    <p className="text-center font-medium">Skyler is drafting your will...</p>
+                                    <p className="text-xs text-muted-foreground text-center max-w-md">
+                                      Creating legally sound language based on "{will.title}" template
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -215,30 +315,33 @@ export default function CreateWillPage() {
                   </form>
                 </Form>
               </CardContent>
-              <CardFooter className="flex justify-between">
+              <CardFooter className="flex justify-between bg-muted/50 pt-4">
                 <Button variant="outline" onClick={handleBack}>Cancel</Button>
-                <Button 
-                  onClick={form.handleSubmit(onSubmit)}
-                  disabled={saving}
-                >
-                  {saving ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="mr-2 h-4 w-4" />
-                  )}
-                  Save
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      toggleSkyler();
+                      sendStreamingMessage("I need help editing my will content. Can you provide guidance?");
+                    }}
+                  >
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Ask Skyler
+                  </Button>
+                  <Button 
+                    onClick={form.handleSubmit(onSubmit)}
+                    disabled={saving}
+                  >
+                    {saving ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="mr-2 h-4 w-4" />
+                    )}
+                    Save
+                  </Button>
+                </div>
               </CardFooter>
             </Card>
-
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Need help with your will content?</AlertTitle>
-              <AlertDescription>
-                Our AI assistant Skyler can help you draft appropriate language for your will
-                based on your specific situation and needs.
-              </AlertDescription>
-            </Alert>
           </TabsContent>
 
           {/* Documents Tab */}

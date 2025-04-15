@@ -20,7 +20,7 @@ export default function WillsPage() {
   const [, navigate] = useLocation();
   const { wills, isLoading, createWillMutation } = useWills();
   const skyler = useSkyler();
-  const [creating, setCreating] = useState(false);
+  const [creatingTemplateId, setCreatingTemplateId] = useState<string | null>(null);
 
   const templates = [
     {
@@ -50,7 +50,7 @@ export default function WillsPage() {
   ];
 
   const handleCreateWill = async (templateId: string) => {
-    setCreating(true);
+    setCreatingTemplateId(templateId);
     try {
       const newWill = await createWillMutation.mutateAsync({
         title: `My ${templates.find(t => t.id === templateId)?.title || "Will"}`,
@@ -65,7 +65,7 @@ export default function WillsPage() {
     } catch (error) {
       console.error("Failed to create will:", error);
     } finally {
-      setCreating(false);
+      setCreatingTemplateId(null);
     }
   };
 
@@ -118,14 +118,14 @@ export default function WillsPage() {
                     <Button 
                       onClick={() => handleCreateWill(template.id)} 
                       className="w-full"
-                      disabled={creating}
+                      disabled={creatingTemplateId !== null}
                     >
-                      {creating ? (
+                      {creatingTemplateId === template.id ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
                         <PlusCircle className="mr-2 h-4 w-4" />
                       )}
-                      Create Will
+                      {creatingTemplateId === template.id ? 'Creating...' : 'Create Will'}
                     </Button>
                   </CardFooter>
                 </Card>
