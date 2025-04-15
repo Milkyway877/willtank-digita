@@ -115,7 +115,7 @@ const ContactInformation = () => {
             form.setValue('fullName', user.fullName || user.username || "");
             // Check if email property exists on user
             if ('email' in user) {
-              form.setValue('email', user.email || "");
+              form.setValue('email', user.email);
             }
           }
         }

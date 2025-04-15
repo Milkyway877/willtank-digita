@@ -14,6 +14,7 @@ import Dashboard from "@/pages/Dashboard";
 import DashboardIndex from "@/pages/dashboard";
 import DashboardCheckIn from "@/pages/dashboard/check-in";
 import DashboardWill from "@/pages/dashboard/will";
+import DashboardWills from "@/pages/dashboard/wills";
 import DashboardDocuments from "@/pages/dashboard/documents";
 import DashboardVideo from "@/pages/dashboard/video";
 import DashboardBeneficiaries from "@/pages/dashboard/beneficiaries";
@@ -75,6 +76,7 @@ function Router() {
       <ProtectedRoute path="/dashboard" component={DashboardIndex} />
       <ProtectedRoute path="/dashboard/check-in" component={DashboardCheckIn} />
       <ProtectedRoute path="/dashboard/will" component={DashboardWill} />
+      <ProtectedRoute path="/dashboard/wills" component={DashboardWills} />
       <ProtectedRoute path="/dashboard/documents" component={DashboardDocuments} />
       <ProtectedRoute path="/dashboard/video" component={DashboardVideo} />
       <ProtectedRoute path="/dashboard/beneficiaries" component={DashboardBeneficiaries} />

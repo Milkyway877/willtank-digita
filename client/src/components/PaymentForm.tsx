@@ -18,76 +18,62 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onPaymentSuccess, onPaymentEr
     e.preventDefault();
 
     if (!stripe || !elements) {
-      // Stripe.js hasn't loaded yet
+      // Stripe.js has not yet loaded.
       return;
     }
 
     setIsProcessing(true);
     setErrorMessage(null);
 
-    // Confirm payment
-    const { error } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/dashboard`,
-      },
-      redirect: 'if_required'
-    });
+    try {
+      // Confirm the payment
+      const { error } = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          return_url: `${window.location.origin}/subscription/success`,
+        },
+        redirect: 'if_required',
+      });
 
-    if (error) {
-      // Payment failed
-      setErrorMessage(error.message || 'An unexpected error occurred.');
-      onPaymentError(error.message || 'An unexpected error occurred.');
-    } else {
-      // Payment succeeded
-      onPaymentSuccess();
+      if (error) {
+        setErrorMessage(error.message || 'An unexpected error occurred.');
+        onPaymentError(error.message || 'Payment failed. Please try again.');
+      } else {
+        // Payment succeeded
+        onPaymentSuccess();
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'An unexpected error occurred.');
+      onPaymentError(err.message || 'Payment failed. Please try again.');
+    } finally {
+      setIsProcessing(false);
     }
-
-    setIsProcessing(false);
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      {/* Show any error or success messages */}
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-medium mb-2">Payment Information</h3>
+          <PaymentElement />
+        </div>
+        
+        <div>
+          <h3 className="text-lg font-medium mb-2">Billing Address</h3>
+          <AddressElement options={{ mode: 'billing' }} />
+        </div>
+      </div>
+      
       {errorMessage && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-400 p-4 rounded-lg mb-6">
+        <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-md">
           {errorMessage}
         </div>
       )}
       
-      {/* Payment Element */}
-      <div className="mb-6">
-        <PaymentElement 
-          options={{
-            layout: {
-              type: 'tabs',
-              defaultCollapsed: false,
-            }
-          }}
-        />
-      </div>
-      
-      {/* Address Element */}
-      <div className="mb-6">
-        <h3 className="text-lg font-medium mb-3">Billing Address</h3>
-        <AddressElement 
-          options={{
-            mode: 'billing',
-            defaultValues: {
-              name: '',
-            },
-            fields: {
-              phone: 'auto',
-            },
-          }}
-        />
-      </div>
-      
-      {/* Submit Button */}
       <Button 
         type="submit" 
-        disabled={isProcessing || !stripe || !elements}
-        className="w-full bg-primary hover:bg-primary/90 text-white py-3 rounded-lg"
+        disabled={!stripe || !elements || isProcessing}
+        className="w-full"
       >
         {isProcessing ? (
           <>
@@ -95,14 +81,9 @@ const PaymentForm: React.FC<PaymentFormProps> = ({ onPaymentSuccess, onPaymentEr
             Processing...
           </>
         ) : (
-          'Pay Now'
+          "Complete Payment"
         )}
       </Button>
-      
-      {/* Privacy notice */}
-      <p className="text-xs text-gray-500 dark:text-gray-400 mt-4 text-center">
-        Your payment information is securely processed by Stripe. We never store your full card details.
-      </p>
     </form>
   );
 };

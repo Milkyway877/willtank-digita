@@ -18,7 +18,8 @@ import {
   Clock,
   CreditCard,
   Check,
-  ArrowRight
+  ArrowRight,
+  ArrowLeft
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
