@@ -529,10 +529,24 @@ Let's get started! First, could you please tell me your full legal name?`
       const endpoint = willId ? `/api/wills/${willId}` : '/api/wills';
       const method = willId ? 'PUT' : 'POST';
       
+      console.log(`${method} request to ${endpoint} for will progress`);
       const response = await apiRequest(method, endpoint, payload);
       
       if (!response.ok) {
-        throw new Error('Failed to save will progress');
+        const errorResponse = await response.json();
+        
+        // If we get a 403 Unauthorized error for a will update, we need to create a new will instead
+        if (response.status === 403 && errorResponse.error === "Unauthorized access to will" && willId) {
+          console.warn("Unauthorized access to will, creating a new will instead");
+          // Reset willId so we create a new will
+          setWillId(null);
+          localStorage.removeItem('currentWillId');
+          
+          // Recursively call saveWillProgress to create a new will
+          return await saveWillProgress();
+        }
+        
+        throw new Error(`Failed to save will progress: ${errorResponse.error || response.statusText}`);
       }
       
       const data = await response.json();
@@ -541,9 +555,12 @@ Let's get started! First, could you please tell me your full legal name?`
       if (!willId && data.id) {
         setWillId(data.id);
         localStorage.setItem('currentWillId', data.id.toString());
+        console.log(`Created new will with ID: ${data.id}`);
+      } else {
+        console.log(`Updated existing will with ID: ${data.id}`);
       }
       
-      console.log('Will progress saved successfully:', data.id);
+      return data.id;
     } catch (error) {
       console.error('Error saving will progress:', error);
       // Don't show toast for every auto-save error to avoid spamming the user
@@ -595,12 +612,19 @@ Let's get started! First, could you please tell me your full legal name?`
       // Ask Skyler to summarize the will
       await sendStreamingMessage("Can you please provide a final summary of my will in JSON format that includes all the information I have shared with you?");
       
-      // Save the final will
-      await saveWillProgress();
+      // Save the final will and get the possibly updated willId
+      const savedWillId = await saveWillProgress();
+      
+      if (!savedWillId) {
+        throw new Error("Failed to save will data before proceeding");
+      }
+      
+      // Always use the most recent willId (it might have changed if we encountered auth errors)
+      console.log(`Using willId: ${savedWillId} for will status update`);
       
       // Mark the will as in progress, NOT completed (it's not completed until final review)
       await apiRequest('POST', '/api/user/will-status', {
-        willId: willId,
+        willId: savedWillId,
         progress: WillCreationStep.DOCUMENT_UPLOAD,
         willInProgress: true,
         willCompleted: false
@@ -615,17 +639,12 @@ Let's get started! First, could you please tell me your full legal name?`
         description: 'Next, please upload important documents to accompany your will.',
       });
       
-      console.log(`Will creation continuing to document upload. WillId: ${willId}`);
+      console.log(`Will creation continuing to document upload. WillId: ${savedWillId}`);
       
       // Use timeout to allow the toast to be shown
       setTimeout(() => {
-        // Make sure to pass the willId to maintain the flow
-        if (willId) {
-          navigate(`/document-upload?willId=${willId}`);
-        } else {
-          console.error('Missing willId when trying to proceed to document upload');
-          navigate('/document-upload');
-        }
+        // Always pass the most up-to-date willId
+        navigate(`/document-upload?willId=${savedWillId}`);
       }, 1000);
       
     } catch (error) {
