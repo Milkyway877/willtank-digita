@@ -71,7 +71,14 @@ const AiChat: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Skyler client
-  const { sendStreamingMessage, streamingMessage, isLoading } = useSkyler();
+  const { 
+    sendStreamingMessage, 
+    streamingMessage, 
+    streamingContent,
+    isLoading,
+    isStreaming,
+    error: skylerError 
+  } = useSkyler();
   
   // Load selected template from localStorage
   useEffect(() => {
@@ -237,32 +244,75 @@ Let's get started! First, could you please tell me your full legal name?`
   // Update will data based on assistant's analysis
   const updateWillData = (content: string) => {
     try {
-      // Look for JSON in the message
-      const jsonMatch = content.match(/```json([\s\S]*?)```/);
+      // Look for JSON in the message with different markdown code block formats
+      const jsonRegexPatterns = [
+        /```json([\s\S]*?)```/, // Standard markdown
+        /```([\s\S]*?)```/,     // Generic code block
+        /{[\s\S]*?}/            // Just looking for a JSON object
+      ];
       
-      if (jsonMatch && jsonMatch[1]) {
-        const extractedJson = jsonMatch[1].trim();
-        const parsedData = JSON.parse(extractedJson);
-        
-        if (parsedData) {
-          setWillData(prevData => ({
-            ...prevData,
-            ...parsedData
-          }));
+      let extractedJson = null;
+      
+      // Try each regex pattern
+      for (const pattern of jsonRegexPatterns) {
+        const match = content.match(pattern);
+        if (match && match[1]) {
+          extractedJson = match[1].trim();
+          break;
+        }
+      }
+      
+      // If no JSON found with the patterns, look for a plain JSON object
+      if (!extractedJson && content.includes('{') && content.includes('}')) {
+        const start = content.indexOf('{');
+        const end = content.lastIndexOf('}') + 1;
+        if (start >= 0 && end > start) {
+          extractedJson = content.substring(start, end);
+        }
+      }
+      
+      if (extractedJson) {
+        try {
+          const parsedData = JSON.parse(extractedJson);
           
-          // Store in localStorage for use in other steps
-          localStorage.setItem('willData', JSON.stringify({
-            ...willData,
-            ...parsedData
-          }));
-          
-          return true;
+          if (parsedData) {
+            console.log('Found will data:', parsedData);
+            
+            // Merge new data with existing data
+            const mergedData = {
+              ...willData,
+              ...parsedData,
+              // Handle specific nested objects that need merging
+              personalInfo: {
+                ...willData.personalInfo,
+                ...(parsedData.personalInfo || {})
+              },
+              // For arrays, either replace or append
+              beneficiaries: [
+                ...(willData.beneficiaries || []),
+                ...((parsedData.beneficiaries && willData.beneficiaries?.length === 0) ? parsedData.beneficiaries : [])
+              ],
+              assets: [
+                ...(willData.assets || []),
+                ...((parsedData.assets && willData.assets?.length === 0) ? parsedData.assets : [])
+              ]
+            };
+            
+            setWillData(mergedData);
+            
+            // Store in localStorage for use in other steps
+            localStorage.setItem('willData', JSON.stringify(mergedData));
+            
+            return true;
+          }
+        } catch (parseError) {
+          console.error('Error parsing JSON data:', parseError);
         }
       }
       
       return false;
     } catch (error) {
-      console.error('Error parsing will data:', error);
+      console.error('Error processing will data:', error);
       return false;
     }
   };
@@ -440,7 +490,7 @@ Let's get started! First, could you please tell me your full legal name?`
               )}
               
               {/* Current streaming message from assistant */}
-              {isProcessing && streamingMessage && (
+              {isStreaming && streamingContent && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -451,7 +501,45 @@ Let's get started! First, could you please tell me your full legal name?`
                   </Avatar>
                   
                   <div className="max-w-[80%] bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm py-2 px-4">
-                    <div className="whitespace-pre-wrap">{streamingMessage || 'Thinking...'}</div>
+                    <div className="whitespace-pre-wrap">{streamingContent}</div>
+                  </div>
+                </motion.div>
+              )}
+              
+              {/* Loading indicator when waiting for response */}
+              {isProcessing && !streamingContent && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start mb-4 justify-start"
+                >
+                  <Avatar className="h-10 w-10 mr-3 bg-primary text-white flex items-center justify-center">
+                    <span className="text-sm font-semibold">AI</span>
+                  </Avatar>
+                  
+                  <div className="max-w-[80%] bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-sm py-2 px-4">
+                    <div className="flex items-center space-x-2">
+                      <span>Thinking</span>
+                      <span className="flex space-x-1">
+                        <span className="animate-bounce delay-0">.</span>
+                        <span className="animate-bounce delay-150">.</span>
+                        <span className="animate-bounce delay-300">.</span>
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              
+              {/* Error message */}
+              {skylerError && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start mb-4 justify-center"
+                >
+                  <div className="max-w-[80%] bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-lg py-2 px-4">
+                    <p>Error: {skylerError}</p>
+                    <p className="text-sm mt-1">Please try again or refresh the page.</p>
                   </div>
                 </motion.div>
               )}
