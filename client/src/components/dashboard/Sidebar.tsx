@@ -15,7 +15,8 @@ import {
   Menu,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  Scroll
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -23,6 +24,7 @@ import Logo from '@/components/ui/Logo';
 
 const menuItems = [
   { icon: Home, label: 'Dashboard', path: '/dashboard' },
+  { icon: Scroll, label: 'Wills', path: '/wills' },
   { icon: UploadCloud, label: 'Documents', path: '/dashboard/documents' },
   { icon: Video, label: 'Videos', path: '/dashboard/video' },
   { icon: Users, label: 'Beneficiaries', path: '/dashboard/beneficiaries' },

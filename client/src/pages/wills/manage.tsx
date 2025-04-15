@@ -103,8 +103,8 @@ export default function ManageWillsPage() {
                       variant="outline"
                     >
                       <span className="flex items-center gap-1">
-                        {statusIcons[will.status as keyof typeof statusIcons] || <AlertTriangle className="h-4 w-4" />}
-                        {will.status?.charAt(0).toUpperCase() + will.status?.slice(1) || "Unknown"}
+                        {will.status && statusIcons[will.status as keyof typeof statusIcons] || <AlertTriangle className="h-4 w-4" />}
+                        {will.status ? will.status.charAt(0).toUpperCase() + will.status.slice(1) : "Unknown"}
                       </span>
                     </Badge>
                   </div>
