@@ -81,7 +81,7 @@ const DocumentUpload: React.FC = () => {
                     description?: string;
                   }) => ({
                     id: doc.type || 'unknown-doc', // Use the type field as a document ID
-                    file: new File([''], doc.name || 'document.pdf', { type: 'application/pdf' }), // Create placeholder File object
+                    file: new Blob([''], { type: 'application/pdf' }) as any, // Create placeholder File-like object
                     name: doc.name || 'Unnamed Document',
                     progress: 100,
                     status: 'success' as const,

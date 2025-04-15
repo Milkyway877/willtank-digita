@@ -278,19 +278,19 @@ const FinalReview: React.FC = () => {
 
   // Handle edit buttons
   const handleEditWill = () => {
-    navigate('/create-will');
+    navigate('/will-creation/details');
   };
 
   const handleEditDocuments = () => {
-    navigate('/document-upload');
+    navigate('/will-creation/documents');
   };
 
   const handleEditContacts = () => {
-    navigate('/contact-information');
+    navigate('/will-creation/contacts');
   };
 
   const handleEditVideo = () => {
-    navigate('/video-recording');
+    navigate('/will-creation/video');
   };
 
   // Handle proceeding to payment
@@ -736,7 +736,7 @@ const FinalReview: React.FC = () => {
           <div className="flex flex-col md:flex-row justify-between gap-4">
             <Button
               variant="outline"
-              onClick={() => navigate('/video-recording')}
+              onClick={() => navigate('/will-creation/video')}
               className="order-2 md:order-1"
             >
               Back
