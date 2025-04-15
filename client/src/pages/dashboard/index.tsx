@@ -240,7 +240,7 @@ const DashboardPage: React.FC = () => {
   
   const handleViewDocuments = () => {
     if (mostRecentWill) {
-      navigate(`/document-upload?willId=${mostRecentWill.id}`);
+      navigate(`/will-creation/documents?willId=${mostRecentWill.id}`);
     } else {
       toast({
         title: "No will created yet",
@@ -252,7 +252,7 @@ const DashboardPage: React.FC = () => {
   
   const handleViewVideo = () => {
     if (mostRecentWill) {
-      navigate(`/video-recording?willId=${mostRecentWill.id}`);
+      navigate(`/will-creation/video?willId=${mostRecentWill.id}`);
     } else {
       toast({
         title: "No will created yet",
