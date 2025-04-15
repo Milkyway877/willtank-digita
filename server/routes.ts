@@ -175,7 +175,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   // Add each contact to the database
                   for (const contact of contacts) {
                     try {
-                      await dbStorage.addWillContact(contact);
+                      // Process and validate contact data
+                      const validatedContact = insertWillContactSchema.parse(contact);
+                      // Add to database
+                      await dbStorage.addWillContact(validatedContact);
                     } catch (contactError) {
                       console.error('Error adding contact:', contactError);
                     }
@@ -205,8 +208,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                     documentSuggestions
                   );
                   
-                  // We don't save these to the database, but could send them back or store them
-                  console.log('Document suggestions:', JSON.stringify(formattedSuggestions));
+                  // Store document suggestions in the will's dataJson field
+                  try {
+                    let dataJson = will.dataJson ? JSON.parse(will.dataJson) : {};
+                    dataJson.documentSuggestions = formattedSuggestions;
+                    await dbStorage.updateWill(Number(willId), {
+                      dataJson: JSON.stringify(dataJson)
+                    });
+                  } catch (jsonError) {
+                    console.error('Error updating will with document suggestions:', jsonError);
+                  }
                 }
               } catch (docError) {
                 console.error('Error generating document suggestions:', docError);

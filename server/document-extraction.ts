@@ -84,20 +84,25 @@ export async function suggestDocumentsFromConversation(
  * This doesn't actually create documents but returns properly formatted objects
  * for the UI to display as suggestions to the user
  */
+/**
+ * Format document suggestions to match the expected schema
+ * Note: Since these are just suggestions, we're providing placeholder values for required fields
+ */
 export function formatDocumentSuggestions(
   willId: number,
   userId: number,
   suggestedDocs: SuggestedDocument[]
-): Omit<InsertWillDocument, 'fileUrl' | 'fileSize'>[] {
+): Partial<InsertWillDocument>[] {
   return suggestedDocs.map(doc => ({
     willId,
     userId,
+    name: doc.filename,
     fileName: doc.filename,
     fileType: 'application/octet-stream', // Placeholder since this is a suggestion
-    name: doc.filename,
     description: doc.description,
     category: doc.category,
-    isSuggestion: true,
-    uploadDate: new Date(),
+    // These would normally be required but we're not saving to DB so they're omitted
+    // fileSize and fileUrl would need to be provided for actual document creation
+    isSuggestion: true, // Custom field to mark as suggestion only
   }));
 }
