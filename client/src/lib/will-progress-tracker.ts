@@ -123,12 +123,19 @@ export function getNextStep(currentStep: WillCreationStep): WillCreationStep {
 // Reset progress (for new will creation)
 export function resetWillProgress(): void {
   try {
+    // Clear all will creation progress data
     localStorage.removeItem('willCreationStep');
     localStorage.removeItem('willCreationTimestamp');
     localStorage.removeItem('willData');
     localStorage.removeItem('willContacts');
     localStorage.removeItem('willVideoRecorded');
     localStorage.removeItem('willVideoDate');
+    
+    // Also clear template and current will ID to start completely fresh
+    localStorage.removeItem('selectedWillTemplate');
+    localStorage.removeItem('currentWillId');
+    
+    console.log('Will progress completely reset');
   } catch (error) {
     console.error('Error resetting progress:', error);
   }

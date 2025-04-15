@@ -108,11 +108,17 @@ const TemplateSelection: React.FC = () => {
       // Create a new will in the database first
       const response = await apiRequest('POST', '/api/wills', {
         templateId: selectedTemplate,
-        title: TEMPLATE_NAMES[selectedTemplate as keyof typeof TEMPLATE_NAMES] || 'My Will'
+        title: TEMPLATE_NAMES[selectedTemplate as keyof typeof TEMPLATE_NAMES] || 'My Will',
+        content: JSON.stringify({
+          messages: [],
+          extracted: {}
+        }),
+        status: 'draft'
       });
       
       if (!response.ok) {
-        throw new Error('Failed to create new will');
+        const errorData = await response.json();
+        throw new Error(`Failed to create new will: ${errorData.error || response.statusText}`);
       }
       
       const newWill = await response.json();
@@ -130,11 +136,11 @@ const TemplateSelection: React.FC = () => {
       
       // Navigate to AI chat with the new will ID
       navigate(`/create-will?willId=${newWill.id}`);
-    } catch (error) {
-      console.error('Error creating new will:', error);
+    } catch (err: any) {
+      console.error('Error creating new will:', err);
       toast({
         title: "Error",
-        description: "There was a problem creating your will. Please try again.",
+        description: err?.message || "There was a problem creating your will. Please try again.",
         variant: "destructive"
       });
     }
