@@ -8,6 +8,17 @@ import AnimatedAurora from '@/components/ui/AnimatedAurora';
 import { apiRequest } from '@/lib/queryClient';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import { WillCreationStep, saveWillProgress } from '@/lib/will-progress-tracker';
+
+/**
+ * Map template IDs to display names
+ */
+const TEMPLATE_NAMES: Record<string, string> = {
+  'standard': 'Standard Will',
+  'family': 'Family Protection Will',
+  'business': 'Business Owner Will',
+  'property': 'Real Estate Focused Will'
+};
 
 interface TemplateOption {
   id: string;
@@ -94,16 +105,36 @@ const TemplateSelection: React.FC = () => {
     }
     
     try {
-      // Save selected template to localStorage for use in AI chat
-      localStorage.setItem('selectedWillTemplate', selectedTemplate);
+      // Create a new will in the database first
+      const response = await apiRequest('POST', '/api/wills', {
+        templateId: selectedTemplate,
+        title: TEMPLATE_NAMES[selectedTemplate as keyof typeof TEMPLATE_NAMES] || 'My Will'
+      });
       
-      // Navigate to AI chat
-      navigate('/create-will');
+      if (!response.ok) {
+        throw new Error('Failed to create new will');
+      }
+      
+      const newWill = await response.json();
+      
+      // Clear any previous will data from localStorage
+      localStorage.removeItem('willData');
+      localStorage.removeItem('currentWillId');
+      
+      // Save fresh will info to localStorage for use in AI chat
+      localStorage.setItem('selectedWillTemplate', selectedTemplate);
+      localStorage.setItem('currentWillId', newWill.id.toString());
+      
+      // Update progress status in local storage
+      saveWillProgress(WillCreationStep.CHAT);
+      
+      // Navigate to AI chat with the new will ID
+      navigate(`/create-will?willId=${newWill.id}`);
     } catch (error) {
-      console.error('Error selecting template:', error);
+      console.error('Error creating new will:', error);
       toast({
         title: "Error",
-        description: "There was a problem with your selection. Please try again.",
+        description: "There was a problem creating your will. Please try again.",
         variant: "destructive"
       });
     }
