@@ -50,14 +50,10 @@ import {
 } from "./stripe";
 
 import { getChatCompletion, getStreamingChatCompletion } from './openai';
+import { extractContactsFromConversation } from './contact-extraction';
 import { 
-  extractContactsFromConversation, 
-  processAndSaveContacts, 
-  createContactDetailsPrompt 
-} from './contact-extraction';
-import { 
-  extractDocumentSuggestions, 
-  createDocumentUploadPrompt 
+  suggestDocumentsFromConversation, 
+  formatDocumentSuggestions 
 } from './document-extraction';
 
 // Helper function to check if a user is authenticated via session
@@ -166,17 +162,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (will && will.userId === req.user.id) {
             // Extract contacts from conversation
             if (extractContacts) {
-              const contacts = await extractContactsFromConversation(messages);
-              if (contacts && contacts.length > 0) {
-                await processAndSaveContacts(Number(willId), req.user.id, contacts);
+              try {
+                const contacts = await extractContactsFromConversation(
+                  Number(willId),
+                  req.user.id,
+                  messages
+                );
+                
+                if (contacts && contacts.length > 0) {
+                  console.log(`Extracted ${contacts.length} contacts from conversation for will ${willId}`);
+                  
+                  // Add each contact to the database
+                  for (const contact of contacts) {
+                    try {
+                      await dbStorage.addWillContact(contact);
+                    } catch (contactError) {
+                      console.error('Error adding contact:', contactError);
+                    }
+                  }
+                }
+              } catch (contactError) {
+                console.error('Error extracting contacts:', contactError);
               }
             }
 
-            // Extract document suggestions from will content
-            if (extractDocuments && will.content) {
-              const documentSuggestions = await extractDocumentSuggestions(will.content);
-              // We don't save these to the database, but we could log them or process them further
-              console.log(`Generated ${documentSuggestions.length} document suggestions for will ${willId}`);
+            // Extract document suggestions from conversation
+            if (extractDocuments) {
+              try {
+                const documentSuggestions = await suggestDocumentsFromConversation(
+                  Number(willId),
+                  req.user.id,
+                  messages
+                );
+                
+                if (documentSuggestions && documentSuggestions.length > 0) {
+                  console.log(`Generated ${documentSuggestions.length} document suggestions for will ${willId}`);
+                  
+                  // Format the suggestions for the UI
+                  const formattedSuggestions = formatDocumentSuggestions(
+                    Number(willId),
+                    req.user.id,
+                    documentSuggestions
+                  );
+                  
+                  // We don't save these to the database, but could send them back or store them
+                  console.log('Document suggestions:', JSON.stringify(formattedSuggestions));
+                }
+              } catch (docError) {
+                console.error('Error generating document suggestions:', docError);
+              }
             }
           }
         } catch (err) {

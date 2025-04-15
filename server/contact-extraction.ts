@@ -1,148 +1,106 @@
-import OpenAI from "openai";
-import { db } from "./db";
-import { willContacts } from "@shared/schema";
+import { OpenAI } from 'openai';
+import { InsertWillContact } from '@shared/schema';
 
 // Initialize OpenAI client
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-// Contact extraction interface
+// Type for extracted contact information
 interface ExtractedContact {
   name: string;
   relationship: string;
-  role: 'beneficiary' | 'executor' | 'witness' | 'other';
   email?: string;
   phone?: string;
   address?: string;
+  country?: string;
+  role: 'beneficiary' | 'executor' | 'witness' | 'other';
   notes?: string;
 }
 
 /**
- * Extract contacts from a conversation with Skyler
- * @param conversation The conversation history between the user and Skyler
- * @returns Array of extracted contacts
+ * Extract contacts from a conversation by analyzing Skyler's responses
+ * 
+ * @param willId The will ID to associate with extracted contacts
+ * @param userId The user ID to associate with extracted contacts
+ * @param messages Array of conversation messages to analyze
+ * @returns Array of contact objects ready to be inserted into the database
  */
-export async function extractContactsFromConversation(conversation: Array<{ role: string, content: string }>): Promise<ExtractedContact[]> {
+export async function extractContactsFromConversation(
+  willId: number,
+  userId: number,
+  messages: { role: string; content: string }[]
+): Promise<InsertWillContact[]> {
   try {
-    // Initialize OpenAI prompt for contact extraction
-    const systemPrompt = {
-      role: "system", 
-      content: `You are a specialized AI designed to extract contact information from conversations about wills and estate planning.
+    // Get content from assistant messages only
+    const assistantMessages = messages
+      .filter(m => m.role === 'assistant')
+      .map(m => m.content)
+      .join('\n\n');
+
+    if (!assistantMessages) {
+      return [];
+    }
+
+    // Prepare prompt for contact extraction
+    const prompt = `
+      Based on the following conversation with a user about their will, identify all people mentioned who are relevant to the will.
+      Extract each person as a separate contact with as much detail as available.
       
-      1. Identify all people mentioned in the conversation.
-      2. Categorize each person's role (beneficiary, executor, witness, or other).
-      3. Extract any available contact details (name, relationship, email, phone, address).
-      4. Infer the relationship to the will creator when mentioned.
-      5. Format response as valid JSON with an array of objects containing: 
-         {
-           "name": "Full Name",
-           "relationship": "Relationship to will creator",
-           "role": "beneficiary|executor|witness|other",
-           "email": "email@example.com", (if available)
-           "phone": "phone number", (if available)
-           "address": "physical address", (if available)
-           "notes": "any additional information" (if available)
-         }
-      6. Only include people who are explicitly mentioned as beneficiaries, executors, witnesses or who will receive assets.
-      7. Do not include the will creator themselves.
+      Conversation:
+      ${assistantMessages}
+      
+      For each person mentioned, extract the following information:
+      - name (required): The person's full name
+      - relationship (required): The relationship to the will creator (e.g., spouse, child, friend)
+      - email (optional): Email address if mentioned
+      - phone (optional): Phone number if mentioned
+      - address (optional): Physical address if mentioned
+      - country (optional): Country of residence if mentioned
+      - role (required): Must be one of 'beneficiary', 'executor', 'witness', or 'other'
+      - notes (optional): Any additional details about this person
+      
+      Format your response as a valid JSON array of contact objects with the fields above.
+      If no contacts are mentioned, return an empty array.
+      Don't include any explanations or text outside the JSON array.
+    `;
 
-      Return an empty array if no contacts are found.`
-    };
-
-    // Create conversation messages
-    const messages = [
-      systemPrompt,
-      ...conversation.filter(msg => msg.role === 'user' || msg.role === 'assistant'),
-      {
-        role: "user",
-        content: "Based on our conversation about my will, please extract all the contacts I've mentioned including any beneficiaries, executors, or witnesses. Format the response as JSON."
-      }
-    ];
-
-    // Call OpenAI API with response format set to JSON
+    // Call OpenAI completion
     const response = await openai.chat.completions.create({
       model: "gpt-4o", // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
-      messages: messages as any,
-      response_format: { type: "json_object" },
-      temperature: 0.2,
+      messages: [
+        { role: "system", content: "You are a precise contact extraction tool that only returns valid JSON." },
+        { role: "user", content: prompt }
+      ],
+      response_format: { type: "json_object" }
     });
 
     // Parse the response
-    const jsonResponse = JSON.parse(response.choices[0].message.content || "{}");
-
-    // Extract contacts array from response
-    const extractedContacts = jsonResponse.contacts || [];
-    return extractedContacts as ExtractedContact[];
-
-  } catch (error) {
-    console.error("Error extracting contacts from conversation:", error);
-    return [];
-  }
-}
-
-/**
- * Process extracted contacts and save them to the database
- * @param willId The ID of the will
- * @param userId The ID of the user
- * @param contacts The extracted contacts
- * @returns Array of saved contact IDs
- */
-export async function processAndSaveContacts(willId: number, userId: number, contacts: ExtractedContact[]): Promise<number[]> {
-  try {
-    // Array to store IDs of saved contacts
-    const savedContactIds: number[] = [];
-
-    // Process each contact
-    for (const contact of contacts) {
-      // Skip contacts without a name
-      if (!contact.name) continue;
-
-      try {
-        // Insert contact into database
-        const inserted = await db.insert(willContacts).values({
-          willId,
-          userId,
-          name: contact.name,
-          relationship: contact.relationship || "",
-          role: contact.role || "beneficiary",
-          email: contact.email || "",
-          phone: contact.phone || "",
-          address: contact.address || "",
-          country: "",
-          notes: contact.notes || "",
-        }).returning({ id: willContacts.id });
-
-        // Add ID to saved contacts array if insert was successful
-        if (inserted && inserted.length > 0) {
-          savedContactIds.push(inserted[0].id);
-        }
-      } catch (err) {
-        console.error(`Error saving contact ${contact.name}:`, err);
-      }
+    const content = response.choices[0].message.content;
+    if (!content) {
+      return [];
     }
 
-    return savedContactIds;
+    // Parse the JSON response
+    const parsedResponse = JSON.parse(content);
+    const extractedContacts: ExtractedContact[] = parsedResponse.contacts || [];
+
+    // Convert to InsertWillContact format and add willId and userId
+    return extractedContacts.map(contact => ({
+      willId,
+      userId,
+      name: contact.name,
+      relationship: contact.relationship || 'unknown',
+      email: contact.email || '',
+      phone: contact.phone || '',
+      address: contact.address || '',
+      country: contact.country || '',
+      role: contact.role || 'other',
+      notes: contact.notes || '',
+    }));
+
   } catch (error) {
-    console.error("Error processing and saving contacts:", error);
+    console.error('Error extracting contacts:', error);
     return [];
   }
-}
-
-/**
- * Creates an AI prompt to ask for missing contact details
- * @param contact The contact with missing details
- * @returns A prompt for Skyler to ask for the missing details
- */
-export function createContactDetailsPrompt(contact: ExtractedContact): string {
-  let missingFields = [];
-  
-  if (!contact.email) missingFields.push("email address");
-  if (!contact.phone) missingFields.push("phone number");
-  if (!contact.address) missingFields.push("mailing address");
-  
-  if (missingFields.length === 0) {
-    return "";
-  }
-  
-  const fieldsText = missingFields.join(", ");
-  return `I noticed you mentioned ${contact.name} as a ${contact.role} in your will. To properly document this, could you please provide their ${fieldsText}? This information will help ensure they can be properly notified when needed.`;
 }
