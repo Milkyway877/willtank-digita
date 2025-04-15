@@ -48,7 +48,7 @@ const DocumentUpload: React.FC = () => {
     }
   }, [user, isLoading, navigate]);
   
-  // Get willId from URL query parameters
+  // Get willId from URL query parameters and load existing documents
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search);
@@ -62,12 +62,58 @@ const DocumentUpload: React.FC = () => {
           
           // Store in localStorage for other components
           localStorage.setItem('currentWillId', parsedWillId.toString());
+          
+          // Load any existing documents for this will
+          const loadDocuments = async () => {
+            try {
+              const response = await fetch(`/api/wills/${parsedWillId}/documents`);
+              
+              if (response.ok) {
+                const existingDocs = await response.json();
+                console.log('Loaded existing documents:', existingDocs);
+                
+                // Map server documents to our upload format
+                if (existingDocs && existingDocs.length > 0) {
+                  const mappedDocs = existingDocs.map(doc => ({
+                    id: doc.type || 'unknown-doc', // Use the type field as a document ID
+                    file: new File([], doc.name || 'document.pdf'), // Create placeholder File object
+                    name: doc.name || 'Unnamed Document',
+                    progress: 100,
+                    status: 'success' as const,
+                  }));
+                  
+                  setUploadedFiles(prev => [...prev, ...mappedDocs]);
+                }
+              } else if (response.status === 403) {
+                // Handle unauthorized access
+                console.error('Unauthorized access to will documents');
+                navigate('/template-selection');
+              }
+            } catch (error) {
+              console.error('Error loading existing documents:', error);
+            }
+          };
+          
+          loadDocuments();
         } catch (error) {
           console.error('Error parsing willId from URL:', error);
         }
+      } else {
+        // Check localStorage if URL doesn't have willId
+        const storedWillId = localStorage.getItem('currentWillId');
+        if (storedWillId) {
+          const parsedId = parseInt(storedWillId, 10);
+          if (!isNaN(parsedId)) {
+            console.log(`Using stored willId: ${parsedId}`);
+            setWillId(parsedId);
+            
+            // Redirect to add willId to URL for clarity
+            navigate(`/document-upload?willId=${parsedId}`, { replace: true });
+          }
+        }
       }
     }
-  }, []);
+  }, [navigate]);
 
   // Load will data from localStorage
   useEffect(() => {
@@ -225,7 +271,7 @@ const DocumentUpload: React.FC = () => {
   };
 
   // Handle file upload simulation
-  const handleFileUpload = (file: File, documentId: string) => {
+  const handleFileUpload = async (file: File, documentId: string) => {
     // Check if file type is allowed
     const doc = documents.find(d => d.id === documentId);
     if (!doc) return;
@@ -264,7 +310,24 @@ const DocumentUpload: React.FC = () => {
       return;
     }
     
-    // Start upload simulation
+    // Make sure we have a willId before trying to upload
+    if (!willId) {
+      console.error("Cannot upload file - missing willId");
+      setUploadedFiles(prev => [
+        ...prev.filter(f => f.id !== documentId),
+        {
+          id: documentId,
+          file,
+          name: file.name,
+          progress: 100,
+          status: 'error',
+          error: 'Cannot upload file - will information is missing'
+        }
+      ]);
+      return;
+    }
+    
+    // Start upload
     const newFile: UploadedFile = {
       id: documentId,
       file,
@@ -275,22 +338,54 @@ const DocumentUpload: React.FC = () => {
     
     setUploadedFiles(prev => [...prev.filter(f => f.id !== documentId), newFile]);
     
-    // Simulate progress
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 5;
+    try {
+      // Create form data for file upload
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', doc.name);
+      formData.append('description', doc.description);
       
-      if (progress >= 100) {
-        clearInterval(interval);
-        setUploadedFiles(prev => prev.map(f => 
-          f.id === documentId ? { ...f, progress: 100, status: 'success' } : f
-        ));
-      } else {
-        setUploadedFiles(prev => prev.map(f => 
-          f.id === documentId ? { ...f, progress } : f
-        ));
+      // Show initial progress
+      let progress = 10;
+      setUploadedFiles(prev => prev.map(f => 
+        f.id === documentId ? { ...f, progress } : f
+      ));
+      
+      // Send to server
+      const response = await fetch(`/api/wills/${willId}/documents`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin',
+      });
+      
+      // Update progress to 70%
+      progress = 70;
+      setUploadedFiles(prev => prev.map(f => 
+        f.id === documentId ? { ...f, progress } : f
+      ));
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload file');
       }
-    }, 200);
+      
+      // Complete the upload
+      progress = 100;
+      setUploadedFiles(prev => prev.map(f => 
+        f.id === documentId ? { ...f, progress, status: 'success' } : f
+      ));
+      
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      setUploadedFiles(prev => prev.map(f => 
+        f.id === documentId ? { 
+          ...f, 
+          progress: 100, 
+          status: 'error',
+          error: error.message || 'Failed to upload file'
+        } : f
+      ));
+    }
   };
 
   // Handle file removal
