@@ -248,8 +248,13 @@ const WillsPage: React.FC = () => {
   // Download will as PDF
   const downloadWillAsPdf = async (willId: number) => {
     try {
-      const res = await apiRequest('GET', `/api/wills/${willId}/pdf`, null, {
-        responseType: 'blob'
+      // Use fetch directly to handle blob responses
+      const res = await fetch(`/api/wills/${willId}/pdf`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
       });
       
       if (!res.ok) {
@@ -313,13 +318,15 @@ const WillsPage: React.FC = () => {
   
   // Create new will
   const handleCreateNewWill = () => {
-    navigate('/ai-chat');
+    // Direct to the template selection to start the will creation process with Skyler
+    navigate('/template-selection');
   };
   
   // Edit existing will
   const handleEditWill = (willId: number) => {
+    // Store the will ID and navigate to AiChat to continue editing with Skyler
     localStorage.setItem('currentWillId', willId.toString());
-    navigate('/ai-chat');
+    navigate('/create-will'); // This routes to AiChat which is renamed to create-will in the router
   };
   
   // View will details

@@ -229,7 +229,8 @@ const DashboardPage: React.FC = () => {
   
   // Navigation handlers for quick actions
   const handleCreateWill = () => {
-    navigate('/ai-chat');
+    // Ensure we direct to template selection to start the will creation process
+    navigate('/template-selection');
   };
   
   const handleViewWills = () => {

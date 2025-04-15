@@ -114,7 +114,7 @@ const ContactInformation = () => {
             // If no contact info but user is logged in, pre-fill with user data
             form.setValue('fullName', user.fullName || user.username || "");
             // Check if email property exists on user
-            if ('email' in user) {
+            if ('email' in user && typeof user.email === 'string') {
               form.setValue('email', user.email);
             }
           }
