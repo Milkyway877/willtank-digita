@@ -644,7 +644,7 @@ Let's get started! First, could you please tell me your full legal name?`
       // Use timeout to allow the toast to be shown
       setTimeout(() => {
         // Always pass the most up-to-date willId
-        navigate(`/document-upload?willId=${savedWillId}`);
+        navigate(`/will-creation/documents?willId=${savedWillId}`);
       }, 1000);
       
     } catch (error) {

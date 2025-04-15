@@ -401,17 +401,17 @@ const DocumentUpload: React.FC = () => {
 
   // Handle continue to video recording
   const handleContinue = () => {
-    // Update progress tracker
-    trackWillProgress(WillCreationStep.VIDEO_RECORDING);
+    // Update progress tracker to Contact Information step
+    trackWillProgress(WillCreationStep.CONTACT_INFO);
     
-    // Continue to video recording with the willId
+    // Continue to contacts page with the willId
     if (willId) {
-      console.log(`Continuing to video recording with willId: ${willId}`);
-      navigate(`/video-recording?willId=${willId}`);
+      console.log(`Continuing to contact information with willId: ${willId}`);
+      navigate(`/will-creation/contacts?willId=${willId}`);
     } else {
       // Fallback if willId is missing
-      console.error('Missing willId when trying to proceed to video recording');
-      navigate('/video-recording');
+      console.error('Missing willId when trying to proceed to contact information');
+      navigate('/will-creation/contacts');
     }
   };
 

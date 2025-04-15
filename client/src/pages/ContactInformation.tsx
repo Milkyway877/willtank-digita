@@ -186,7 +186,7 @@ const ContactInformation = () => {
     if (saved) {
       // Navigate to next step
       const nextStep = getNextStep(WillCreationStep.CONTACT_INFO);
-      navigate(`/${nextStep === WillCreationStep.VIDEO_RECORDING ? 'video-recording' : 'final-review'}?willId=${willId}`);
+      navigate(`/will-creation/${nextStep === WillCreationStep.VIDEO_RECORDING ? 'video' : 'preview'}?willId=${willId}`);
     }
   };
 
