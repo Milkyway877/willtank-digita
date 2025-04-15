@@ -329,11 +329,15 @@ export const willDocuments = pgTable("will_documents", {
 export const willContacts = pgTable("will_contacts", {
   id: serial("id").primaryKey(),
   willId: integer("will_id").notNull().references(() => wills.id),
+  userId: integer("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
+  address: text("address"),
   country: text("country"),
-  role: text("role").notNull(), // beneficiary, executor, witness
+  role: text("role").notNull(), // beneficiary, executor, witness, other
+  relationship: text("relationship"),
+  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -390,11 +394,15 @@ export const insertWillDocumentSchema = createInsertSchema(willDocuments).pick({
 
 export const insertWillContactSchema = createInsertSchema(willContacts).pick({
   willId: true,
+  userId: true,
   name: true,
   email: true,
   phone: true,
+  address: true,
   country: true,
   role: true,
+  relationship: true,
+  notes: true,
 });
 
 // Will types

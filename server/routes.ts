@@ -50,6 +50,15 @@ import {
 } from "./stripe";
 
 import { getChatCompletion, getStreamingChatCompletion } from './openai';
+import { 
+  extractContactsFromConversation, 
+  processAndSaveContacts, 
+  createContactDetailsPrompt 
+} from './contact-extraction';
+import { 
+  extractDocumentSuggestions, 
+  createDocumentUploadPrompt 
+} from './document-extraction';
 
 // Helper function to check if a user is authenticated via session
 // This is a TypeScript type guard that ensures req.user exists after this check
