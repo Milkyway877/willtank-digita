@@ -104,7 +104,7 @@ const SubscriptionPage = () => {
       
       // Show success for a few seconds before redirecting
       setTimeout(() => {
-        navigate('/template-selection');
+        navigate('/will-selection');
       }, 3000);
     } catch (error) {
       console.error("Error processing subscription:", error);
@@ -317,7 +317,7 @@ const SubscriptionPage = () => {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  navigate('/template-selection');
+                  navigate('/will-selection');
                 }}
                 className="px-8 py-3 rounded-lg bg-primary text-white font-medium shadow-sm hover:bg-primary-dark transition-colors"
               >
@@ -325,7 +325,7 @@ const SubscriptionPage = () => {
               </button>
               
               <p className="mt-4 text-sm text-gray-500">
-                Redirecting to template selection...
+                Redirecting to will selection...
               </p>
             </motion.div>
           </motion.div>
