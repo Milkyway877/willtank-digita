@@ -1,184 +1,191 @@
 /**
- * Library for tracking user progress through the will creation process
- * Helps with resuming from where user left off and preventing accidental data loss
+ * Will creation progress tracker
+ * This module helps track and save the progress of will creation
  */
 
+// Enum for will creation steps
 export enum WillCreationStep {
   NOT_STARTED = 'not_started',
-  TEMPLATE_SELECTION = 'template_selection',
-  AI_CHAT = 'ai_chat',
+  CHAT = 'chat',
   DOCUMENT_UPLOAD = 'document_upload',
+  CONTACT_INFO = 'contact_info',
   VIDEO_RECORDING = 'video_recording',
   FINAL_REVIEW = 'final_review',
+  PAYMENT = 'payment',
   COMPLETED = 'completed'
 }
 
-// Key for localStorage
-const WILL_PROGRESS_KEY = 'willProgress';
-const WILL_LAST_STEP_KEY = 'willLastStep';
-const WILL_LAST_UPDATED_KEY = 'willLastUpdated';
-
-/**
- * Save the current step in the will creation process
- * @param step The current step
- */
-export function saveWillProgress(step: WillCreationStep): void {
-  try {
-    // Save current step
-    localStorage.setItem(WILL_PROGRESS_KEY, step);
-    
-    // Save timestamp
-    localStorage.setItem(WILL_LAST_UPDATED_KEY, new Date().toISOString());
-    
-    // If this is not the first step and not the last step, save as "last significant step"
-    // This helps with resuming from the correct place
-    if (step !== WillCreationStep.NOT_STARTED && step !== WillCreationStep.COMPLETED) {
-      localStorage.setItem(WILL_LAST_STEP_KEY, step);
-    }
-    
-    console.log(`Will progress saved: ${step}`);
-  } catch (error) {
-    console.error('Error saving will progress:', error);
-  }
-}
-
-/**
- * Get the current step in the will creation process
- */
-export function getWillProgress(): WillCreationStep {
-  try {
-    const savedProgress = localStorage.getItem(WILL_PROGRESS_KEY);
-    
-    if (!savedProgress) {
-      return WillCreationStep.NOT_STARTED;
-    }
-    
-    return savedProgress as WillCreationStep;
-  } catch (error) {
-    console.error('Error getting will progress:', error);
-    return WillCreationStep.NOT_STARTED;
-  }
-}
-
-/**
- * Get the last significant step the user completed
- * This is used for resuming from where the user left off
- */
-export function getLastStep(): WillCreationStep {
-  try {
-    const lastStep = localStorage.getItem(WILL_LAST_STEP_KEY);
-    
-    if (!lastStep) {
-      return WillCreationStep.NOT_STARTED;
-    }
-    
-    return lastStep as WillCreationStep;
-  } catch (error) {
-    console.error('Error getting last will step:', error);
-    return WillCreationStep.NOT_STARTED;
-  }
-}
-
-/**
- * Check if the user has an unfinished will
- */
-export function hasUnfinishedWill(): boolean {
-  try {
-    const currentProgress = getWillProgress();
-    
-    // If the progress is not "not_started" and not "completed"
-    // then the user has an unfinished will
-    return (
-      currentProgress !== WillCreationStep.NOT_STARTED &&
-      currentProgress !== WillCreationStep.COMPLETED
-    );
-  } catch (error) {
-    console.error('Error checking for unfinished will:', error);
-    return false;
-  }
-}
-
-/**
- * Get a URL to resume the will creation process from the last step
- */
-export function getResumeUrl(): string {
-  try {
-    const lastStep = getLastStep();
-    
-    switch (lastStep) {
-      case WillCreationStep.TEMPLATE_SELECTION:
-        return '/template-selection';
-      case WillCreationStep.AI_CHAT:
-        return '/create-will';
-      case WillCreationStep.DOCUMENT_UPLOAD:
-        return '/document-upload';
-      case WillCreationStep.VIDEO_RECORDING:
-        return '/video-recording';
-      case WillCreationStep.FINAL_REVIEW:
-        return '/finalize';
-      default:
-        return '/welcome';
-    }
-  } catch (error) {
-    console.error('Error getting resume URL:', error);
-    return '/welcome';
-  }
-}
-
-/**
- * Get the last time the will was updated
- */
-export function getLastUpdated(): Date | null {
-  try {
-    const lastUpdated = localStorage.getItem(WILL_LAST_UPDATED_KEY);
-    
-    if (!lastUpdated) {
-      return null;
-    }
-    
-    return new Date(lastUpdated);
-  } catch (error) {
-    console.error('Error getting last updated timestamp:', error);
-    return null;
-  }
-}
-
-/**
- * Reset the will progress tracker
- * This should be called when the user completes their will
- * or when they explicitly choose to start over
- */
-export function resetWillProgress(): void {
-  try {
-    localStorage.removeItem(WILL_PROGRESS_KEY);
-    localStorage.removeItem(WILL_LAST_STEP_KEY);
-    localStorage.removeItem(WILL_LAST_UPDATED_KEY);
-    console.log('Will progress reset');
-  } catch (error) {
-    console.error('Error resetting will progress:', error);
-  }
-}
-
-/**
- * Get a user-friendly description of the current step
- */
+// Get step descriptions for UI display
 export function getStepDescription(step: WillCreationStep): string {
   switch (step) {
-    case WillCreationStep.NOT_STARTED:
-      return 'Not Started';
-    case WillCreationStep.TEMPLATE_SELECTION:
-      return 'Template Selection';
-    case WillCreationStep.AI_CHAT:
-      return 'Talking with Skyler';
+    case WillCreationStep.CHAT:
+      return 'Skyler Will Creation';
     case WillCreationStep.DOCUMENT_UPLOAD:
       return 'Document Upload';
+    case WillCreationStep.CONTACT_INFO:
+      return 'Contact Information';
     case WillCreationStep.VIDEO_RECORDING:
       return 'Video Recording';
     case WillCreationStep.FINAL_REVIEW:
       return 'Final Review';
+    case WillCreationStep.PAYMENT:
+      return 'Subscription Setup';
     case WillCreationStep.COMPLETED:
-      return 'Completed';
+      return 'Completed Will';
     default:
-      return 'Unknown';
+      return 'Will Creation';
+  }
+}
+
+// Get the last step saved in localStorage
+export function getLastStep(): WillCreationStep {
+  return getWillProgress().step;
+}
+
+// Get last updated timestamp
+export function getLastUpdated(): Date | null {
+  return getWillProgress().timestamp;
+}
+
+// Get resume URL
+export function getResumeUrl(): string {
+  return getContinueUrl();
+}
+
+// Save the current step to localStorage
+export function saveWillProgress(step: WillCreationStep): void {
+  try {
+    // Save the current step
+    localStorage.setItem('willCreationStep', step);
+    
+    // Save timestamp
+    localStorage.setItem('willCreationTimestamp', new Date().toISOString());
+    
+    // Also update on server if possible
+    updateServerProgress(step).catch(err => {
+      console.warn('Failed to update server progress:', err);
+    });
+  } catch (error) {
+    console.error('Error saving progress:', error);
+  }
+}
+
+// Get the current progress step
+export function getWillProgress(): {
+  step: WillCreationStep;
+  timestamp: Date | null;
+} {
+  try {
+    const step = localStorage.getItem('willCreationStep') as WillCreationStep || WillCreationStep.NOT_STARTED;
+    const timestampStr = localStorage.getItem('willCreationTimestamp');
+    
+    return {
+      step,
+      timestamp: timestampStr ? new Date(timestampStr) : null
+    };
+  } catch (error) {
+    console.error('Error getting progress:', error);
+    return {
+      step: WillCreationStep.NOT_STARTED,
+      timestamp: null
+    };
+  }
+}
+
+// Check if there's an unfinished will creation
+export function hasUnfinishedWill(): boolean {
+  const { step } = getWillProgress();
+  return step !== WillCreationStep.NOT_STARTED && step !== WillCreationStep.COMPLETED;
+}
+
+// Get the next step in the flow
+export function getNextStep(currentStep: WillCreationStep): WillCreationStep {
+  switch (currentStep) {
+    case WillCreationStep.NOT_STARTED:
+      return WillCreationStep.CHAT;
+    case WillCreationStep.CHAT:
+      return WillCreationStep.DOCUMENT_UPLOAD;
+    case WillCreationStep.DOCUMENT_UPLOAD:
+      return WillCreationStep.CONTACT_INFO;
+    case WillCreationStep.CONTACT_INFO:
+      return WillCreationStep.VIDEO_RECORDING;
+    case WillCreationStep.VIDEO_RECORDING:
+      return WillCreationStep.FINAL_REVIEW;
+    case WillCreationStep.FINAL_REVIEW:
+      return WillCreationStep.PAYMENT;
+    case WillCreationStep.PAYMENT:
+      return WillCreationStep.COMPLETED;
+    default:
+      return WillCreationStep.NOT_STARTED;
+  }
+}
+
+// Reset progress (for new will creation)
+export function resetWillProgress(): void {
+  try {
+    localStorage.removeItem('willCreationStep');
+    localStorage.removeItem('willCreationTimestamp');
+    localStorage.removeItem('willData');
+    localStorage.removeItem('willContacts');
+    localStorage.removeItem('willVideoRecorded');
+    localStorage.removeItem('willVideoDate');
+  } catch (error) {
+    console.error('Error resetting progress:', error);
+  }
+}
+
+// Update progress on server
+async function updateServerProgress(step: WillCreationStep): Promise<void> {
+  const willId = localStorage.getItem('currentWillId');
+  
+  if (!willId) {
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/user/will-status', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        willId,
+        progress: step,
+        willInProgress: step !== WillCreationStep.COMPLETED,
+        willCompleted: step === WillCreationStep.COMPLETED
+      }),
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to update progress: ${response.status}`);
+    }
+  } catch (error) {
+    console.error('Error updating progress on server:', error);
+    throw error;
+  }
+}
+
+// Get a URL for continuing will creation from where user left off
+export function getContinueUrl(): string {
+  const { step } = getWillProgress();
+  
+  switch (step) {
+    case WillCreationStep.CHAT:
+      return '/ai-chat';
+    case WillCreationStep.DOCUMENT_UPLOAD:
+      return '/document-upload';
+    case WillCreationStep.CONTACT_INFO:
+      return '/contact-information';
+    case WillCreationStep.VIDEO_RECORDING:
+      return '/video-recording';
+    case WillCreationStep.FINAL_REVIEW:
+      return '/final-review';
+    case WillCreationStep.PAYMENT:
+      return '/subscription';
+    case WillCreationStep.COMPLETED:
+      return '/dashboard';
+    default:
+      return '/ai-chat';
   }
 }

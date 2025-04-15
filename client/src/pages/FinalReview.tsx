@@ -2,13 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/hooks/use-auth';
-import { Check, Edit, FileText, AlertCircle, Save, ArrowRight, CheckCircle, Download } from 'lucide-react';
-import AnimatedAurora from '@/components/ui/AnimatedAurora';
-import { saveWillProgress, WillCreationStep, resetWillProgress } from '@/lib/will-progress-tracker';
-import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { apiRequest } from '@/lib/queryClient';
+import {
+  FileText,
+  Video,
+  User,
+  Check,
+  Edit,
+  X,
+  Download,
+  ChevronDown,
+  ChevronUp,
+  ArrowRight,
+  Loader2,
+  Shield,
+  Mail,
+  Phone,
+  MapPin
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import AnimatedAurora from '@/components/ui/AnimatedAurora';
+import { saveWillProgress, WillCreationStep } from '@/lib/will-progress-tracker';
 
-// Will document data structure
+// Interface for will data
 interface WillData {
   personalInfo: {
     fullName?: string;
@@ -19,277 +37,288 @@ interface WillData {
   beneficiaries: Array<{
     name: string;
     relationship: string;
-    share?: string;
-    contact?: string;
+    share: string;
   }>;
   executor?: {
     name: string;
     relationship: string;
-    contact?: string;
   };
   assets: Array<{
     type: string;
     description: string;
-    estimatedValue?: string;
-    beneficiary?: string;
-  }>;
-  guardians?: Array<{
-    name: string;
-    relationship: string;
-    contact?: string;
+    beneficiary: string;
   }>;
   specialInstructions?: string;
 }
 
+// Interface for contact
+interface Contact {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  country: string;
+  relationship: string;
+  role: string;
+}
+
+// Interface for document
+interface Document {
+  id: number;
+  willId: number;
+  name: string;
+  path: string;
+  type: string;
+  uploadDate: string;
+  size: number;
+}
+
 const FinalReview: React.FC = () => {
-  const { user, isLoading, refetchUser, updateWillStatusMutation } = useAuth();
+  const { toast } = useToast();
+  const { user, isLoading: authLoading } = useAuth();
   const [, navigate] = useLocation();
+  const [isLoading, setIsLoading] = useState(true);
   const [willData, setWillData] = useState<WillData | null>(null);
-  const [editableContent, setEditableContent] = useState<string>('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [documentComplete, setDocumentComplete] = useState(false);
-  
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [hasVideo, setHasVideo] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [expandedSections, setExpandedSections] = useState({
+    will: true,
+    documents: true,
+    contacts: true,
+    video: true
+  });
+  const [willId, setWillId] = useState<string | null>(null);
+
   // Redirect to auth if not logged in
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!authLoading && !user) {
       navigate('/auth/sign-in');
     }
-  }, [user, isLoading, navigate]);
+  }, [user, authLoading, navigate]);
 
-  // Check for will data and video recording status
+  // Load all required data
   useEffect(() => {
-    const savedWillData = localStorage.getItem('willData');
-    const videoRecorded = localStorage.getItem('willVideoRecorded');
+    if (!user) return;
     
-    if (!savedWillData || !videoRecorded) {
-      navigate('/video-recording');
-      return;
-    }
+    saveWillProgress(WillCreationStep.FINAL_REVIEW);
+    loadAllData();
+  }, [user]);
+
+  // Load all data needed for the preview
+  const loadAllData = async () => {
+    setIsLoading(true);
     
     try {
-      const parsedData = JSON.parse(savedWillData);
-      setWillData(parsedData);
+      // Get will ID from localStorage
+      const storedWillId = localStorage.getItem('currentWillId');
+      setWillId(storedWillId);
       
-      // Generate the editable document content
-      const content = generateWillDocument(parsedData);
-      setEditableContent(content);
+      if (!storedWillId) {
+        throw new Error('No will ID found');
+      }
+      
+      // Load will data
+      await loadWillData(storedWillId);
+      
+      // Load contacts
+      await loadContacts();
+      
+      // Load documents
+      await loadDocuments(storedWillId);
+      
+      // Check for video
+      await checkVideo(storedWillId);
+      
     } catch (error) {
-      console.error('Error parsing will data:', error);
-      navigate('/ai-chat');
-    }
-  }, [navigate]);
-
-  // Generate the will document as a formatted string
-  const generateWillDocument = (data: WillData): string => {
-    const today = new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-    
-    let document = `LAST WILL AND TESTAMENT
-
-I, ${data.personalInfo.fullName || '[Name]'}, of ${data.personalInfo.address || '[Address]'}, being of sound mind and memory, make this my Last Will and Testament, hereby revoking all previous wills and codicils made by me.
-
-DECLARATION
-This document is executed on ${today}.
-Date of Birth: ${formatDate(data.personalInfo.dateOfBirth) || '[Date of Birth]'}
-Marital Status: ${data.personalInfo.maritalStatus || '[Marital Status]'}
-
-APPOINTMENT OF EXECUTOR
-`;
-
-    if (data.executor) {
-      document += `I appoint ${data.executor.name}, my ${data.executor.relationship}, to be the Executor of this Will. If they are unable or unwilling to serve, I appoint a suitable representative as chosen by the court.
-
-`;
-    } else {
-      document += `[Executor information]
-
-`;
-    }
-
-    document += `BENEFICIARIES
-`;
-    
-    if (data.beneficiaries && data.beneficiaries.length > 0) {
-      data.beneficiaries.forEach((beneficiary, index) => {
-        document += `${index + 1}. I give to ${beneficiary.name}, my ${beneficiary.relationship}, a share of my estate as detailed below.
-`;
-      });
-      document += `\n`;
-    } else {
-      document += `[Beneficiary information]
-
-`;
-    }
-
-    document += `DISTRIBUTION OF ASSETS
-`;
-    
-    if (data.assets && data.assets.length > 0) {
-      data.assets.forEach((asset, index) => {
-        document += `${index + 1}. ${asset.type}: ${asset.description}
-`;
-      });
-      document += `\n`;
-    } else {
-      document += `[Asset information]
-
-`;
-    }
-
-    if (data.specialInstructions) {
-      document += `SPECIAL INSTRUCTIONS
-${data.specialInstructions}
-
-`;
-    }
-
-    document += `SIGNATURES
-
-_______________________________
-${data.personalInfo.fullName || '[Testator Name]'}
-Testator
-
-_______________________________    _______________________________
-Witness 1                          Witness 2
-
-_______________________________    _______________________________
-Date                               Date`;
-
-    return document;
-  };
-
-  // Format date for display
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return '';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch (e) {
-      return dateString;
-    }
-  };
-
-  // Handle document editing
-  const handleEdit = () => {
-    setIsEditing(true);
-  };
-
-  // Handle content changes
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setEditableContent(e.target.value);
-    setHasUnsavedChanges(true);
-  };
-
-  // Save changes
-  const handleSave = () => {
-    setIsEditing(false);
-    setHasUnsavedChanges(false);
-    
-    // In a real app, you might want to parse the edited content back into structured data
-    localStorage.setItem('willFinalDocument', editableContent);
-  };
-
-  // Generate PDF from will content
-  const generatePDF = () => {
-    // In a real implementation, this would use a proper PDF library
-    // For now, create a text blob and trigger download
-    try {
-      const blob = new Blob([editableContent], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
+      console.error('Error loading preview data:', error);
       
-      // Set filename with user name if available
-      const filename = willData?.personalInfo?.fullName 
-        ? `${willData.personalInfo.fullName.replace(/\s+/g, '_')}_Will.txt` 
-        : 'WillTank_Document.txt';
-      
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      
-      // Clean up
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-      }, 100);
-      
-      console.log("Document downloaded successfully");
-      return true;
-    } catch (error) {
-      console.error("Error generating document:", error);
-      return false;
-    }
-  };
-  
-  // Finalize and save will
-  const handleFinalize = async () => {
-    // Save final document
-    if (hasUnsavedChanges) {
-      handleSave();
-    }
-    
-    // Mark as complete
-    setDocumentComplete(true);
-    
-    // Save completion status in localStorage
-    localStorage.setItem('willCompleted', 'true');
-
-    console.log("Finalizing will document and marking as completed");
-    
-    // Update progress tracker to mark the will as completed
-    try {
-      // First mark final review as completed
-      saveWillProgress(WillCreationStep.FINAL_REVIEW);
-      
-      // Then mark the entire will as completed
-      // This will prevent the unfinished will notification from appearing
-      saveWillProgress(WillCreationStep.COMPLETED);
-      
-      // Reset the will progress tracker to prevent any stale data
-      resetWillProgress();
-      
-      // Update the will status using the mutation
-      updateWillStatusMutation.mutate(
-        { 
-          willInProgress: false,
-          willCompleted: true
-        },
-        {
-          onSuccess: () => {
-            console.log("Will status updated successfully in database");
-          },
-          onError: (error) => {
-            console.error("Error updating will status:", error);
-          }
+      // Fall back to localStorage data
+      const savedWillData = localStorage.getItem('willData');
+      if (savedWillData) {
+        try {
+          setWillData(JSON.parse(savedWillData));
+        } catch (e) {
+          console.error('Error parsing saved will data:', e);
         }
-      );
+      }
       
-      console.log("Will progress tracker updated successfully");
-    } catch (error) {
-      console.error("Error updating will progress:", error);
+      const savedContacts = localStorage.getItem('willContacts');
+      if (savedContacts) {
+        try {
+          setContacts(JSON.parse(savedContacts));
+        } catch (e) {
+          console.error('Error parsing saved contacts:', e);
+        }
+      }
+      
+      toast({
+        title: 'Loading Error',
+        description: 'Some will information could not be loaded from the server.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  // Load will data from API
+  const loadWillData = async (willId: string) => {
+    try {
+      const response = await apiRequest('GET', `/api/wills/${willId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to load will data');
+      }
+      
+      const data = await response.json();
+      
+      // Extract will data from content
+      if (data.content) {
+        try {
+          const content = JSON.parse(data.content);
+          if (content.extracted) {
+            setWillData(content.extracted);
+          }
+        } catch (error) {
+          console.error('Error parsing will content:', error);
+          throw error;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading will data:', error);
+      throw error;
+    }
+  };
+
+  // Load contacts from API
+  const loadContacts = async () => {
+    try {
+      const response = await apiRequest('GET', `/api/beneficiaries`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to load contacts');
+      }
+      
+      const data = await response.json();
+      setContacts(data);
+    } catch (error) {
+      console.error('Error loading contacts:', error);
+      throw error;
+    }
+  };
+
+  // Load documents from API
+  const loadDocuments = async (willId: string) => {
+    try {
+      const response = await apiRequest('GET', `/api/wills/${willId}/documents`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to load documents');
+      }
+      
+      const data = await response.json();
+      setDocuments(data);
+    } catch (error) {
+      console.error('Error loading documents:', error);
+      throw error;
+    }
+  };
+
+  // Check if video exists
+  const checkVideo = async (willId: string) => {
+    try {
+      // First check localStorage flag
+      const videoRecorded = localStorage.getItem('willVideoRecorded');
+      
+      if (videoRecorded === 'true') {
+        setHasVideo(true);
+        
+        // Try to get video URL from API
+        try {
+          const response = await apiRequest('GET', `/api/wills/${willId}/video`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.videoUrl) {
+              setVideoUrl(data.videoUrl);
+            }
+          }
+        } catch (e) {
+          // Ignore error, we'll just not show the video preview
+          console.error('Error fetching video URL:', e);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking video:', error);
+      // Don't throw, just continue
+    }
+  };
+
+  // Toggle section expansion
+  const toggleSection = (section: keyof typeof expandedSections) => {
+    setExpandedSections({
+      ...expandedSections,
+      [section]: !expandedSections[section]
+    });
+  };
+
+  // Format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
     
-    // Generate and download PDF automatically
-    generatePDF();
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
     
-    // Show success state first, then navigate after delay
-    setTimeout(() => {
-      // Navigate to dashboard instead of completion
-      navigate('/dashboard');
-    }, 3000);
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  // Handle edit buttons
+  const handleEditWill = () => {
+    navigate('/create-will');
+  };
+
+  const handleEditDocuments = () => {
+    navigate('/document-upload');
+  };
+
+  const handleEditContacts = () => {
+    navigate('/contact-information');
+  };
+
+  const handleEditVideo = () => {
+    navigate('/video-recording');
+  };
+
+  // Handle proceeding to payment
+  const handleProceedToPayment = async () => {
+    setIsProcessing(true);
+    
+    try {
+      // Mark the will as completed
+      await apiRequest('POST', '/api/user/will-status', {
+        willCompleted: true
+      });
+      
+      // Navigate to subscription page
+      navigate('/subscription');
+    } catch (error) {
+      console.error('Error proceeding to payment:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to proceed to payment. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   // Loading state
-  if (isLoading) {
+  if (isLoading || authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary"></div>
@@ -304,182 +333,432 @@ Date                               Date`;
         <AnimatedAurora />
       </div>
       
-      <div className="container mx-auto py-16 px-4 relative z-10">
+      <div className="container mx-auto px-4 py-10 relative z-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="max-w-4xl mx-auto"
         >
-          {documentComplete ? (
-            // Success state
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="text-center py-16"
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">Final Review</h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Review all information before finalizing your will
+            </p>
+          </div>
+          
+          {/* Will Information Section */}
+          <Card className="mb-6 overflow-hidden border border-gray-200 dark:border-gray-700 rounded-xl shadow-md">
+            <div 
+              className="p-4 bg-gray-100 dark:bg-gray-800 flex justify-between items-center cursor-pointer"
+              onClick={() => toggleSection('will')}
             >
-              <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-6">
-                <CheckCircle className="h-10 w-10 text-green-600 dark:text-green-400" />
+              <div className="flex items-center">
+                <FileText className="h-5 w-5 text-primary mr-2" />
+                <h2 className="text-lg font-semibold">Will Information</h2>
               </div>
-              <h1 className="text-3xl font-bold mb-3">Will Document Finalized!</h1>
-              <p className="text-gray-600 dark:text-gray-400 mb-12 max-w-md mx-auto">
-                Your will has been securely saved. We're redirecting you to the completion page...
-              </p>
-              <div className="w-24 h-1 bg-gray-200 dark:bg-gray-700 rounded-full mx-auto">
-                <motion.div 
-                  initial={{ width: "0%" }}
-                  animate={{ width: "100%" }}
-                  transition={{ duration: 2.5 }}
-                  className="h-full bg-primary rounded-full"
-                />
+              <div className="flex items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditWill();
+                  }}
+                  className="mr-2"
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+                {expandedSections.will ? (
+                  <ChevronUp className="h-5 w-5" />
+                ) : (
+                  <ChevronDown className="h-5 w-5" />
+                )}
               </div>
-            </motion.div>
-          ) : (
-            <>
-              <div className="text-center mb-8">
-                <h1 className="text-3xl font-bold mb-4">Final Review</h1>
-                <p className="text-gray-600 dark:text-gray-400 max-w-xl mx-auto">
-                  Review your will document and make any necessary edits before finalizing.
-                </p>
-              </div>
-              
-              {/* Document Editor */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-                {/* Header */}
-                <div className="p-4 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                  <div className="flex items-center">
-                    <FileText className="h-5 w-5 text-primary mr-2" />
-                    <h3 className="font-medium">Last Will and Testament</h3>
-                  </div>
-                  
-                  <div className="flex space-x-2">
-                    {!isEditing && (
-                      <button
-                        onClick={generatePDF}
-                        className="flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                      >
-                        <Download className="h-4 w-4 mr-1.5" />
-                        Download
-                      </button>
-                    )}
-
-                    {isEditing ? (
-                      <button
-                        onClick={handleSave}
-                        className="flex items-center px-3 py-1.5 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-                      >
-                        <Save className="h-4 w-4 mr-1.5" />
-                        Save
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleEdit}
-                        className="flex items-center px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
-                      >
-                        <Edit className="h-4 w-4 mr-1.5" />
-                        Edit
-                      </button>
-                    )}
+            </div>
+            
+            {expandedSections.will && willData && (
+              <CardContent className="p-6">
+                {/* Personal Information */}
+                <div className="mb-6">
+                  <h3 className="text-md font-semibold mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+                    Personal Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Full Name</p>
+                      <p className="text-gray-900 dark:text-white">{willData.personalInfo?.fullName || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Date of Birth</p>
+                      <p className="text-gray-900 dark:text-white">{willData.personalInfo?.dateOfBirth || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Address</p>
+                      <p className="text-gray-900 dark:text-white">{willData.personalInfo?.address || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Marital Status</p>
+                      <p className="text-gray-900 dark:text-white">{willData.personalInfo?.maritalStatus || 'Not provided'}</p>
+                    </div>
                   </div>
                 </div>
                 
-                {/* Document Content */}
-                <div className="p-6">
-                  {isEditing ? (
-                    <textarea
-                      value={editableContent}
-                      onChange={handleContentChange}
-                      className="w-full h-[600px] font-mono text-sm border border-gray-300 dark:border-gray-600 rounded-lg p-4 focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-900 dark:text-gray-200"
-                    />
-                  ) : (
-                    <div className="prose dark:prose-invert max-w-none font-serif whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 p-8 rounded-lg border border-gray-200 dark:border-gray-700 min-h-[600px] overflow-y-auto">
-                      {editableContent}
+                {/* Beneficiaries */}
+                <div className="mb-6">
+                  <h3 className="text-md font-semibold mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+                    Beneficiaries
+                  </h3>
+                  {willData.beneficiaries && willData.beneficiaries.length > 0 ? (
+                    <div className="space-y-4">
+                      {willData.beneficiaries.map((beneficiary, index) => (
+                        <div key={`beneficiary-${index}`} className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                          <div className="flex justify-between">
+                            <div>
+                              <p className="font-medium">{beneficiary.name}</p>
+                              <p className="text-sm text-gray-500">{beneficiary.relationship}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-medium">Share: {beneficiary.share}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
+                  ) : (
+                    <p className="text-gray-500 italic">No beneficiaries specified</p>
                   )}
                 </div>
                 
-                {/* Document Notes */}
-                <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-amber-50 dark:bg-amber-900/10">
-                  <div className="flex items-start">
-                    <AlertCircle className="h-5 w-5 text-amber-500 mr-2 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-amber-800 dark:text-amber-400 mb-1">Important Notes</h4>
-                      <p className="text-sm text-amber-700 dark:text-amber-300">
-                        This is your final opportunity to review and edit your will. Please ensure all information is accurate before finalizing.
-                      </p>
+                {/* Executor */}
+                <div className="mb-6">
+                  <h3 className="text-md font-semibold mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+                    Executor
+                  </h3>
+                  {willData.executor ? (
+                    <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                      <p className="font-medium">{willData.executor.name}</p>
+                      <p className="text-sm text-gray-500">{willData.executor.relationship}</p>
                     </div>
-                  </div>
+                  ) : (
+                    <p className="text-gray-500 italic">No executor specified</p>
+                  )}
                 </div>
-              </div>
-              
-              {/* Validation Checklist */}
-              <div className="mt-8 bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
-                <h3 className="font-semibold text-lg mb-4">Pre-Finalization Checklist</h3>
                 
-                <ul className="space-y-3">
-                  <li className="flex items-center">
-                    <div className="h-6 w-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mr-3">
-                      <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                {/* Assets */}
+                <div className="mb-6">
+                  <h3 className="text-md font-semibold mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+                    Assets
+                  </h3>
+                  {willData.assets && willData.assets.length > 0 ? (
+                    <div className="space-y-4">
+                      {willData.assets.map((asset, index) => (
+                        <div key={`asset-${index}`} className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                          <div className="flex justify-between">
+                            <div>
+                              <p className="font-medium">{asset.type}</p>
+                              <p className="text-sm text-gray-500">{asset.description}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm">To: {asset.beneficiary}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <span className="text-gray-700 dark:text-gray-300">Personal information verified</span>
-                  </li>
-                  
-                  <li className="flex items-center">
-                    <div className="h-6 w-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mr-3">
-                      <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    </div>
-                    <span className="text-gray-700 dark:text-gray-300">Beneficiaries correctly listed</span>
-                  </li>
-                  
-                  <li className="flex items-center">
-                    <div className="h-6 w-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mr-3">
-                      <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    </div>
-                    <span className="text-gray-700 dark:text-gray-300">Assets properly documented</span>
-                  </li>
-                  
-                  <li className="flex items-center">
-                    <div className="h-6 w-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mr-3">
-                      <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    </div>
-                    <span className="text-gray-700 dark:text-gray-300">Executor appointment confirmed</span>
-                  </li>
-                  
-                  <li className="flex items-center">
-                    <div className="h-6 w-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mr-3">
-                      <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    </div>
-                    <span className="text-gray-700 dark:text-gray-300">Video confirmation recorded</span>
-                  </li>
-                  
-                  <li className="flex items-center">
-                    <div className="h-6 w-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mr-3">
-                      <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    </div>
-                    <span className="text-gray-700 dark:text-gray-300">Supporting documents uploaded</span>
-                  </li>
-                </ul>
+                  ) : (
+                    <p className="text-gray-500 italic">No assets specified</p>
+                  )}
+                </div>
+                
+                {/* Special Instructions */}
+                {willData.specialInstructions && (
+                  <div>
+                    <h3 className="text-md font-semibold mb-3 pb-2 border-b border-gray-200 dark:border-gray-700">
+                      Special Instructions
+                    </h3>
+                    <p className="text-gray-900 dark:text-white whitespace-pre-line">
+                      {willData.specialInstructions}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+          
+          {/* Documents Section */}
+          <Card className="mb-6 overflow-hidden border border-gray-200 dark:border-gray-700 rounded-xl shadow-md">
+            <div 
+              className="p-4 bg-gray-100 dark:bg-gray-800 flex justify-between items-center cursor-pointer"
+              onClick={() => toggleSection('documents')}
+            >
+              <div className="flex items-center">
+                <FileText className="h-5 w-5 text-primary mr-2" />
+                <h2 className="text-lg font-semibold">Supporting Documents</h2>
               </div>
-              
-              {/* Finalize Button */}
-              <div className="mt-10 flex justify-center">
-                <button
-                  onClick={handleFinalize}
-                  className="flex items-center px-8 py-3 rounded-lg text-white font-medium bg-gradient-to-r from-primary to-blue-500 hover:from-primary-dark hover:to-blue-600 shadow-lg hover:shadow-xl transition-all"
+              <div className="flex items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditDocuments();
+                  }}
+                  className="mr-2"
                 >
-                  Finalize and Save
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </button>
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+                {expandedSections.documents ? (
+                  <ChevronUp className="h-5 w-5" />
+                ) : (
+                  <ChevronDown className="h-5 w-5" />
+                )}
               </div>
-              
-              {hasUnsavedChanges && (
-                <p className="text-center text-sm text-amber-500 dark:text-amber-400 mt-3">
-                  <AlertCircle className="inline h-4 w-4 mr-1 mb-0.5" />
-                  You have unsaved changes
+            </div>
+            
+            {expandedSections.documents && (
+              <CardContent className="p-6">
+                {documents.length > 0 ? (
+                  <div className="space-y-3">
+                    {documents.map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                        <div className="flex items-center">
+                          <div className="p-2 rounded-md bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300 mr-3">
+                            <FileText className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{doc.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {formatFileSize(doc.size)} • {new Date(doc.uploadDate).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm" asChild>
+                          <a
+                            href={doc.path}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center"
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            View
+                          </a>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <FileText className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                    <p className="text-gray-500">No documents uploaded</p>
+                    <Button
+                      onClick={handleEditDocuments}
+                      variant="outline"
+                      className="mt-4"
+                    >
+                      Upload Documents
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+          
+          {/* Contacts Section */}
+          <Card className="mb-6 overflow-hidden border border-gray-200 dark:border-gray-700 rounded-xl shadow-md">
+            <div 
+              className="p-4 bg-gray-100 dark:bg-gray-800 flex justify-between items-center cursor-pointer"
+              onClick={() => toggleSection('contacts')}
+            >
+              <div className="flex items-center">
+                <User className="h-5 w-5 text-primary mr-2" />
+                <h2 className="text-lg font-semibold">Contact Information</h2>
+              </div>
+              <div className="flex items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditContacts();
+                  }}
+                  className="mr-2"
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+                {expandedSections.contacts ? (
+                  <ChevronUp className="h-5 w-5" />
+                ) : (
+                  <ChevronDown className="h-5 w-5" />
+                )}
+              </div>
+            </div>
+            
+            {expandedSections.contacts && (
+              <CardContent className="p-6">
+                {contacts.length > 0 ? (
+                  <div className="space-y-4">
+                    {contacts.map((contact) => (
+                      <div key={contact.id} className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-medium">{contact.name}</h3>
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded-full text-xs">
+                            {contact.role.charAt(0).toUpperCase() + contact.role.slice(1)}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                          <div className="flex items-center">
+                            <Mail className="h-3 w-3 mr-2" />
+                            <span>{contact.email}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <Phone className="h-3 w-3 mr-2" />
+                            <span>{contact.phone}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <MapPin className="h-3 w-3 mr-2" />
+                            <span>{contact.country}</span>
+                          </div>
+                          <div className="pt-1">Relationship: {contact.relationship}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <User className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                    <p className="text-gray-500">No contacts added</p>
+                    <Button
+                      onClick={handleEditContacts}
+                      variant="outline"
+                      className="mt-4"
+                    >
+                      Add Contacts
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+          
+          {/* Video Section */}
+          <Card className="mb-8 overflow-hidden border border-gray-200 dark:border-gray-700 rounded-xl shadow-md">
+            <div 
+              className="p-4 bg-gray-100 dark:bg-gray-800 flex justify-between items-center cursor-pointer"
+              onClick={() => toggleSection('video')}
+            >
+              <div className="flex items-center">
+                <Video className="h-5 w-5 text-primary mr-2" />
+                <h2 className="text-lg font-semibold">Video Testimony</h2>
+              </div>
+              <div className="flex items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditVideo();
+                  }}
+                  className="mr-2"
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
+                {expandedSections.video ? (
+                  <ChevronUp className="h-5 w-5" />
+                ) : (
+                  <ChevronDown className="h-5 w-5" />
+                )}
+              </div>
+            </div>
+            
+            {expandedSections.video && (
+              <CardContent className="p-6">
+                {hasVideo ? (
+                  <div>
+                    <div className="mb-3 flex items-center">
+                      <Check className="h-5 w-5 text-green-500 mr-2" />
+                      <span className="text-green-600 dark:text-green-400 font-medium">Video testimony recorded</span>
+                    </div>
+                    
+                    {videoUrl && (
+                      <div className="mt-4">
+                        <p className="mb-2 font-medium">Video Preview:</p>
+                        <video 
+                          src={videoUrl} 
+                          controls 
+                          className="w-full max-w-lg h-auto rounded-lg border border-gray-200 dark:border-gray-700"
+                        ></video>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Video className="h-12 w-12 mx-auto text-gray-400 mb-3" />
+                    <p className="text-gray-500">No video testimony recorded</p>
+                    <Button
+                      onClick={handleEditVideo}
+                      variant="outline"
+                      className="mt-4"
+                    >
+                      Record Video
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+          
+          {/* Security Notice */}
+          <div className="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-blue-800 dark:text-blue-300">
+            <div className="flex">
+              <Shield className="h-5 w-5 flex-shrink-0 mt-1 mr-3" />
+              <div>
+                <h3 className="font-medium mb-1">Security and Privacy Notice</h3>
+                <p className="text-sm">
+                  All your documents, contacts, and videos are encrypted and securely stored. Only you and your authorized beneficiaries will have access to them. Your will information is saved in compliance with legal standards for digital wills.
                 </p>
-              )}
-            </>
-          )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="flex flex-col md:flex-row justify-between gap-4">
+            <Button
+              variant="outline"
+              onClick={() => navigate('/video-recording')}
+              className="order-2 md:order-1"
+            >
+              Back
+            </Button>
+            
+            <div className="order-1 md:order-2 flex flex-col items-center">
+              <Button
+                onClick={handleProceedToPayment}
+                disabled={isProcessing}
+                className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 text-white shadow-lg px-8 py-6 rounded-lg text-lg"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    Proceed to Payment
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </>
+                )}
+              </Button>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                Your will and documents will be finalized after payment
+              </p>
+            </div>
+          </div>
         </motion.div>
       </div>
     </div>

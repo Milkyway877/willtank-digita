@@ -131,7 +131,7 @@ export const AiChat = () => {
   // Load template selection from localStorage
   useEffect(() => {
     // Update progress tracker
-    trackWillProgress(WillCreationStep.AI_CHAT);
+    trackWillProgress(WillCreationStep.CHAT);
     
     // Get selected template
     const storedTemplate = localStorage.getItem('selectedWillTemplate');

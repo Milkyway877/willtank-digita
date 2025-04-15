@@ -1,0 +1,147 @@
+Absolutely partner. Here's a **FULL, HARDCORE, GODMODE PROMPT** that you can drop directly into your AI or dev assistant to force it to **fully implement the correct, unbreakable, consistent Skyler Will Creation flow** from start to finish — no shortcuts, no early redirects, no data loss, no broken components:
+
+---
+
+### 💥 PROMPT: FULL SKYLER WILL CREATION FLOW FIX & FUNCTIONALITY
+
+You are to **completely fix, redesign, and make fully functional** the entire **Skyler Will Creation Flow** on the platform. The current implementation is broken, inconsistent, and leads to dead ends. This flow is the *core functionality of the entire WillTank platform*, and must be treated with zero tolerance for bugs or broken logic.
+
+Your mission is to fix this flow and implement it **EXACTLY as described below**, step by step, with all necessary front-end and back-end logic, and a clean, reactive layout that works across mobile, desktop, and tablet.
+
+---
+
+### 🔧 PLATFORM CONTEXT
+
+- **Frontend Host:** Replit (React-based SPA)
+- **Backend & Database:** Supabase (Auth + Database + Storage)
+- **Custom Email Auth Flow** is being used (SMTP, not Supabase auth)
+- **Do not break current working auth or user flow**
+- All data should now be saved and managed using Supabase for:
+  - User profiles
+  - Will content
+  - Uploaded files (documents, videos)
+  - Contact information
+  - Subscriptions
+
+---
+
+### ✅ SKYLER WILL CREATION FLOW (DO NOT ALTER)
+
+#### 1. **User lands on Will Creation page**
+- Skyler chatbot introduces itself once. No repeated loops.
+- Questions appear one by one ONLY after user input.
+- No auto-generated answers. User must manually input answers.
+- Chat bubbles should animate nicely and be styled cleanly.
+
+#### 2. **Q&A Completion → “Proceed to Supporting Documents Upload”**
+- After the final will question is answered, show a **big, clear button**:
+  `👉 Proceed to Supporting Documents Upload`
+
+#### 3. **Document Upload Page**
+- Users must upload documents related to mentioned assets (e.g. property deeds, account statements, etc.).
+- Allow multiple file types (PDF, DOCX, PNG, JPEG).
+- Files are saved to Supabase storage bucket under each user ID.
+- Show file previews and allow delete/edit before continuing.
+
+#### 4. **Contact Information Page**
+- For each person mentioned in the will, ask for:
+  - Full Name
+  - Email
+  - Phone Number
+  - Country
+- Store all this cleanly in Supabase under the current will entry.
+
+#### 5. **Testimonial Video Upload Page**
+- Prompt the user to upload a video where they confirm and explain their will.
+- Accept MP4 or MOV formats.
+- Save video to Supabase storage.
+- Show preview of uploaded video before proceeding.
+
+#### 6. **Full Preview Page**
+- Display a complete preview of:
+  - Will answers
+  - Uploaded documents
+  - Contact list
+  - Video preview
+- This page should feel like the final confirmation page.
+- Add options: `Edit Info`, `Proceed to Payment`
+
+#### 7. **Paywall Page (Subscription Plans)**
+- Show pricing options pulled from Stripe or hardcoded for now:
+  - Starter: $14.99/mo
+  - Gold: $29/mo
+  - Platinum: $55/mo
+  - Lifetime/Enterprise
+- After payment, save the entire Will creation data into Supabase:
+  - Will content
+  - Contacts
+  - Document files
+  - Video
+  - Subscription type
+
+#### 8. **Redirect to Dashboard**
+- After successful payment and saving, show success toast:
+  `✅ Your will has been successfully saved and locked.`
+- Redirect user to `/dashboard`
+- Dashboard should now show a summary of their will and uploaded content.
+- Make sure this data is always fetched live from Supabase.
+
+---
+
+### 🔁 Additional Flow Logic (Very Important)
+
+- If a user **abandons will creation midway**, store their progress in Supabase.
+- On next login, detect unfinished will and prompt:  
+  `Resume your last will creation? Yes / No`
+- If user clicks Yes → continue from where they left off.
+- If No → clear current draft, start fresh.
+- **Do NOT allow user to access dashboard** unless:
+  - They have completed payment and saved their will.
+
+---
+
+### 🔔 Notifications and Edge Cases
+
+- Add toast or banner notifications for:
+  - Upload success/failure
+  - Form validation errors
+  - Save progress messages
+  - Payment success/failure
+- Ensure all logic is **failsafe** and handles network disconnects or incomplete saves.
+- Use Supabase Row Level Security to prevent cross-user access to wills or files.
+
+---
+
+### 📂 Supabase Structure (Suggestion)
+
+**Tables:**
+- `users` (linked by auth user ID)
+- `wills` (main will data + current state: draft, complete, paid)
+- `contacts` (linked to `wills`)
+- `documents` (linked to `wills`)
+- `videos` (linked to `wills`)
+- `subscriptions` (status, plan type, payment intent)
+
+**Storage Buckets:**
+- `will-documents/`
+- `testimonial-videos/`
+
+---
+
+### ✅ FINAL CHECKLIST
+
+- [ ] All user input is saved to Supabase
+- [ ] Uploaded files saved in correct buckets
+- [ ] Skyler bot works fluidly — one Q at a time, no loop
+- [ ] “Proceed” button appears correctly
+- [ ] Upload, contact, and video pages work flawlessly
+- [ ] Final preview page displays all info
+- [ ] Payment page completes correctly
+- [ ] Data is locked + saved after payment
+- [ ] User lands in dashboard only AFTER completing above steps
+
+---
+
+This prompt will force the AI to deliver the entire flow **end-to-end**, clean, bug-free, and fully functional — no excuses, no weird skips, no broken pieces.
+
+Would you like me to start building out the frontend and backend components from this now?
