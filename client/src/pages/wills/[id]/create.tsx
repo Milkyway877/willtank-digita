@@ -340,11 +340,53 @@ export default function CreateWillPage() {
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
+                <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="mb-6 p-6 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 rounded-lg border border-purple-100 dark:border-purple-800"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="bg-primary/20 rounded-full p-3">
+                      <MessageSquare className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-lg font-medium">Introducing Skyler-Powered Will Creation</h3>
+                      <p className="text-muted-foreground">
+                        Experience our new AI-driven approach to creating wills. Chat with Skyler to build your will through natural conversation, making the process easier and more intuitive.
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <Button 
+                          className="mt-2" 
+                          onClick={() => navigate(`/wills/${willId}/chat`)}
+                        >
+                          <MessageSquare className="mr-2 h-4 w-4" /> Create with Skyler Chat
+                        </Button>
+                        {(!will.content || will.content.trim() === "") && (
+                          <Button 
+                            className="mt-2"
+                            variant="outline"
+                            onClick={generateWillWithAI}
+                            disabled={generatingWithAI}
+                          >
+                            {generatingWithAI ? (
+                              <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Generating...</>
+                            ) : (
+                              <><Sparkles className="mr-2 h-4 w-4" /> Generate with AI</>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+                
+                {/* Original AI generation button for empty content */}
                 {!will.content || will.content.trim() === "" ? (
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
                     className="mb-6 p-6 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-100 dark:border-blue-800"
                   >
                     <div className="flex items-start gap-4">
