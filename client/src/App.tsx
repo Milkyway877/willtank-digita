@@ -29,6 +29,7 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { NotificationsProvider } from "@/hooks/use-notifications";
 import { TwoFactorProvider } from "@/hooks/use-2fa";
 import { SkylerProvider } from "@/hooks/use-skyler";
+import { WillsProvider } from "@/hooks/use-wills";
 import { ProtectedRoute } from "./lib/protected-route";
 
 function Router() {
@@ -79,8 +80,10 @@ function App() {
         <NotificationsProvider>
           <TwoFactorProvider>
             <SkylerProvider>
-              <Router />
-              <Toaster />
+              <WillsProvider>
+                <Router />
+                <Toaster />
+              </WillsProvider>
             </SkylerProvider>
           </TwoFactorProvider>
         </NotificationsProvider>
