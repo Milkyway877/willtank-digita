@@ -229,8 +229,9 @@ const DashboardPage: React.FC = () => {
   
   // Navigation handlers for quick actions
   const handleCreateWill = () => {
-    // Ensure we direct to template selection to start the will creation process
-    navigate('/will-selection');
+    // Ensure we direct to template selection to start a NEW will creation process
+    // Force a direct link to template selection without passing a willId
+    navigate('/template-selection');
   };
   
   const handleViewWills = () => {

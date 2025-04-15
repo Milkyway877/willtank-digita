@@ -196,6 +196,6 @@ export function getContinueUrl(): string {
       return '/dashboard';
     default:
       // If no step saved or not started, send to template selection
-      return '/will-selection';
+      return '/template-selection';
   }
 }

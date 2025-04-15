@@ -60,6 +60,8 @@ function Router() {
       
       {/* New Simplified Flow */}
       <ProtectedRoute path="/welcome" component={Welcome} />
+      <ProtectedRoute path="/template-selection" component={TemplateSelection} />
+      {/* Also keep the original route for backward compatibility */}
       <ProtectedRoute path="/will-selection" component={TemplateSelection} />
       
       {/* New Structured Will Creation Flow - PART 1-8 */}
