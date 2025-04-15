@@ -144,8 +144,8 @@ const TemplateSelection: React.FC = () => {
       // Update progress status in local storage
       saveWillProgress(WillCreationStep.CHAT);
       
-      // Navigate to AI chat with the new will ID
-      navigate(`/create-will?willId=${newWill.id}`);
+      // Navigate to the Skyler chat interface
+      navigate(`/will-creation/chat?willId=${newWill.id}`);
     } catch (err: any) {
       console.error('Error creating new will:', err);
       toast({

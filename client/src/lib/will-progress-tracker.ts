@@ -176,23 +176,26 @@ async function updateServerProgress(step: WillCreationStep): Promise<void> {
 // Get a URL for continuing will creation from where user left off
 export function getContinueUrl(): string {
   const { step } = getWillProgress();
+  const willId = localStorage.getItem('currentWillId');
+  const willIdParam = willId ? `?willId=${willId}` : '';
   
   switch (step) {
     case WillCreationStep.CHAT:
-      return '/ai-chat';
+      return `/will-creation/chat${willIdParam}`;
     case WillCreationStep.DOCUMENT_UPLOAD:
-      return '/document-upload';
+      return `/will-creation/documents${willIdParam}`;
     case WillCreationStep.CONTACT_INFO:
-      return '/contact-information';
+      return `/will-creation/contacts${willIdParam}`;
     case WillCreationStep.VIDEO_RECORDING:
-      return '/video-recording';
+      return `/will-creation/video${willIdParam}`;
     case WillCreationStep.FINAL_REVIEW:
-      return '/final-review';
+      return `/will-creation/preview${willIdParam}`;
     case WillCreationStep.PAYMENT:
-      return '/subscription';
+      return `/will-creation/payment${willIdParam}`;
     case WillCreationStep.COMPLETED:
       return '/dashboard';
     default:
-      return '/ai-chat';
+      // If no step saved or not started, send to template selection
+      return '/template-selection';
   }
 }

@@ -61,7 +61,17 @@ function Router() {
       {/* New Simplified Flow */}
       <ProtectedRoute path="/welcome" component={Welcome} />
       <ProtectedRoute path="/template-selection" component={TemplateSelection} />
-      <ProtectedRoute path="/create-will" component={AiChat} /> {/* Repurpose AiChat as create-will */}
+      
+      {/* New Structured Will Creation Flow - PART 1-8 */}
+      <ProtectedRoute path="/will-creation/chat" component={AiChat} />
+      <ProtectedRoute path="/will-creation/documents" component={DocumentUpload} />
+      <ProtectedRoute path="/will-creation/contacts" component={ContactInformation} />
+      <ProtectedRoute path="/will-creation/video" component={VideoRecording} />
+      <ProtectedRoute path="/will-creation/preview" component={FinalReview} />
+      <ProtectedRoute path="/will-creation/payment" component={Subscription} />
+      
+      {/* Legacy routes - kept for backwards compatibility */}
+      <ProtectedRoute path="/create-will" component={AiChat} />
       <ProtectedRoute path="/document-upload" component={DocumentUpload} />
       <ProtectedRoute path="/contact-information" component={ContactInformation} />
       <ProtectedRoute path="/video-recording" component={VideoRecording} />

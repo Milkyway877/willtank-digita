@@ -1,0 +1,159 @@
+Absolutely. Let’s command this thing like the boss you are. Here's a **full, crystal-clear, take-no-prisoners prompt** to feed this confused AI system and make it **rewrite the entire Will Creation process** *from template selection → chatbot Q&A → document upload → video → preview → subscription → dashboard*.
+
+---
+
+### 📢 PROMPT TO THE AI: DO THIS *EXACTLY* AS INSTRUCTED – NOTHING MORE, NOTHING LESS
+
+---
+
+## 🚨 REWRITE THE FULL WILL CREATION FLOW END-TO-END – ABSOLUTELY NO BROKEN LOGIC OR DUMMY STAGES
+
+### ✅ PART 1: TEMPLATE SELECTION PAGE
+- **Page Route**: `/template-selection`
+- **User lands here first**, selects one of the will templates (e.g., Personal Will, Joint Will, Islamic Will, Custom Will).
+- Each template card should have:
+  - Icon, Name, Short Description
+  - Button: **“Select and Start”**
+
+**ON SELECTION:**
+- Save the selected template + user ID to Supabase table `user_templates`
+- Redirect to: `/will-creation/chat`
+
+---
+
+### ✅ PART 2: SKYLER AI CHAT INTERFACE – THE Q&A PHASE
+
+- **Route**: `/will-creation/chat`
+- Skyler should appear on the left, chat area on the right.
+- Questions should load one by one.
+- After each answer:
+  - **Save the question + answer in Supabase** under `will_answers`
+  - Save with `user_id`, `template_id`, `question_id`, `answer`, `timestamp`
+
+- When **last question** is answered:
+  - Automatically show button:  
+    ✅ **“Proceed to Supporting Document Upload”**
+
+- Do not go to dashboard. Go to next step:
+  → `/will-creation/documents`
+
+---
+
+### ✅ PART 3: DOCUMENT UPLOAD PAGE
+
+- **Route**: `/will-creation/documents`
+- User can upload multiple files (PDFs, images, DOCs) for any asset they’ve added (e.g. house, land, accounts).
+- File fields should include:
+  - Document Name
+  - Asset It Belongs To (dropdown)
+  - Upload Button (file picker)
+
+- Save each file to Supabase **Storage**, link to the `will_id`.
+
+**Next Step Button:**  
+✅ **“Proceed to Contact Info”** → `/will-creation/contacts`
+
+---
+
+### ✅ PART 4: CONTACT DETAILS SECTION
+
+- **Route**: `/will-creation/contacts`
+- Allow the user to enter details for **each person mentioned** in the will.
+- Fields:
+  - Full Name
+  - Role in Will (Executor, Beneficiary, Witness, etc.)
+  - Email
+  - Phone
+  - Country
+
+- Save all this to Supabase table: `will_contacts`
+
+**Next Step Button:**  
+✅ **“Proceed to Video Recording”** → `/will-creation/video`
+
+---
+
+### ✅ PART 5: VIDEO TESTIMONY SECTION
+
+- **Route**: `/will-creation/video`
+- Allow user to **record directly from webcam** or **upload a pre-recorded video**.
+- Save to Supabase **Storage** and tag with `will_id`.
+
+**Next Step Button:**  
+✅ **“Preview Full Will”** → `/will-creation/preview`
+
+---
+
+### ✅ PART 6: FULL PREVIEW PAGE
+
+- **Route**: `/will-creation/preview`
+- Show a clean full-screen preview of:
+  - All questions and answers
+  - All uploaded documents (viewable/downloadable)
+  - Contact info list
+  - Video (playable)
+
+**Buttons:**
+- ✅ **Download Draft as PDF**
+- ✅ **Proceed to Subscription** → `/will-creation/payment`
+
+---
+
+### ✅ PART 7: PAYWALL / SUBSCRIPTION
+
+- **Route**: `/will-creation/payment`
+- Show your subscription plans:
+  - Starter – $14.99/month
+  - Gold – $29/month
+  - Platinum – $55/month
+  - Enterprise – Contact Support
+
+- Connect with Stripe
+- After successful payment:
+  - Save full `will_id`, `documents`, `video`, `contacts` into permanent Supabase tables.
+  - Mark will as `finalized: true`
+
+**Redirect to Dashboard:**  
+→ `/dashboard`
+
+---
+
+### ✅ PART 8: CLEANED DASHBOARD PAGE
+
+- **Route**: `/dashboard`
+- Show:
+  - List of **user's completed and in-progress wills**
+  - Each will shows:
+    - Title
+    - Status (In-progress, Finalized)
+    - Buttons: **Preview**, **Edit**, **Delete**, **Download PDF**
+
+- Show Quick Actions:
+  - ✅ Create New Will
+  - ✅ Upload Supporting Documents
+  - ✅ View/Edit Video Testimony
+  - ✅ Contact Support
+
+NO DUMMY DATA. NO BROKEN LINKS. NOTHING FAKE.
+
+---
+
+## 🧠 TECH + DATABASE NOTES:
+- Use Supabase for:
+  - Tables: `user_templates`, `will_answers`, `will_documents`, `will_contacts`, `will_videos`, `subscriptions`
+  - Storage: `wills/docs`, `wills/videos`
+- Ensure user session is active across steps.
+- If a user refreshes mid-process, load their latest step from Supabase.
+
+---
+
+## 🛑 IF YOU DON’T DO THIS EXACTLY AS WRITTEN:
+- You break the entire platform’s core flow.
+- The founder will flip the damn table.
+- You will waste more hours going in circles.
+
+So AI, do your job and **REWRITE THE ENTIRE FLOW FROM SCRATCH USING THIS PROMPT**. No lazy shortcuts. No silent failures. No skipping steps. Build it clean, smooth, and fully functional.
+
+---
+
+Ready when you are bro — want me to generate the actual pages and Supabase schemas based on this right now?
