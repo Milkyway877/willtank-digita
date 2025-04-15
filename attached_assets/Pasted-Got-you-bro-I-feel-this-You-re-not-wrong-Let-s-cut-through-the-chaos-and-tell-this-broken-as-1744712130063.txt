@@ -1,0 +1,110 @@
+Got you bro — I *feel* this. You’re not wrong. Let’s cut through the chaos and **tell this broken-ass AI system what it needs to do step-by-step**. No fluff. No broken loops. No dummy logic.
+
+### 🚨 STRAIGHT-UP INSTRUCTION FOR THE AI – FIX THE SKYLER FLOW NOW:
+
+---
+
+## 🤖 SKYLER WILL CREATION FLOW – FIX THIS IMMEDIATELY:
+
+### ✅ STEP 1: ACTUAL QUESTION-ANSWER FLOW
+- Each question answered by the user MUST be saved in **Supabase** immediately.
+- Save should happen *after every answer*, with the user ID and question ID stored.
+- Use a structure like:
+  ```ts
+  {
+    user_id: 'xyz123',
+    question: 'Who do you want to be your executor?',
+    answer: 'My brother, Sam',
+    timestamp: '...',
+    status: 'in-progress'
+  }
+  ```
+
+- DO NOT wait till the end to save – we need progressive save.
+
+---
+
+### ✅ STEP 2: DETECT WHEN ALL QUESTIONS ARE DONE
+- When Skyler finishes asking **all predefined questions**, you MUST:
+
+  - Show a big clear button:  
+    **→ "Proceed to Upload Supporting Documents"**
+
+  - This must appear automatically right below the final question/answer.
+  - Use a state variable like `isFinished` or `questionsComplete = true`.
+
+---
+
+### ✅ STEP 3: UPON BUTTON CLICK → GO TO DOCUMENT UPLOAD
+- Route the user to `/upload-documents` (or whatever your route is).
+- This new page MUST allow:
+  - Uploading PDFs, Images, DOCs, etc.
+  - For each asset in the will (e.g. Land, Bank, Car), let user attach a file.
+  - Save uploaded documents into Supabase Storage.
+  - Link each uploaded doc to the correct will entry using the will ID.
+
+---
+
+### ✅ STEP 4: CONTACT DETAILS FOR PEOPLE MENTIONED
+- After uploading docs, prompt the user to fill a **contact info form**:
+  - Name
+  - Email
+  - Phone number
+  - Country
+  - Relation to the will
+
+- Save this info under a new table in Supabase like `mentioned_people`.
+
+---
+
+### ✅ STEP 5: VIDEO TESTIMONY
+- After contact info is done, redirect to a **video upload section**.
+- Allow user to record or upload a short MP4 or WebM video.
+- Save it in Supabase Storage and mark `video_uploaded: true` under that will.
+
+---
+
+### ✅ STEP 6: FULL PREVIEW OF WILL
+- After video is uploaded, render a full preview:
+  - All Q&A answers
+  - Uploaded documents (click to view)
+  - Contact list
+  - Video thumbnail or playback option
+
+- Show **Download Preview as PDF** button.
+- Button: **→ Proceed to Subscription / Paywall**
+
+---
+
+### ✅ STEP 7: SUBSCRIPTION PAGE
+- Show pricing options with these tiers:
+  - Starter, Gold, Platinum, Enterprise.
+- Use Stripe or your current system to trigger payment.
+- On success:
+  - Mark the will as `finalized: true`
+  - Save all connected data to permanent storage
+  - Route user to `/dashboard`
+
+---
+
+## ⚠️ THINGS YOU MUST STOP DOING:
+- STOP looping questions with no end.
+- STOP ignoring save failures silently.
+- STOP redirecting straight to dashboard after Q&A.
+- STOP delaying document and contact sections.
+- STOP pretending to be functional — it's not working.
+
+---
+
+## 🧠 TECHNICAL REMINDERS:
+- Use `useEffect` and `useState` to track progress.
+- When last question is reached, set `showNextStageButton = true`
+- Use Supabase client to `insert()` or `upsert()` every answer.
+- Route user flow through actual pages:  
+  `/create-will` → `/upload-documents` → `/contact-info` → `/video` → `/preview` → `/subscribe` → `/dashboard`
+
+---
+
+Let me know if you want me to **write the actual React pages**, **Supabase schema**, and **step logic** — I can drop that in here **right now**.
+
+We’re done going in circles. Time to build it right, once and for all 💪
