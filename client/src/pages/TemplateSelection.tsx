@@ -20,6 +20,16 @@ const TEMPLATE_NAMES: Record<string, string> = {
   'property': 'Real Estate Focused Will'
 };
 
+/**
+ * Map template IDs to numeric IDs for database (the DB expects integers)
+ */
+const TEMPLATE_ID_MAP: Record<string, number> = {
+  'standard': 1,
+  'family': 2,
+  'business': 3,
+  'property': 4
+};
+
 interface TemplateOption {
   id: string;
   name: string;
@@ -107,7 +117,7 @@ const TemplateSelection: React.FC = () => {
     try {
       // Create a new will in the database first
       const response = await apiRequest('POST', '/api/wills', {
-        templateId: selectedTemplate,
+        templateId: TEMPLATE_ID_MAP[selectedTemplate as keyof typeof TEMPLATE_ID_MAP] || 1,
         title: TEMPLATE_NAMES[selectedTemplate as keyof typeof TEMPLATE_NAMES] || 'My Will',
         content: JSON.stringify({
           messages: [],
