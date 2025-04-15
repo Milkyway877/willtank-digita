@@ -748,7 +748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           activeWill: activeWill ? {
             id: activeWill.id,
             title: activeWill.title,
-            template: activeWill.template,
+            templateId: activeWill.templateId,
             status: activeWill.status,
             createdAt: activeWill.createdAt
           } : null

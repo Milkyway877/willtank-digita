@@ -19,7 +19,7 @@ const TEMPLATE_ID_MAP = {
 export default function WillsPage() {
   const [, navigate] = useLocation();
   const { wills, isLoading, createWillMutation } = useWills();
-  const { toggleSkyler } = useSkyler();
+  const skyler = useSkyler();
   const [creating, setCreating] = useState(false);
 
   const templates = [
@@ -137,7 +137,13 @@ export default function WillsPage() {
               <p className="mb-4">
                 Unsure which template is right for you? Our AI assistant Skyler can help you determine the best option based on your situation.
               </p>
-              <Button onClick={toggleSkyler} variant="secondary">
+              <Button 
+                onClick={() => {
+                  // Send a message to Skyler about will template selection
+                  skyler.sendStreamingMessage("I'm trying to choose a will template. Can you help me understand which one would be best for my situation?");
+                }} 
+                variant="secondary"
+              >
                 Ask Skyler for Help
               </Button>
             </div>
