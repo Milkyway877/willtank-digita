@@ -25,6 +25,11 @@ import PricingPage from "@/pages/PricingPage";
 import SubscriptionSuccessPage from "@/pages/SubscriptionSuccessPage";
 import Subscription from "@/pages/Subscription";
 import EmailTest from "@/pages/EmailTest";
+// Will pages
+import WillsPage from "@/pages/wills";
+import ManageWillsPage from "@/pages/wills/manage";
+import CreateWillPage from "@/pages/wills/[id]/create";
+import ViewWillPage from "@/pages/wills/[id]/view";
 import { AuthProvider } from "@/hooks/use-auth";
 import { NotificationsProvider } from "@/hooks/use-notifications";
 import { TwoFactorProvider } from "@/hooks/use-2fa";
@@ -64,6 +69,13 @@ function Router() {
       <ProtectedRoute path="/dashboard/settings" component={DashboardSettings} />
       <ProtectedRoute path="/dashboard/video-testimony" component={VideoTestimonyPage} />
       
+      {/* Will Pages */}
+      <ProtectedRoute path="/wills" component={WillsPage} />
+      <ProtectedRoute path="/wills/manage" component={ManageWillsPage} />
+      <ProtectedRoute path="/wills/:id/create" component={CreateWillPage} />
+      <ProtectedRoute path="/wills/:id/view" component={ViewWillPage} />
+      <ProtectedRoute path="/wills/:id/edit" component={CreateWillPage} />
+
       {/* Email Test Route - For development testing only */}
       <Route path="/email-test" component={EmailTest} />
       
