@@ -28,7 +28,7 @@ interface UploadedFile {
 
 const DocumentUpload: React.FC = () => {
   const { user, isLoading } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [willData, setWillData] = useState<any>(null);
@@ -38,6 +38,7 @@ const DocumentUpload: React.FC = () => {
   const [uploadedCount, setUploadedCount] = useState<number>(0);
   const [requiredCount, setRequiredCount] = useState<number>(0);
   const [fileInputKey, setFileInputKey] = useState<string>("fileInput-0"); // Used to reset file input
+  const [willId, setWillId] = useState<number | null>(null);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -45,6 +46,25 @@ const DocumentUpload: React.FC = () => {
       navigate('/auth/sign-in');
     }
   }, [user, isLoading, navigate]);
+  
+  // Get willId from URL query parameters
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const willIdParam = params.get('willId');
+    
+    if (willIdParam) {
+      try {
+        const parsedWillId = parseInt(willIdParam, 10);
+        console.log(`Found willId in URL: ${parsedWillId}`);
+        setWillId(parsedWillId);
+        
+        // Store in localStorage for other components
+        localStorage.setItem('currentWillId', parsedWillId.toString());
+      } catch (error) {
+        console.error('Error parsing willId from URL:', error);
+      }
+    }
+  }, [location]);
 
   // Load will data from localStorage
   useEffect(() => {
