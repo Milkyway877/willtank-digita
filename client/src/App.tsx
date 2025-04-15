@@ -1,20 +1,16 @@
-import React, { Suspense, lazy } from "react";
+import React from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
-import UnfinishedWillNotification from "@/components/UnfinishedWillNotification";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
-import Welcome from "@/pages/Welcome";
 import AuthRouter from "@/pages/auth";
 import SignIn from "@/pages/auth/SignIn";
 import SignUp from "@/pages/auth/SignUp";
 import Dashboard from "@/pages/Dashboard";
 import DashboardIndex from "@/pages/dashboard";
 import DashboardCheckIn from "@/pages/dashboard/check-in";
-import DashboardWill from "@/pages/dashboard/will";
-import DashboardWills from "@/pages/dashboard/wills";
 import DashboardDocuments from "@/pages/dashboard/documents";
 import DashboardVideo from "@/pages/dashboard/video";
 import DashboardBeneficiaries from "@/pages/dashboard/beneficiaries";
@@ -24,24 +20,14 @@ import DashboardBilling from "@/pages/dashboard/billing";
 import DashboardTrust from "@/pages/dashboard/trust";
 import DashboardSettings from "@/pages/dashboard/settings";
 import VideoTestimonyPage from "@/pages/dashboard/video-testimony";
-import ViewWillDetails from "@/pages/ViewWillDetails";
 import SubscriptionPage from "@/pages/subscription";
 import PricingPage from "@/pages/PricingPage";
 import SubscriptionSuccessPage from "@/pages/SubscriptionSuccessPage";
-import TemplateSelection from "@/pages/TemplateSelection";
 import Subscription from "@/pages/Subscription";
-// Use the completely new AiChat component
-import AiChat from "@/pages/AiChat";
-import DocumentUpload from "@/pages/DocumentUpload";
-import ContactInformation from "@/pages/ContactInformation";
-import VideoRecording from "@/pages/VideoRecording";
-import FinalReview from "@/pages/FinalReview";
-import Completion from "@/pages/Completion";
 import EmailTest from "@/pages/EmailTest";
 import { AuthProvider } from "@/hooks/use-auth";
 import { NotificationsProvider } from "@/hooks/use-notifications";
 import { TwoFactorProvider } from "@/hooks/use-2fa";
-import { SkylerProvider } from "@/hooks/use-skyler";
 import { ProtectedRoute } from "./lib/protected-route";
 
 function Router() {
@@ -58,27 +44,6 @@ function Router() {
         <SignIn />
       </Route>
       
-      {/* New Simplified Flow */}
-      <ProtectedRoute path="/welcome" component={Welcome} />
-      <ProtectedRoute path="/template-selection" component={TemplateSelection} />
-      {/* Also keep the original route for backward compatibility */}
-      <ProtectedRoute path="/will-selection" component={TemplateSelection} />
-      
-      {/* New Structured Will Creation Flow - PART 1-8 */}
-      <ProtectedRoute path="/will-creation/chat" component={AiChat} />
-      <ProtectedRoute path="/will-creation/documents" component={DocumentUpload} />
-      <ProtectedRoute path="/will-creation/contacts" component={ContactInformation} />
-      <ProtectedRoute path="/will-creation/video" component={VideoRecording} />
-      <ProtectedRoute path="/will-creation/preview" component={FinalReview} />
-      <ProtectedRoute path="/will-creation/payment" component={Subscription} />
-      
-      {/* Legacy routes - kept for backwards compatibility */}
-      <ProtectedRoute path="/create-will" component={AiChat} />
-      <ProtectedRoute path="/document-upload" component={DocumentUpload} />
-      <ProtectedRoute path="/contact-information" component={ContactInformation} />
-      <ProtectedRoute path="/video-recording" component={VideoRecording} />
-      <ProtectedRoute path="/final-review" component={FinalReview} />
-      
       {/* Subscription */}
       <ProtectedRoute path="/pricing" component={PricingPage} />
       <ProtectedRoute path="/subscription" component={Subscription} />
@@ -87,8 +52,6 @@ function Router() {
       {/* Dashboard - User Hub */}
       <ProtectedRoute path="/dashboard" component={DashboardIndex} />
       <ProtectedRoute path="/dashboard/check-in" component={DashboardCheckIn} />
-      <ProtectedRoute path="/dashboard/will" component={DashboardWill} />
-      <ProtectedRoute path="/dashboard/wills" component={DashboardWills} />
       <ProtectedRoute path="/dashboard/documents" component={DashboardDocuments} />
       <ProtectedRoute path="/dashboard/video" component={DashboardVideo} />
       <ProtectedRoute path="/dashboard/beneficiaries" component={DashboardBeneficiaries} />
@@ -98,12 +61,6 @@ function Router() {
       <ProtectedRoute path="/dashboard/trust" component={DashboardTrust} />
       <ProtectedRoute path="/dashboard/settings" component={DashboardSettings} />
       <ProtectedRoute path="/dashboard/video-testimony" component={VideoTestimonyPage} />
-      <ProtectedRoute path="/view-will-details" component={ViewWillDetails} />
-      
-      {/* Legacy routes - kept for backwards compatibility */}
-      <ProtectedRoute path="/ai-chat" component={AiChat} />
-      <ProtectedRoute path="/final-review" component={FinalReview} />
-      <ProtectedRoute path="/completion" component={Completion} />
       
       {/* Email Test Route - For development testing only */}
       <Route path="/email-test" component={EmailTest} />
@@ -120,11 +77,8 @@ function App() {
       <AuthProvider>
         <NotificationsProvider>
           <TwoFactorProvider>
-            <SkylerProvider>
-              <Router />
-              <UnfinishedWillNotification />
-              <Toaster />
-            </SkylerProvider>
+            <Router />
+            <Toaster />
           </TwoFactorProvider>
         </NotificationsProvider>
       </AuthProvider>
